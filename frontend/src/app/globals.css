@@ -1744,6 +1744,11 @@ html[lang="fa"] .project-quote blockquote {
     scroll-behavior: auto;
   }
 
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
   *,
   *::before,
   *::after {

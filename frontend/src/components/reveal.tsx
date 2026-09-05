@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 import type { ReactNode } from "react";
 
 type RevealProps = {
@@ -12,15 +12,14 @@ type RevealProps = {
 };
 
 export function Reveal({ as = "div", children, className, delay = 0, id }: RevealProps) {
-  const reduceMotion = useReducedMotion();
   const motionProps = {
-    animate: reduceMotion ? { opacity: 1, y: 0 } : undefined,
     className,
+    "data-reveal": "",
     id,
-    initial: reduceMotion ? (false as const) : { opacity: 0, y: 24 },
+    initial: { opacity: 0, y: 24 },
     transition: { delay, duration: 0.55, ease: [0.22, 1, 0.36, 1] as const },
     viewport: { amount: 0.15, once: true },
-    whileInView: reduceMotion ? undefined : { opacity: 1, y: 0 },
+    whileInView: { opacity: 1, y: 0 },
   };
 
   if (as === "li") {

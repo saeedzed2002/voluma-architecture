@@ -43,11 +43,14 @@ function subscribeToTheme(onStoreChange: () => void) {
 }
 
 export function ThemeControl({ labels }: ThemeControlProps) {
-  const mode = useSyncExternalStore<ThemeMode>(
-    subscribeToTheme,
-    getThemeMode,
-    () => "system",
-  );
+  const mode = useSyncExternalStore<ThemeMode>(subscribeToTheme, getThemeMode, () => "system");
+
+  useEffect(() => {
+    document.documentElement.dataset.hydrated = "true";
+    return () => {
+      delete document.documentElement.dataset.hydrated;
+    };
+  }, []);
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-color-scheme: dark)");

@@ -10,6 +10,7 @@ test("renders the English editorial home and cycles theme without losing content
   page,
 }) => {
   await page.goto("/en");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   await expect(
     page.getByRole("heading", { name: "Architecture for the life between walls." }),
   ).toBeVisible();
@@ -33,6 +34,7 @@ test("renders the Persian route with true RTL flow", async ({ page }) => {
 
 test("serializes project filters and view mode in the URL", async ({ page }) => {
   await page.goto("/en/projects");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   await page.getByRole("button", { name: "Workspace" }).click();
   await expect(page).toHaveURL(/category=workspace/);
   await expect(page.getByRole("heading", { name: "Northline Atelier" })).toBeVisible();
@@ -47,10 +49,12 @@ test("opens the mobile navigation and project gallery with keyboard-accessible c
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/en");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   await page.getByRole("button", { name: "Menu" }).click();
   await expect(page.getByRole("navigation", { name: "Mobile" })).toBeVisible();
 
   await page.goto("/en/projects/courtyard-house");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   await page
     .getByRole("button", { name: /Open image in gallery/ })
     .first()
