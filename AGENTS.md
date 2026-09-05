@@ -32,10 +32,12 @@ Read it before changing product scope, dependencies, architecture, deployment, s
 Run only the checks relevant to the completed phase, and report their actual result:
 
 ```powershell
-corepack pnpm --dir frontend install --frozen-lockfile
-corepack pnpm --dir frontend lint
-corepack pnpm --dir frontend typecheck
-corepack pnpm --dir frontend test
+Push-Location frontend
+corepack pnpm install --frozen-lockfile
+corepack pnpm lint
+corepack pnpm typecheck
+corepack pnpm test
+Pop-Location
 uv --directory backend sync --frozen --all-groups
 uv --directory backend run ruff format --check .
 uv --directory backend run ruff check .
