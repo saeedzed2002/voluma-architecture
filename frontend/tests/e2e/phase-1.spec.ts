@@ -47,6 +47,28 @@ test("renders the English editorial home and cycles theme without losing content
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
 
+test("reloads the document for a locale change without losing the selected theme", async ({
+  page,
+}) => {
+  await page.goto("/en/projects/archive-rooms");
+  await expectHydrated(page);
+
+  await page.getByRole("button", { name: "System theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.getByRole("button", { name: "Light theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+  const localeControl = page.getByRole("link", { name: "View this page in Persian" });
+  await expect(localeControl).toHaveAttribute("href", "/fa/projects/archive-rooms");
+  await Promise.all([page.waitForNavigation(), localeControl.click()]);
+  await expect(page).toHaveURL(/\/fa\/projects\/archive-rooms$/);
+
+  await expectHydrated(page);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  await expect(page.getByRole("heading", { name: "اتاق‌های آرشیو" })).toBeVisible();
+});
+
 test("renders the Persian route with true RTL flow", async ({ page }) => {
   await page.goto("/fa");
   await expect(page.locator("html")).toHaveAttribute("lang", "fa");

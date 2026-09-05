@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 
 import { navItems, siteCopy } from "@/content/site";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -21,6 +21,17 @@ export function PublicHeader({ locale }: PublicHeaderProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
   const otherLocale = alternateLocale(locale);
+  const localeHref = `/${otherLocale}${pathname === "/" ? "" : pathname}`;
+
+  const reloadForLocaleChange = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+      return;
+
+    event.preventDefault();
+    // The locale changes document-level attributes and needs a fresh theme bootstrap.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.assign(localeHref);
+  };
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -77,16 +88,16 @@ export function PublicHeader({ locale }: PublicHeaderProps) {
             {menuOpen ? <CloseIcon className="control-icon" /> : copy.menu}
             <span className="sr-only">{menuOpen ? copy.closeMenu : ""}</span>
           </button>
-          <Link
+          <a
             aria-label={copy.switchLocale}
             className="locale-control"
-            href={pathname}
-            locale={otherLocale}
+            href={localeHref}
+            onClick={reloadForLocaleChange}
           >
             <span className={locale === "en" ? "is-active" : undefined}>EN</span>
             <span aria-hidden="true">/</span>
             <span className={locale === "fa" ? "is-active" : undefined}>FA</span>
-          </Link>
+          </a>
           <ThemeControl labels={copy.theme} />
         </div>
       </div>
