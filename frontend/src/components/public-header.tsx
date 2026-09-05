@@ -53,7 +53,12 @@ export function PublicHeader({ locale }: PublicHeaderProps) {
           {navItems.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
-              <Link aria-current={active ? "page" : undefined} href={item.href} key={item.href}>
+              <Link
+                aria-current={active ? "page" : undefined}
+                href={item.href}
+                key={item.href}
+                prefetch={item.href === "/projects"}
+              >
                 {item.label[locale]}
               </Link>
             );
@@ -99,6 +104,7 @@ export function PublicHeader({ locale }: PublicHeaderProps) {
               href={item.href}
               key={item.href}
               onClick={() => setMenuOpen(false)}
+              prefetch={item.href === "/projects"}
               ref={index === 0 ? firstLinkRef : undefined}
               tabIndex={menuOpen ? 0 : -1}
             >

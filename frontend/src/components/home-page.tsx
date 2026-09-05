@@ -61,7 +61,7 @@ export function HomePage({ locale }: HomePageProps) {
           <h2>{copy.statementTitle}</h2>
           <div>
             <p>{copy.statementBody}</p>
-            <Link className="text-link" href="/studio">
+            <Link className="text-link" href="/studio" prefetch={false}>
               {copy.statementCta}
               <ArrowIcon className="directional-icon" />
             </Link>
@@ -117,6 +117,7 @@ export function HomePage({ locale }: HomePageProps) {
               aria-label={copy.storyTitle}
               className="icon-link"
               href="/journal/material-as-memory"
+              prefetch={false}
             >
               <ArrowIcon className="directional-icon" />
             </Link>
@@ -187,7 +188,7 @@ export function HomePage({ locale }: HomePageProps) {
       <section className="closing-cta">
         <Reveal className="section-shell closing-cta__inner">
           <h2>{copy.ctaTitle}</h2>
-          <Link className="text-link text-link--inverse" href="/contact">
+          <Link className="text-link text-link--inverse" href="/contact" prefetch={false}>
             {copy.cta}
             <ArrowIcon className="directional-icon" />
           </Link>

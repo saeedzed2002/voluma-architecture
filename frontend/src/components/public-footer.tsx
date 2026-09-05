@@ -23,11 +23,13 @@ export function PublicFooter({ locale }: PublicFooterProps) {
           className="site-footer__nav"
         >
           {navItems.map((item) => (
-            <Link href={item.href} key={item.href}>
+            <Link href={item.href} key={item.href} prefetch={item.href === "/projects"}>
               {item.label[locale]}
             </Link>
           ))}
-          <Link href="/privacy">{copy.privacy}</Link>
+          <Link href="/privacy" prefetch={false}>
+            {copy.privacy}
+          </Link>
         </nav>
       </div>
       <div className="site-footer__base">
