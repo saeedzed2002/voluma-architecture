@@ -1,0 +1,45 @@
+name: Continuous integration
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  locked-bootstrap:
+    name: Verify locked bootstrap
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.20.0
+
+      - name: Install frontend from lockfile
+        working-directory: frontend
+        run: |
+          corepack enable
+          corepack pnpm install --frozen-lockfile
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.14.7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: 0.12.9
+
+      - name: Install backend from lockfile
+        working-directory: backend
+        run: uv sync --frozen --all-groups
+
+      - name: Check whitespace errors
+        run: git diff-tree --check --no-commit-id -r HEAD

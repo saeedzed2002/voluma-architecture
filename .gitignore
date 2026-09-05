@@ -1,0 +1,37 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# JavaScript / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+
+# Python
+backend/.venv/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/.coverage
+backend/coverage.xml
+**/__pycache__/
+*.py[cod]
+
+# Locally bootstrapped exact toolchains
+.tooling/
+
+# Local runtime data
+data/
+media/
+postgres_data/
+redis_data/
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
