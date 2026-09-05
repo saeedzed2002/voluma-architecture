@@ -27,6 +27,18 @@ jobs:
           corepack enable
           corepack pnpm install --frozen-lockfile
 
+      - name: Validate Phase 1 frontend
+        working-directory: frontend
+        run: |
+          corepack pnpm lint
+          corepack pnpm typecheck
+          corepack pnpm test
+          corepack pnpm build
+
+      - name: Run Phase 1 browser and accessibility checks
+        working-directory: frontend
+        run: corepack pnpm test:e2e
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

@@ -12,8 +12,11 @@ does not duplicate that specification.
 
 ## Current phase
 
-Phase 0 is establishing reproducible repository controls and exact dependency
-manifests. Application features have not yet been implemented.
+Phase 1 delivers the bilingual static public foundation: local fonts, design tokens,
+light/dark/system themes, locale routing with real LTR/RTL behavior, the responsive
+public shell, Home, Projects archive, and Project detail routes, plus representative
+fixture media. Phase 2 is next and will complete the remaining public routes,
+interactions, SEO surface, and browser-QA scope.
 
 ## Planned layout
 
@@ -25,19 +28,54 @@ infra/     Compose, scripts, and backup operations
 docs/      product source of truth, ADRs, and runbooks
 ```
 
-## Bootstrap baseline
+## Run the current website locally
 
-The project requires the exact Node.js, pnpm, Python, uv, package, and container
-versions in the specification. Do not substitute a nearby runtime version when
-generating lockfiles or release images.
+Install the exact Node.js `24.20.0` runtime, then run the following commands in
+PowerShell. Corepack reads the locked `pnpm@11.25.0` package-manager version from
+`frontend/package.json`.
 
 ```powershell
-corepack pnpm --dir frontend install --frozen-lockfile
-uv --directory backend sync --frozen --all-groups
+cd D:\Project\VOLUMA\frontend
+corepack enable
+corepack pnpm install --frozen-lockfile
+corepack pnpm dev
 ```
 
-Copy `.env.example` to `.env` only for local development and replace every placeholder
-with local protected values. Never commit a populated `.env` file.
+Open `http://localhost:3000/en` for English or `http://localhost:3000/fa` for Persian.
+The current Phase 1 routes are:
+
+- `/en`, `/fa`
+- `/en/projects`, `/fa/projects`
+- `/en/projects/courtyard-house`, `/fa/projects/courtyard-house`
+
+Other representative project slugs are generated from the fixture catalog. Phase 1
+is static and does not require the backend, PostgreSQL, Redis, or environment secrets
+to render these routes. Content and media are explicitly development fixtures, not
+final client material.
+
+## Frontend validation
+
+Run these from `frontend/`:
+
+```powershell
+corepack pnpm lint
+corepack pnpm typecheck
+corepack pnpm test
+corepack pnpm build
+corepack pnpm test:e2e
+```
+
+The browser suite currently uses the locally installed stable Chrome channel. To
+regenerate the Phase 1 visual-review evidence while the dev server is running:
+
+```powershell
+corepack pnpm visual:capture
+```
+
+The complete source of truth remains the product specification. Do not substitute a
+nearby runtime or dependency version when regenerating lockfiles or release images.
+Copy `.env.example` to `.env` only when a later phase requires local services, replace
+every placeholder with protected local values, and never commit a populated `.env`.
 
 ## License status
 

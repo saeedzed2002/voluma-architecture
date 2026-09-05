@@ -1,0 +1,7 @@
+.next/
+coverage/
+node_modules/
+playwright-report/
+public/media/
+src/app/fonts/
+test-results/

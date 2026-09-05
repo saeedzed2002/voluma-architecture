@@ -2,6 +2,7 @@
   "name": "@voluma/frontend",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "license": "UNLICENSED",
   "packageManager": "pnpm@11.25.0",
   "engines": {
@@ -16,7 +17,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "visual:capture": "node tests/visual/capture-phase-1.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "5.9.1",
@@ -29,13 +31,19 @@
     "zod": "4.5.4"
   },
   "devDependencies": {
+    "@eslint/compat": "2.1.0",
     "@axe-core/playwright": "4.13.0",
     "@playwright/test": "1.62.1",
     "@tailwindcss/postcss": "4.3.3",
+    "@typescript/native": "npm:typescript@7.0.2",
+    "@types/node": "24.6.1",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
     "eslint": "10.9.1",
+    "eslint-config-next": "16.3.4",
     "prettier": "3.9.6",
     "tailwindcss": "4.3.3",
-    "typescript": "7.0.2",
+    "typescript": "npm:@typescript/typescript6@6.0.2",
     "vitest": "4.1.11"
   }
 }

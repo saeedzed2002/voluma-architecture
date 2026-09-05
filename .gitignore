@@ -10,6 +10,7 @@ frontend/out/
 frontend/coverage/
 frontend/playwright-report/
 frontend/test-results/
+*.tsbuildinfo
 
 # Python
 backend/.venv/
@@ -25,11 +26,11 @@ backend/coverage.xml
 .tooling/
 .pnpm-store/
 
-# Local runtime data
-data/
-media/
-postgres_data/
-redis_data/
+# Local runtime data at the repository root
+/data/
+/media/
+/postgres_data/
+/redis_data/
 
 # Editor and OS files
 .DS_Store
