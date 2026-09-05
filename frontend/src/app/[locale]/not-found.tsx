@@ -1,13 +1,5 @@
-import { Link } from "@/i18n/navigation";
+import { LocalizedNotFound } from "@/components/localized-not-found";
 
 export default function NotFound() {
-  return (
-    <main className="not-found section-shell">
-      <p>404</p>
-      <h1>Page not found</h1>
-      <Link className="text-link" href="/">
-        Return home
-      </Link>
-    </main>
-  );
+  return <LocalizedNotFound />;
 }

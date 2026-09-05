@@ -9,6 +9,7 @@ import { PublicFooter } from "@/components/public-footer";
 import { PublicHeader } from "@/components/public-header";
 import { routing, type Locale } from "@/i18n/routing";
 import { directionForLocale } from "@/lib/locale";
+import { siteOrigin } from "@/lib/seo";
 import { themeInitScript } from "@/lib/theme";
 
 import { instrumentSans, vazirmatn } from "../fonts";
@@ -29,8 +30,30 @@ export async function generateMetadata({ params }: LocaleLayoutProps): Promise<M
   const t = await getTranslations({ locale, namespace: "Metadata" });
 
   return {
+    alternates: {
+      canonical: `/${locale}`,
+      languages: {
+        en: "/en",
+        fa: "/fa",
+        "x-default": "/en",
+      },
+    },
+    metadataBase: siteOrigin,
     title: { default: t("title"), template: `%s — ${t("title")}` },
     description: t("description"),
+    openGraph: {
+      description: t("description"),
+      locale: locale === "fa" ? "fa_IR" : "en_US",
+      siteName: "VOLUMA",
+      title: t("title"),
+      type: "website",
+      url: `/${locale}`,
+    },
+    twitter: {
+      card: "summary_large_image",
+      description: t("description"),
+      title: t("title"),
+    },
   };
 }
 
@@ -40,6 +63,22 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
 
   const locale = localeParam as Locale;
   const direction = directionForLocale(locale);
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        name: "VOLUMA",
+        url: siteOrigin.origin,
+      },
+      {
+        "@type": "WebSite",
+        inLanguage: locale === "fa" ? "fa-IR" : "en-US",
+        name: "VOLUMA",
+        url: new URL(`/${locale}`, siteOrigin).toString(),
+      },
+    ],
+  };
   setRequestLocale(locale);
 
   return (
@@ -54,6 +93,10 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
         <Script id="voluma-theme-init" strategy="beforeInteractive">
           {themeInitScript}
         </Script>
+        <script
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+          type="application/ld+json"
+        />
         <NextIntlClientProvider>
           <a className="skip-link" href="#main-content">
             {locale === "fa" ? "رفتن به محتوای اصلی" : "Skip to main content"}

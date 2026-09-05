@@ -7,6 +7,7 @@ import { FixtureNotice } from "@/components/fixture-notice";
 import { ProjectArchive } from "@/components/project-archive";
 import { projects, siteCopy } from "@/content/site";
 import { routing, type Locale } from "@/i18n/routing";
+import { publicMetadata } from "@/lib/seo";
 
 type ProjectsPageProps = {
   params: Promise<{ locale: string }>;
@@ -16,7 +17,13 @@ export async function generateMetadata({ params }: ProjectsPageProps): Promise<M
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) return {};
 
-  return { title: siteCopy[locale].archiveTitle };
+  const currentLocale = locale as Locale;
+  return publicMetadata({
+    description: siteCopy[currentLocale].archiveIntro,
+    locale: currentLocale,
+    path: "/projects",
+    title: siteCopy[currentLocale].archiveTitle,
+  });
 }
 
 export default async function ProjectsPage({ params }: ProjectsPageProps) {

@@ -3,7 +3,9 @@
 import Image from "next/image";
 import { useRef, useState } from "react";
 
-import { CloseIcon } from "./icons";
+import type { Locale } from "@/i18n/routing";
+
+import { ArrowIcon, CloseIcon } from "./icons";
 
 export type GalleryImage = {
   src: string;
@@ -14,10 +16,20 @@ export type GalleryImage = {
 type ProjectGalleryProps = {
   closeLabel: string;
   images: GalleryImage[];
+  locale: Locale;
+  nextLabel: string;
   openLabel: string;
+  previousLabel: string;
 };
 
-export function ProjectGallery({ closeLabel, images, openLabel }: ProjectGalleryProps) {
+export function ProjectGallery({
+  closeLabel,
+  images,
+  locale,
+  nextLabel,
+  openLabel,
+  previousLabel,
+}: ProjectGalleryProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const returnFocusRef = useRef<HTMLButtonElement | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -29,6 +41,10 @@ export function ProjectGallery({ closeLabel, images, openLabel }: ProjectGallery
   };
 
   const closeDialog = () => dialogRef.current?.close();
+
+  const moveImage = (offset: number) => {
+    setActiveIndex((current) => (current + offset + images.length) % images.length);
+  };
 
   return (
     <>
@@ -55,6 +71,16 @@ export function ProjectGallery({ closeLabel, images, openLabel }: ProjectGallery
           if (event.target === dialogRef.current) closeDialog();
         }}
         onClose={() => returnFocusRef.current?.focus()}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            moveImage(-1);
+          }
+          if (event.key === "ArrowRight") {
+            event.preventDefault();
+            moveImage(1);
+          }
+        }}
         ref={dialogRef}
       >
         <button
@@ -65,6 +91,29 @@ export function ProjectGallery({ closeLabel, images, openLabel }: ProjectGallery
         >
           <CloseIcon className="control-icon" />
         </button>
+        <div className="gallery-dialog__controls">
+          <button
+            aria-label={previousLabel}
+            className="gallery-dialog__previous"
+            onClick={() => moveImage(-1)}
+            type="button"
+          >
+            <ArrowIcon className="directional-icon directional-icon--back" />
+          </button>
+          <p aria-live="polite">
+            {locale === "fa"
+              ? `تصویر ${activeIndex + 1} از ${images.length}`
+              : `Image ${activeIndex + 1} of ${images.length}`}
+          </p>
+          <button
+            aria-label={nextLabel}
+            className="gallery-dialog__next"
+            onClick={() => moveImage(1)}
+            type="button"
+          >
+            <ArrowIcon className="directional-icon" />
+          </button>
+        </div>
         <figure>
           <div className="gallery-dialog__media">
             <Image

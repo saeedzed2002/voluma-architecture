@@ -12,6 +12,7 @@ import { getProject, localize, projects, siteCopy } from "@/content/site";
 import { Link } from "@/i18n/navigation";
 import { routing, type Locale } from "@/i18n/routing";
 import { formatYear } from "@/lib/locale";
+import { publicMetadata } from "@/lib/seo";
 
 type ProjectPageProps = {
   params: Promise<{ locale: string; slug: string }>;
@@ -28,10 +29,13 @@ export async function generateMetadata({ params }: ProjectPageProps): Promise<Me
   const project = getProject(slug);
   if (!project || !hasLocale(routing.locales, locale)) return {};
 
-  return {
-    title: project.title[locale],
-    description: project.summary[locale],
-  };
+  const currentLocale = locale as Locale;
+  return publicMetadata({
+    description: project.summary[currentLocale],
+    locale: currentLocale,
+    path: `/projects/${project.slug}`,
+    title: project.title[currentLocale],
+  });
 }
 
 export default async function ProjectPage({ params }: ProjectPageProps) {
@@ -160,7 +164,10 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         <ProjectGallery
           closeLabel={copy.closeGallery}
           images={galleryImages.slice(1)}
+          locale={locale}
+          nextLabel={locale === "fa" ? "تصویر بعدی" : "Next image"}
           openLabel={copy.openImage}
+          previousLabel={locale === "fa" ? "تصویر قبلی" : "Previous image"}
         />
       </section>
 

@@ -1,0 +1,48 @@
+import type { Metadata } from "next";
+
+import type { Locale } from "@/i18n/routing";
+
+const fallbackOrigin = "http://localhost:3000";
+
+export const siteOrigin = new URL(process.env.VOLUMA_PUBLIC_ORIGIN ?? fallbackOrigin);
+
+type PageMetadataInput = {
+  description: string;
+  locale: Locale;
+  path: string;
+  title: string;
+};
+
+function localizedPath(locale: Locale, path: string) {
+  return `/${locale}${path}`;
+}
+
+export function publicMetadata({ description, locale, path, title }: PageMetadataInput): Metadata {
+  const canonical = localizedPath(locale, path);
+
+  return {
+    alternates: {
+      canonical,
+      languages: {
+        en: localizedPath("en", path),
+        fa: localizedPath("fa", path),
+        "x-default": localizedPath("en", path),
+      },
+    },
+    description,
+    openGraph: {
+      description,
+      locale: locale === "fa" ? "fa_IR" : "en_US",
+      siteName: "VOLUMA",
+      title,
+      type: "website",
+      url: canonical,
+    },
+    title,
+    twitter: {
+      card: "summary_large_image",
+      description,
+      title,
+    },
+  };
+}

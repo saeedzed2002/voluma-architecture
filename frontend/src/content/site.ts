@@ -313,7 +313,7 @@ export const siteCopy = {
     privacy: "Privacy",
     copyright: "© 2026 VOLUMA",
     fixture:
-      "Phase 1 preview: all project names, dates, locations, text, and imagery are representative development fixtures.",
+      "Development preview: all project names, dates, locations, text, and imagery are representative fixtures and not published content.",
     archiveTitle: "Projects",
     archiveIntro: "Built work, interiors, and ongoing studies shaped by place and use.",
     searchPlaceholder: "Search projects",
@@ -372,7 +372,7 @@ export const siteCopy = {
     privacy: "حریم خصوصی",
     copyright: "© ۲۰۲۶ VOLUMA",
     fixture:
-      "پیش‌نمایش فاز ۱: همه‌ی نام‌ها، تاریخ‌ها، مکان‌ها، متن‌ها و تصاویر، داده‌های نمونه‌ی توسعه هستند.",
+      "پیش‌نمایش توسعه: همه‌ی نام‌ها، تاریخ‌ها، مکان‌ها، متن‌ها و تصاویر، داده‌های نمونه هستند و محتوای منتشرشده نیستند.",
     archiveTitle: "پروژه‌ها",
     archiveIntro:
       "آثار ساخته‌شده، فضاهای داخلی و مطالعات جاری؛ شکل‌گرفته با مکان و شیوه‌ی استفاده.",

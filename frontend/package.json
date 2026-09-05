@@ -18,7 +18,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "visual:capture": "node tests/visual/capture-phase-1.mjs"
+    "visual:capture": "node tests/visual/capture-phase-1.mjs",
+    "visual:capture:phase2": "node tests/visual/capture-phase-2.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "5.9.1",
