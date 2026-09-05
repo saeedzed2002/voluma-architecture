@@ -6,45 +6,48 @@ import { notFound } from "next/navigation";
 import { FixtureNotice } from "@/components/fixture-notice";
 import { ArrowIcon } from "@/components/icons";
 import { Reveal } from "@/components/reveal";
-import { getJournalArticle, journalArticles } from "@/content/public-pages";
-import { localize, siteCopy } from "@/content/site";
+import { siteCopy } from "@/content/site";
 import { Link } from "@/i18n/navigation";
 import { routing, type Locale } from "@/i18n/routing";
+import { getArticle, getJournal, PublicApiError } from "@/lib/public-api";
 import { publicMetadata } from "@/lib/seo";
 
 type JournalArticlePageProps = {
   params: Promise<{ locale: string; slug: string }>;
 };
 
-export function generateStaticParams() {
-  return routing.locales.flatMap((locale) =>
-    journalArticles.map((article) => ({ locale, slug: article.slug })),
-  );
-}
-
 export async function generateMetadata({ params }: JournalArticlePageProps): Promise<Metadata> {
   const { locale, slug } = await params;
-  const article = getJournalArticle(slug);
-  if (!article || !hasLocale(routing.locales, locale)) return {};
+  if (!hasLocale(routing.locales, locale)) return {};
   const currentLocale = locale as Locale;
-
-  return publicMetadata({
-    description: localize(article.excerpt, currentLocale),
-    locale: currentLocale,
-    path: `/journal/${article.slug}`,
-    title: localize(article.title, currentLocale),
-  });
+  try {
+    const article = await getArticle(currentLocale, slug);
+    return publicMetadata({
+      description: article.excerpt,
+      locale: currentLocale,
+      path: `/journal/${article.slug}`,
+      title: article.title,
+    });
+  } catch (error) {
+    if (error instanceof PublicApiError && error.status === 404) return {};
+    throw error;
+  }
 }
 
 export default async function JournalArticlePage({ params }: JournalArticlePageProps) {
   const { locale: localeParam, slug } = await params;
-  const article = getJournalArticle(slug);
-  if (!article || !hasLocale(routing.locales, localeParam)) notFound();
+  if (!hasLocale(routing.locales, localeParam)) notFound();
   const locale = localeParam as Locale;
+  let article;
+  try {
+    article = await getArticle(locale, slug);
+  } catch (error) {
+    if (error instanceof PublicApiError && error.status === 404) notFound();
+    throw error;
+  }
+  const journal = await getJournal(locale);
+  const relatedArticles = journal.items.filter((entry) => entry.slug !== article.slug).slice(0, 2);
   const copy = siteCopy[locale];
-  const relatedArticles = journalArticles
-    .filter((entry) => entry.slug !== article.slug)
-    .slice(0, 2);
 
   return (
     <main className="journal-article">
@@ -54,28 +57,24 @@ export default async function JournalArticlePage({ params }: JournalArticlePageP
           {locale === "fa" ? "بازگشت به یادداشت‌ها" : "Back to journal"}
         </Link>
         <p>
-          {localize(article.category, locale)} <span aria-hidden="true">·</span>{" "}
-          {localize(article.readingTime, locale)}
+          {article.category.title} <span aria-hidden="true">·</span> {article.reading_minutes}{" "}
+          {locale === "fa" ? "دقیقه مطالعه" : "min read"}
         </p>
-        <h1>{localize(article.title, locale)}</h1>
-        <p>{localize(article.excerpt, locale)}</p>
+        <h1>{article.title}</h1>
+        <p>{article.excerpt}</p>
       </header>
       <div className="journal-article__cover">
-        <Image
-          alt={localize(article.alt, locale)}
-          fill
-          priority
-          sizes="100vw"
-          src={article.cover}
-        />
+        {article.cover_image ? (
+          <Image alt={article.cover_image.alt} fill priority sizes="100vw" src={article.cover_image.url} />
+        ) : null}
       </div>
       <div className="section-shell journal-article__fixture">
         <FixtureNotice>{copy.fixture}</FixtureNotice>
       </div>
       <article className="journal-article__body section-shell">
         {article.body.map((paragraph, index) => (
-          <Reveal as="div" delay={index * 0.05} key={localize(paragraph, locale)}>
-            <p>{localize(paragraph, locale)}</p>
+          <Reveal as="div" delay={index * 0.05} key={paragraph}>
+            <p>{paragraph}</p>
           </Reveal>
         ))}
       </article>
@@ -84,8 +83,8 @@ export default async function JournalArticlePage({ params }: JournalArticlePageP
         <div>
           {relatedArticles.map((entry) => (
             <Link href={`/journal/${entry.slug}`} key={entry.slug}>
-              <span>{localize(entry.category, locale)}</span>
-              <strong>{localize(entry.title, locale)}</strong>
+              <span>{entry.category.title}</span>
+              <strong>{entry.title}</strong>
               <ArrowIcon className="directional-icon" />
             </Link>
           ))}

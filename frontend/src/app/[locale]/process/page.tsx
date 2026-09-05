@@ -5,9 +5,9 @@ import { notFound } from "next/navigation";
 import { EditorialHeader } from "@/components/editorial-header";
 import { FixtureNotice } from "@/components/fixture-notice";
 import { Reveal } from "@/components/reveal";
-import { processSteps } from "@/content/public-pages";
-import { localize, siteCopy } from "@/content/site";
+import { siteCopy } from "@/content/site";
 import { routing, type Locale } from "@/i18n/routing";
+import { getProcess } from "@/lib/public-api";
 import { publicMetadata } from "@/lib/seo";
 
 type ProcessPageProps = {
@@ -32,6 +32,7 @@ export default async function ProcessPage({ params }: ProcessPageProps) {
   if (!hasLocale(routing.locales, localeParam)) notFound();
   const locale = localeParam as Locale;
   const copy = siteCopy[locale];
+  const process = await getProcess(locale);
 
   return (
     <main className="editorial-page section-shell">
@@ -46,12 +47,12 @@ export default async function ProcessPage({ params }: ProcessPageProps) {
       />
       <FixtureNotice>{copy.fixture}</FixtureNotice>
       <ol className="process-list">
-        {processSteps.map((step, index) => (
-          <Reveal as="li" className="process-list__step" delay={index * 0.05} key={step.index}>
-            <span>{step.index}</span>
+        {process.map((step, index) => (
+          <Reveal as="li" className="process-list__step" delay={index * 0.05} key={step.title}>
+            <span>{String(step.display_order).padStart(2, "0")}</span>
             <div>
-              <h2>{localize(step.title, locale)}</h2>
-              <p>{localize(step.summary, locale)}</p>
+              <h2>{step.title}</h2>
+              <p>{step.summary}</p>
             </div>
           </Reveal>
         ))}

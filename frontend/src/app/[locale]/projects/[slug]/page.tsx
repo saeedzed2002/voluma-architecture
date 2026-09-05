@@ -8,70 +8,58 @@ import { ArrowIcon } from "@/components/icons";
 import { ProjectGallery, type GalleryImage } from "@/components/project-gallery";
 import { ProjectLink } from "@/components/project-link";
 import { Reveal } from "@/components/reveal";
-import { getProject, localize, projects, siteCopy } from "@/content/site";
+import { siteCopy } from "@/content/site";
 import { Link } from "@/i18n/navigation";
 import { routing, type Locale } from "@/i18n/routing";
 import { formatYear } from "@/lib/locale";
+import { getProject, getProjects, PublicApiError } from "@/lib/public-api";
 import { publicMetadata } from "@/lib/seo";
 
 type ProjectPageProps = {
   params: Promise<{ locale: string; slug: string }>;
 };
 
-export function generateStaticParams() {
-  return routing.locales.flatMap((locale) =>
-    projects.map((project) => ({ locale, slug: project.slug })),
-  );
-}
-
 export async function generateMetadata({ params }: ProjectPageProps): Promise<Metadata> {
   const { locale, slug } = await params;
-  const project = getProject(slug);
-  if (!project || !hasLocale(routing.locales, locale)) return {};
-
+  if (!hasLocale(routing.locales, locale)) return {};
   const currentLocale = locale as Locale;
-  return publicMetadata({
-    description: project.summary[currentLocale],
-    locale: currentLocale,
-    path: `/projects/${project.slug}`,
-    title: project.title[currentLocale],
-  });
+  try {
+    const project = await getProject(currentLocale, slug);
+    return publicMetadata({
+      description: project.summary,
+      locale: currentLocale,
+      path: `/projects/${project.slug}`,
+      title: project.title,
+    });
+  } catch (error) {
+    if (error instanceof PublicApiError && error.status === 404) return {};
+    throw error;
+  }
 }
 
 export default async function ProjectPage({ params }: ProjectPageProps) {
   const { locale: localeParam, slug } = await params;
-  const project = getProject(slug);
-  if (!project || !hasLocale(routing.locales, localeParam)) notFound();
+  if (!hasLocale(routing.locales, localeParam)) notFound();
 
   const locale = localeParam as Locale;
+  let project;
+  try {
+    project = await getProject(locale, slug);
+  } catch (error) {
+    if (error instanceof PublicApiError && error.status === 404) notFound();
+    throw error;
+  }
+  const archive = await getProjects(locale);
   const copy = siteCopy[locale];
-  const projectIndex = projects.findIndex((entry) => entry.slug === slug);
-  const previous = projects[(projectIndex - 1 + projects.length) % projects.length];
-  const next = projects[(projectIndex + 1) % projects.length];
-  const related = [next, projects[(projectIndex + 2) % projects.length]];
-  const galleryImages: GalleryImage[] = [
-    {
-      src: project.image,
-      alt: localize(project.alt, locale),
-      caption: copy.detailCaption,
-    },
-    {
-      src: "/media/material-shadow.png",
-      alt:
-        locale === "fa"
-          ? "سایه‌ی برگ‌ها روی بتن و قاب بلوط"
-          : "Leaf shadows on concrete and an oak frame",
-      caption: copy.materialCaption,
-    },
-    {
-      src: "/media/northline-atelier.png",
-      alt:
-        locale === "fa"
-          ? "فضای داخلی بتنی و چوبی رو به درختان"
-          : "Concrete and oak interior facing trees",
-      caption: copy.interiorCaption,
-    },
-  ];
+  const projectIndex = archive.items.findIndex((entry) => entry.slug === slug);
+  const previous = archive.items[(projectIndex - 1 + archive.items.length) % archive.items.length];
+  const next = archive.items[(projectIndex + 1) % archive.items.length];
+  const related = archive.items.filter((entry) => entry.slug !== slug).slice(0, 2);
+  const galleryImages: GalleryImage[] = project.gallery.map((image, index) => ({
+    src: image.url,
+    alt: image.alt,
+    caption: index === 0 ? copy.detailCaption : copy.materialCaption,
+  }));
 
   return (
     <main className="project-page">
@@ -81,20 +69,15 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           {copy.backToProjects}
         </Link>
         <div className="project-hero__heading">
-          <h1>{localize(project.title, locale)}</h1>
-          <p>{localize(project.summary, locale)}</p>
+          <h1>{project.title}</h1>
+          <p>{project.summary}</p>
         </div>
       </header>
 
       <div className="project-hero__media">
-        <Image
-          alt={localize(project.alt, locale)}
-          fill
-          priority
-          sizes="100vw"
-          src={project.image}
-          style={{ objectPosition: project.imagePosition ?? "center" }}
-        />
+        {project.cover_image ? (
+          <Image alt={project.cover_image.alt} fill priority sizes="100vw" src={project.cover_image.url} />
+        ) : null}
       </div>
 
       <div className="project-fixture section-shell">
@@ -103,73 +86,88 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
       <dl className="project-facts section-shell">
         {[
-          [copy.facts.type, localize(project.categoryLabel, locale)],
-          [copy.facts.location, localize(project.location, locale)],
-          [copy.facts.status, localize(project.status, locale)],
-          [copy.facts.year, formatYear(project.year, locale)],
-          [copy.facts.area, localize(project.area, locale)],
-          [copy.facts.scope, localize(project.scope, locale)],
-        ].map(([term, value]) => (
-          <div key={term}>
-            <dt>{term}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
+          [copy.facts.type, project.typologies.map((typology) => typology.title).join(" · ")],
+          [copy.facts.location, project.location],
+          [copy.facts.status, project.status],
+          [
+            copy.facts.year,
+            project.completion_year ? formatYear(String(project.completion_year), locale) : null,
+          ],
+          [copy.facts.area, project.area],
+          [copy.facts.scope, project.scope],
+        ]
+          .filter(([, value]) => value)
+          .map(([term, value]) => (
+            <div key={term}>
+              <dt>{term}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
       </dl>
 
-      <section className="project-intro section-shell">
-        <Reveal>
-          <h2>{localize(project.introTitle, locale)}</h2>
-          <p>{localize(project.intro, locale)}</p>
-        </Reveal>
-        <Reveal className="project-intro__drawing" delay={0.08}>
-          <Image
-            alt={
-              locale === "fa"
-                ? "جزئیات اتصال بتن، چوب و شیشه"
-                : "Detail of concrete, oak, and glass junctions"
-            }
-            fill
-            sizes="(max-width: 767px) 100vw, 44vw"
-            src="/media/material-shadow.png"
-          />
-        </Reveal>
-      </section>
+      {project.introduction ? (
+        <section className="project-intro section-shell">
+          <Reveal>
+            <h2>{project.introduction.title}</h2>
+            <p>{project.introduction.body}</p>
+          </Reveal>
+          <Reveal className="project-intro__drawing" delay={0.08}>
+            {project.cover_image ? (
+              <Image
+                alt={project.cover_image.alt}
+                fill
+                sizes="(max-width: 767px) 100vw, 44vw"
+                src={project.cover_image.url}
+              />
+            ) : null}
+          </Reveal>
+        </section>
+      ) : null}
 
-      <section className="project-narrative section-shell">
-        <Reveal className="project-narrative__copy">
-          <h2>{localize(project.narrativeTitle, locale)}</h2>
-          <p>{localize(project.narrative, locale)}</p>
-          <small>{copy.detailCaption}</small>
-        </Reveal>
-        <Reveal className="project-narrative__media" delay={0.08}>
-          <Image
-            alt={localize(project.alt, locale)}
-            fill
-            sizes="(max-width: 767px) 100vw, 58vw"
-            src={project.image}
-          />
-        </Reveal>
-      </section>
+      {project.narrative ? (
+        <section className="project-narrative section-shell">
+          <Reveal className="project-narrative__copy">
+            <h2>{project.narrative.title}</h2>
+            <p>{project.narrative.body}</p>
+            <small>{copy.detailCaption}</small>
+          </Reveal>
+          <Reveal className="project-narrative__media" delay={0.08}>
+            {project.cover_image ? (
+              <Image
+                alt={project.cover_image.alt}
+                fill
+                sizes="(max-width: 767px) 100vw, 58vw"
+                src={project.cover_image.url}
+              />
+            ) : null}
+          </Reveal>
+        </section>
+      ) : null}
 
-      <Reveal className="project-quote section-shell">
-        <blockquote>“{localize(project.quote, locale)}”</blockquote>
-      </Reveal>
-
-      <section className="project-material section-shell">
-        <Reveal className="project-material__copy">
-          <h2>{localize(project.materialTitle, locale)}</h2>
-          <p>{localize(project.material, locale)}</p>
+      {project.quote ? (
+        <Reveal className="project-quote section-shell">
+          <blockquote>“{project.quote}”</blockquote>
         </Reveal>
-        <ProjectGallery
-          closeLabel={copy.closeGallery}
-          images={galleryImages.slice(1)}
-          locale={locale}
-          nextLabel={locale === "fa" ? "تصویر بعدی" : "Next image"}
-          openLabel={copy.openImage}
-          previousLabel={locale === "fa" ? "تصویر قبلی" : "Previous image"}
-        />
-      </section>
+      ) : null}
+
+      {project.material ? (
+        <section className="project-material section-shell">
+          <Reveal className="project-material__copy">
+            <h2>{project.material.title}</h2>
+            <p>{project.material.body}</p>
+          </Reveal>
+          {galleryImages.length ? (
+            <ProjectGallery
+              closeLabel={copy.closeGallery}
+              images={galleryImages}
+              locale={locale}
+              nextLabel={locale === "fa" ? "تصویر بعدی" : "Next image"}
+              openLabel={copy.openImage}
+              previousLabel={locale === "fa" ? "تصویر قبلی" : "Previous image"}
+            />
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="related-projects section-shell">
         <h2 className="section-title">{copy.continueExploring}</h2>
@@ -178,25 +176,27 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             <ProjectLink key={entry.slug} locale={locale} project={entry} variant="related" />
           ))}
         </div>
-        <nav
-          aria-label={locale === "fa" ? "پیمایش پروژه‌ها" : "Project navigation"}
-          className="project-pagination"
-        >
-          <Link href={`/projects/${previous.slug}`}>
-            <ArrowIcon className="directional-icon directional-icon--back" />
-            <span>
-              <small>{copy.previousProject}</small>
-              {localize(previous.title, locale)}
-            </span>
-          </Link>
-          <Link href={`/projects/${next.slug}`}>
-            <span>
-              <small>{copy.nextProject}</small>
-              {localize(next.title, locale)}
-            </span>
-            <ArrowIcon className="directional-icon" />
-          </Link>
-        </nav>
+        {previous && next ? (
+          <nav
+            aria-label={locale === "fa" ? "پیمایش پروژه‌ها" : "Project navigation"}
+            className="project-pagination"
+          >
+            <Link href={`/projects/${previous.slug}`}>
+              <ArrowIcon className="directional-icon directional-icon--back" />
+              <span>
+                <small>{copy.previousProject}</small>
+                {previous.title}
+              </span>
+            </Link>
+            <Link href={`/projects/${next.slug}`}>
+              <span>
+                <small>{copy.nextProject}</small>
+                {next.title}
+              </span>
+              <ArrowIcon className="directional-icon" />
+            </Link>
+          </nav>
+        ) : null}
       </section>
     </main>
   );

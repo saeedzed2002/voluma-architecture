@@ -1,29 +1,21 @@
 "use client";
 
-import { useMemo, useTransition, type FormEvent } from "react";
-import { useSearchParams } from "next/navigation";
+import { useTransition, type FormEvent } from "react";
 
-import { journalArticles } from "@/content/public-pages";
-import { localize, projects } from "@/content/site";
 import { Link, useRouter } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
+import type { PublicSearch } from "@/lib/public-api";
 
 type SearchExperienceProps = {
   locale: Locale;
-};
-
-type SearchResult = {
-  href: string;
-  kind: string;
-  summary: string;
-  title: string;
+  search: PublicSearch;
 };
 
 const copy = {
   en: {
     clear: "Clear search",
     empty: "No projects or journal articles match this search.",
-    hint: "Search the development fixtures for projects and journal articles.",
+    hint: "Search the published public archive for projects and journal articles.",
     input: "Search projects and journal",
     results: "results",
     submit: "Search",
@@ -31,51 +23,17 @@ const copy = {
   fa: {
     clear: "پاک‌کردن جست‌وجو",
     empty: "هیچ پروژه یا یادداشتی با این جست‌وجو پیدا نشد.",
-    hint: "پروژه‌ها و یادداشت‌های نمونهٔ توسعه را جست‌وجو کنید.",
+    hint: "پروژه‌ها و یادداشت‌های منتشرشده را جست‌وجو کنید.",
     input: "جست‌وجوی پروژه‌ها و یادداشت‌ها",
     results: "نتیجه",
     submit: "جست‌وجو",
   },
 } as const;
 
-export function SearchExperience({ locale }: SearchExperienceProps) {
-  const searchParams = useSearchParams();
+export function SearchExperience({ locale, search }: SearchExperienceProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const query = searchParams.get("q")?.trim() ?? "";
   const labels = copy[locale];
-  const results = useMemo(() => {
-    if (!query) return [];
-    const normalized = query.toLocaleLowerCase(locale);
-    const projectResults: SearchResult[] = projects
-      .filter((project) =>
-        [project.title[locale], project.summary[locale], project.location[locale], project.year]
-          .join(" ")
-          .toLocaleLowerCase(locale)
-          .includes(normalized),
-      )
-      .map((project) => ({
-        href: `/projects/${project.slug}`,
-        kind: locale === "fa" ? "پروژه" : "Project",
-        summary: localize(project.summary, locale),
-        title: localize(project.title, locale),
-      }));
-    const articleResults: SearchResult[] = journalArticles
-      .filter((article) =>
-        [article.title[locale], article.excerpt[locale], article.category[locale]]
-          .join(" ")
-          .toLocaleLowerCase(locale)
-          .includes(normalized),
-      )
-      .map((article) => ({
-        href: `/journal/${article.slug}`,
-        kind: locale === "fa" ? "یادداشت" : "Journal",
-        summary: localize(article.excerpt, locale),
-        title: localize(article.title, locale),
-      }));
-
-    return [...projectResults, ...articleResults];
-  }, [locale, query]);
 
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -90,27 +48,32 @@ export function SearchExperience({ locale }: SearchExperienceProps) {
       <form onSubmit={submitSearch} role="search">
         <label>
           <span className="sr-only">{labels.input}</span>
-          <input defaultValue={query} name="q" placeholder={labels.input} type="search" />
+          <input defaultValue={search.query} name="q" placeholder={labels.input} type="search" />
         </label>
         <button type="submit">{labels.submit}</button>
       </form>
-      {!query ? <p className="search-experience__hint">{labels.hint}</p> : null}
-      {query ? (
+      {!search.query ? <p className="search-experience__hint">{labels.hint}</p> : null}
+      {search.query ? (
         <div className="search-experience__results">
           <p aria-live="polite" role="status">
-            {results.length} {labels.results}
+            {search.items.length} {labels.results}
           </p>
-          {results.length ? (
+          {search.items.length ? (
             <ol>
-              {results.map((result) => (
-                <li key={result.href}>
-                  <Link href={result.href}>
-                    <span>{result.kind}</span>
-                    <h2>{result.title}</h2>
-                    <p>{result.summary}</p>
-                  </Link>
-                </li>
-              ))}
+              {search.items.map((result) => {
+                const href = `/${result.kind === "project" ? "projects" : "journal"}/${result.slug}`;
+                const kind =
+                  result.kind === "project" ? (locale === "fa" ? "پروژه" : "Project") : locale === "fa" ? "یادداشت" : "Journal";
+                return (
+                  <li key={`${result.kind}-${result.slug}`}>
+                    <Link href={href}>
+                      <span>{kind}</span>
+                      <h2>{result.title}</h2>
+                      <p>{result.summary}</p>
+                    </Link>
+                  </li>
+                );
+              })}
             </ol>
           ) : (
             <p>{labels.empty}</p>

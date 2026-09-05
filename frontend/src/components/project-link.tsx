@@ -1,16 +1,15 @@
 import Image from "next/image";
 
-import type { Project } from "@/content/site";
-import { localize } from "@/content/site";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { formatYear } from "@/lib/locale";
+import type { PublicProject } from "@/lib/public-api";
 
 import { ArrowIcon } from "./icons";
 
 type ProjectLinkProps = {
   locale: Locale;
-  project: Project;
+  project: PublicProject;
   priority?: boolean;
   variant?: "feature" | "archive" | "related";
 };
@@ -21,33 +20,36 @@ export function ProjectLink({
   priority = false,
   variant = "archive",
 }: ProjectLinkProps) {
+  const typology = project.typologies[0]?.title ?? (locale === "fa" ? "پروژه" : "Project");
+  const coverImage = project.cover_image;
+
   return (
     <article className="project-link" data-variant={variant}>
-      <Link aria-label={localize(project.title, locale)} href={`/projects/${project.slug}`}>
+      <Link aria-label={project.title} href={`/projects/${project.slug}`}>
         <div className="project-link__media">
-          <Image
-            alt={localize(project.alt, locale)}
-            fill
-            priority={priority}
-            sizes={
-              variant === "feature"
-                ? "(max-width: 767px) 100vw, 58vw"
-                : "(max-width: 767px) 100vw, (max-width: 1199px) 50vw, 34vw"
-            }
-            src={project.image}
-            style={{ objectPosition: project.imagePosition ?? "center" }}
-          />
+          {coverImage ? (
+            <Image
+              alt={coverImage.alt}
+              fill
+              priority={priority}
+              sizes={
+                variant === "feature"
+                  ? "(max-width: 767px) 100vw, 58vw"
+                  : "(max-width: 767px) 100vw, (max-width: 1199px) 50vw, 34vw"
+              }
+              src={coverImage.url}
+            />
+          ) : null}
         </div>
         <div className="project-link__meta">
           <div>
-            <h3>{localize(project.title, locale)}</h3>
+            <h3>{project.title}</h3>
             <p>
-              {localize(project.categoryLabel, locale)} <span aria-hidden="true">·</span>{" "}
-              {formatYear(project.year, locale)}
+              {typology} <span aria-hidden="true">·</span>{" "}
+              {project.completion_year ? formatYear(String(project.completion_year), locale) : "—"}
               {variant === "archive" ? (
                 <>
-                  {" "}
-                  <span aria-hidden="true">·</span> {localize(project.location, locale)}
+                  <span aria-hidden="true">·</span> {project.location}
                 </>
               ) : null}
             </p>

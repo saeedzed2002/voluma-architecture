@@ -7,10 +7,10 @@ import { EditorialHeader } from "@/components/editorial-header";
 import { FixtureNotice } from "@/components/fixture-notice";
 import { ArrowIcon } from "@/components/icons";
 import { Reveal } from "@/components/reveal";
-import { journalArticles } from "@/content/public-pages";
-import { localize, siteCopy } from "@/content/site";
+import { siteCopy } from "@/content/site";
 import { Link } from "@/i18n/navigation";
 import { routing, type Locale } from "@/i18n/routing";
+import { getJournal } from "@/lib/public-api";
 import { publicMetadata } from "@/lib/seo";
 
 type JournalPageProps = {
@@ -35,6 +35,7 @@ export default async function JournalPage({ params }: JournalPageProps) {
   if (!hasLocale(routing.locales, localeParam)) notFound();
   const locale = localeParam as Locale;
   const copy = siteCopy[locale];
+  const journal = await getJournal(locale);
 
   return (
     <main className="editorial-page section-shell">
@@ -52,26 +53,28 @@ export default async function JournalPage({ params }: JournalPageProps) {
         aria-label={locale === "fa" ? "فهرست یادداشت‌ها" : "Journal archive"}
         className="journal-archive"
       >
-        {journalArticles.map((article, index) => (
+        {journal.items.map((article, index) => (
           <Reveal className="journal-archive__entry" delay={index * 0.06} key={article.slug}>
             <article>
               <Link href={`/journal/${article.slug}`}>
                 <div className="journal-archive__media">
-                  <Image
-                    alt={localize(article.alt, locale)}
-                    fill
-                    priority={index === 0}
-                    sizes="(max-width: 767px) 100vw, 38vw"
-                    src={article.cover}
-                  />
+                  {article.cover_image ? (
+                    <Image
+                      alt={article.cover_image.alt}
+                      fill
+                      priority={index === 0}
+                      sizes="(max-width: 767px) 100vw, 38vw"
+                      src={article.cover_image.url}
+                    />
+                  ) : null}
                 </div>
                 <div className="journal-archive__copy">
                   <p>
-                    {localize(article.category, locale)} <span aria-hidden="true">·</span>{" "}
-                    {localize(article.readingTime, locale)}
+                    {article.category.title} <span aria-hidden="true">·</span> {article.reading_minutes}{" "}
+                    {locale === "fa" ? "دقیقه مطالعه" : "min read"}
                   </p>
-                  <h2>{localize(article.title, locale)}</h2>
-                  <p>{localize(article.excerpt, locale)}</p>
+                  <h2>{article.title}</h2>
+                  <p>{article.excerpt}</p>
                   <ArrowIcon className="directional-icon" />
                 </div>
               </Link>

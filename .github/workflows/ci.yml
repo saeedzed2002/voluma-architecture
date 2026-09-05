@@ -10,8 +10,31 @@ permissions:
 
 jobs:
   locked-bootstrap:
-    name: Verify locked bootstrap
+    name: Verify Phase 3 foundation
     runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:18.6
+        env:
+          POSTGRES_DB: voluma
+          POSTGRES_USER: voluma
+          POSTGRES_PASSWORD: ci-only-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U voluma -d voluma"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:8.10.1
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Check out source
         uses: actions/checkout@v6
@@ -27,17 +50,13 @@ jobs:
           corepack enable
           corepack pnpm install --frozen-lockfile
 
-      - name: Validate Phase 1 frontend
+      - name: Validate public frontend
         working-directory: frontend
         run: |
           corepack pnpm lint
           corepack pnpm typecheck
           corepack pnpm test
           corepack pnpm build
-
-      - name: Run Phase 1 browser and accessibility checks
-        working-directory: frontend
-        run: corepack pnpm test:e2e
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -52,6 +71,36 @@ jobs:
       - name: Install backend from lockfile
         working-directory: backend
         run: uv sync --frozen --all-groups
+
+      - name: Validate backend and apply the empty-database migration
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+psycopg://voluma:ci-only-postgres-password@127.0.0.1:5432/voluma
+          REDIS_URL: redis://127.0.0.1:6379/0
+        run: |
+          uv run ruff format --check .
+          uv run ruff check .
+          uv run mypy app
+          uv run pytest
+          uv run alembic upgrade head
+          uv run python -m app.fixtures.seed
+
+      - name: Start API for browser checks
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+psycopg://voluma:ci-only-postgres-password@127.0.0.1:5432/voluma
+          REDIS_URL: redis://127.0.0.1:6379/0
+        run: |
+          nohup uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/voluma-api.log" 2>&1 &
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:8000/api/readyz && break
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8000/api/readyz
+
+      - name: Run browser and accessibility checks against the API
+        working-directory: frontend
+        run: corepack pnpm test:e2e
 
       - name: Check whitespace errors
         run: git diff-tree --check --no-commit-id -r HEAD

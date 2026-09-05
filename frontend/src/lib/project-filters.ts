@@ -1,5 +1,7 @@
-import type { Project, ProjectCategory } from "@/content/site";
 import type { Locale } from "@/i18n/routing";
+import type { PublicProject } from "@/lib/public-api";
+
+export type ProjectCategory = "residential" | "workspace" | "cultural" | "adaptive-reuse";
 
 export type ProjectView = "grid" | "list";
 export type CategoryFilter = "all" | ProjectCategory;
@@ -21,22 +23,23 @@ export function parseView(value: string | null): ProjectView {
 }
 
 export function filterProjects(
-  projects: Project[],
+  projects: PublicProject[],
   locale: Locale,
   query: string,
   category: CategoryFilter,
-): Project[] {
+): PublicProject[] {
   const normalized = query.trim().toLocaleLowerCase(locale);
 
   return projects.filter((project) => {
-    const inCategory = category === "all" || project.category === category;
+    const inCategory =
+      category === "all" || project.typologies.some((typology) => typology.slug === category);
     if (!normalized) return inCategory;
 
     const searchable = [
-      project.title[locale],
-      project.categoryLabel[locale],
-      project.location[locale],
-      project.year,
+      project.title,
+      project.summary,
+      project.location,
+      project.completion_year,
     ]
       .join(" ")
       .toLocaleLowerCase(locale);

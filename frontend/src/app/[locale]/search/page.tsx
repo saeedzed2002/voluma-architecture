@@ -8,10 +8,12 @@ import { FixtureNotice } from "@/components/fixture-notice";
 import { SearchExperience } from "@/components/search-experience";
 import { siteCopy } from "@/content/site";
 import { routing, type Locale } from "@/i18n/routing";
+import { getSearch } from "@/lib/public-api";
 import { publicMetadata } from "@/lib/seo";
 
 type SearchPageProps = {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ q?: string }>;
 };
 
 export async function generateMetadata({ params }: SearchPageProps): Promise<Metadata> {
@@ -30,11 +32,13 @@ export async function generateMetadata({ params }: SearchPageProps): Promise<Met
   };
 }
 
-export default async function SearchPage({ params }: SearchPageProps) {
+export default async function SearchPage({ params, searchParams }: SearchPageProps) {
   const { locale: localeParam } = await params;
   if (!hasLocale(routing.locales, localeParam)) notFound();
   const locale = localeParam as Locale;
   const copy = siteCopy[locale];
+  const query = (await searchParams).q?.trim() ?? "";
+  const search = query ? await getSearch(locale, query) : { items: [], query: "" };
 
   return (
     <main className="editorial-page section-shell search-page">
@@ -55,7 +59,7 @@ export default async function SearchPage({ params }: SearchPageProps) {
           </p>
         }
       >
-        <SearchExperience locale={locale} />
+        <SearchExperience locale={locale} search={search} />
       </Suspense>
     </main>
   );

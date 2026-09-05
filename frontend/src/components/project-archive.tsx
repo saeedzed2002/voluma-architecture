@@ -4,11 +4,10 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useTransition } from "react";
 
-import type { Project } from "@/content/site";
-import { categoryLabels, localize, siteCopy } from "@/content/site";
+import { categoryLabels, siteCopy } from "@/content/site";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
-import { formatYear } from "@/lib/locale";
+import type { PublicProject } from "@/lib/public-api";
 import {
   filterProjects,
   parseCategory,
@@ -30,7 +29,7 @@ const categoryOrder: CategoryFilter[] = [
 
 type ProjectArchiveProps = {
   locale: Locale;
-  projects: Project[];
+  projects: PublicProject[];
 };
 
 export function ProjectArchive({ locale, projects }: ProjectArchiveProps) {
@@ -121,27 +120,28 @@ export function ProjectArchive({ locale, projects }: ProjectArchiveProps) {
           {visibleProjects.map((project, index) => (
             <article
               className="archive-project"
-              data-category={project.category}
+              data-category={project.typologies[0]?.slug ?? "project"}
               key={project.slug}
             >
               <Link href={`/projects/${project.slug}`}>
                 <div className="archive-project__media">
-                  <Image
-                    alt={localize(project.alt, locale)}
-                    fill
-                    priority={index < 3}
-                    sizes={view === "list" ? "38vw" : "(max-width: 767px) 100vw, 34vw"}
-                    src={project.image}
-                    style={{ objectPosition: project.imagePosition ?? "center" }}
-                  />
+                  {project.cover_image ? (
+                    <Image
+                      alt={project.cover_image.alt}
+                      fill
+                      priority={index < 3}
+                      sizes={view === "list" ? "38vw" : "(max-width: 767px) 100vw, 34vw"}
+                      src={project.cover_image.url}
+                    />
+                  ) : null}
                 </div>
                 <div className="archive-project__meta">
                   <div>
-                    <h2>{localize(project.title, locale)}</h2>
+                    <h2>{project.title}</h2>
                     <p>
-                      {localize(project.categoryLabel, locale)} <span aria-hidden="true">·</span>{" "}
-                      {formatYear(project.year, locale)} <span aria-hidden="true">·</span>{" "}
-                      {localize(project.location, locale)}
+                      {project.typologies[0]?.title ?? (locale === "fa" ? "پروژه" : "Project")} {" "}
+                      <span aria-hidden="true">·</span> {project.completion_year ?? "—"} {" "}
+                      <span aria-hidden="true">·</span> {project.location}
                     </p>
                   </div>
                   <ArrowIcon className="directional-icon" />

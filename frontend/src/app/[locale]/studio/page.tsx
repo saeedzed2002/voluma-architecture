@@ -6,9 +6,9 @@ import { notFound } from "next/navigation";
 import { EditorialHeader } from "@/components/editorial-header";
 import { FixtureNotice } from "@/components/fixture-notice";
 import { Reveal } from "@/components/reveal";
-import { studioCopy } from "@/content/public-pages";
 import { siteCopy } from "@/content/site";
 import { routing, type Locale } from "@/i18n/routing";
+import { getStudio } from "@/lib/public-api";
 import { publicMetadata } from "@/lib/seo";
 
 type StudioPageProps = {
@@ -32,12 +32,18 @@ export default async function StudioPage({ params }: StudioPageProps) {
   const { locale: localeParam } = await params;
   if (!hasLocale(routing.locales, localeParam)) notFound();
   const locale = localeParam as Locale;
-  const content = studioCopy[locale];
   const copy = siteCopy[locale];
+  const studio = await getStudio(locale);
 
   return (
     <main className="editorial-page section-shell">
-      <EditorialHeader eyebrow={content.eyebrow} intro={content.intro} title={content.title} />
+      <EditorialHeader
+        eyebrow={locale === "fa" ? "استودیو" : "Studio"}
+        intro={studio.intro}
+        title={
+          locale === "fa" ? "ممارستی بر پایهٔ نگاه دقیق." : "A practice built around attentive looking."
+        }
+      />
       <FixtureNotice>{copy.fixture}</FixtureNotice>
       <section className="studio-philosophy">
         <Reveal className="studio-philosophy__media">
@@ -54,18 +60,26 @@ export default async function StudioPage({ params }: StudioPageProps) {
           />
         </Reveal>
         <div className="studio-philosophy__principles">
-          {content.principles.map(([title, body], index) => (
-            <Reveal delay={index * 0.06} key={title}>
+          {studio.principles.map((principle, index) => (
+            <Reveal delay={index * 0.06} key={principle.title}>
               <span>{String(index + 1).padStart(2, "0")}</span>
-              <h2>{title}</h2>
-              <p>{body}</p>
+              <h2>{principle.title}</h2>
+              <p>{principle.body}</p>
             </Reveal>
           ))}
         </div>
       </section>
       <section className="studio-records">
-        <h2>{content.recordsTitle}</h2>
-        <p>{content.recordsBody}</p>
+        <h2>{locale === "fa" ? "اطلاعاتی که با تأیید منتشر می‌شوند." : "Records published with approval."}</h2>
+        <p>
+          {studio.members.length || studio.recognitions.length
+            ? locale === "fa"
+              ? "اطلاعات تأییدشدهٔ استودیو در این صفحه منتشر شده است."
+              : "Approved studio information is published on this page."
+            : locale === "fa"
+              ? "افراد، همکاران و تقدیرها تا تأیید مالک منتشر نمی‌شوند."
+              : "People, collaborators, and recognition remain unpublished until owner approval."}
+        </p>
       </section>
     </main>
   );

@@ -3,8 +3,8 @@ import { hasLocale } from "next-intl";
 import { notFound } from "next/navigation";
 
 import { HomePage } from "@/components/home-page";
-import { siteCopy } from "@/content/site";
 import { routing, type Locale } from "@/i18n/routing";
+import { getHome } from "@/lib/public-api";
 import { publicMetadata } from "@/lib/seo";
 
 type PageProps = {
@@ -16,11 +16,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!hasLocale(routing.locales, locale)) return {};
   const currentLocale = locale as Locale;
 
+  const home = await getHome(currentLocale);
   return publicMetadata({
-    description: siteCopy[currentLocale].heroBody,
+    description: home.hero_body,
     locale: currentLocale,
     path: "",
-    title: siteCopy[currentLocale].descriptor,
+    title: home.studio_name,
   });
 }
 
@@ -28,5 +29,6 @@ export default async function Page({ params }: PageProps) {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
 
-  return <HomePage locale={locale as Locale} />;
+  const currentLocale = locale as Locale;
+  return <HomePage home={await getHome(currentLocale)} locale={currentLocale} />;
 }

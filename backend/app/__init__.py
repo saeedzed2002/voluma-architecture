@@ -1,0 +1,1 @@
+"""VOLUMA FastAPI application package."""
