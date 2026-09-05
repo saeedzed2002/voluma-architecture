@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -49,10 +50,10 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
       lang={locale}
       suppressHydrationWarning
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-      </head>
       <body>
+        <Script id="voluma-theme-init" strategy="beforeInteractive">
+          {themeInitScript}
+        </Script>
         <NextIntlClientProvider>
           <a className="skip-link" href="#main-content">
             {locale === "fa" ? "رفتن به محتوای اصلی" : "Skip to main content"}
