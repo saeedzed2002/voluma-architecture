@@ -1,0 +1,6 @@
+engineStrict: true
+autoInstallPeers: false
+
+allowBuilds:
+  "@parcel/watcher": true
+  "@swc/core": true

@@ -25,6 +25,18 @@ The initial locked frontend and backend direct dependencies use the specificatio
 - Rollback: restore a newer client only together with a verified Celery/Kombu upgrade
   whose published constraints and integration tests support it.
 
+## 2026-09-05 — Approved frontend dependency build scripts
+
+- Packages: `@parcel/watcher` and `@swc/core`, both transitive dependencies of
+  `next-intl@4.14.2` in the initial frontend graph.
+- Decision: allow only these two packages to execute dependency lifecycle build scripts
+  through the `allowBuilds` map in `frontend/pnpm-workspace.yaml`.
+- Reason: pnpm 11 blocks undeclared dependency build scripts in CI. These packages need
+  their install/postinstall steps to prepare their platform binaries.
+- Security boundary: every other present or future dependency build script remains
+  unapproved and causes the frozen CI install to fail pending explicit review.
+- Evidence: `pnpm why`, local lifecycle rebuild, frozen install, and GitHub Actions run.
+
 ## Required entry for a future dependency change
 
 - Date and owner

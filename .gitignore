@@ -23,6 +23,7 @@ backend/coverage.xml
 
 # Locally bootstrapped exact toolchains
 .tooling/
+.pnpm-store/
 
 # Local runtime data
 data/
