@@ -438,3 +438,143 @@ class AdminProjectResponse(AdminProjectListItemResponse):
     disciplines: list[AdminTaxonomyResponse]
     typologies: list[AdminTaxonomyResponse]
     blocks: list[AdminProjectBlockResponse]
+
+
+class AdminJournalCategoryResponse(AdminModel):
+    id: UUID
+    slug: str
+    title_en: str
+    title_fa: str
+    display_order: int
+
+
+class AdminJournalCategoryWriteRequest(AdminModel):
+    slug: str = Field(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=80)
+    title_en: str = Field(min_length=1, max_length=160)
+    title_fa: str = Field(min_length=1, max_length=160)
+
+
+class AdminJournalCategoryListResponse(AdminModel):
+    items: list[AdminJournalCategoryResponse]
+
+
+class JournalCategoryReorderRequest(AdminModel):
+    identifiers: list[UUID] = Field(min_length=1, max_length=250)
+
+    @field_validator("identifiers")
+    @classmethod
+    def identifiers_must_be_unique(cls, value: list[UUID]) -> list[UUID]:
+        if len(value) != len(set(value)):
+            raise ValueError("journal category identifiers must be unique")
+        return value
+
+
+JournalArticleBlockType = Literal["text", "quote"]
+
+
+class JournalArticleBlockWriteRequest(AdminModel):
+    block_type: JournalArticleBlockType
+    content_en: dict[str, object]
+    content_fa: dict[str, object]
+
+    @field_validator("content_en", "content_fa")
+    @classmethod
+    def content_must_match_block_type(
+        cls, value: dict[str, object], info: ValidationInfo
+    ) -> dict[str, object]:
+        block_type = info.data.get("block_type")
+        if not isinstance(block_type, str):
+            raise ValueError("block type is required before block content")
+        return _BLOCK_PAYLOADS[block_type].model_validate(value).model_dump(mode="json")
+
+
+class AdminJournalArticleBlockResponse(AdminModel):
+    id: UUID
+    block_type: JournalArticleBlockType
+    content_en: dict[str, object]
+    content_fa: dict[str, object]
+    display_order: int
+
+
+class JournalArticleEditableFields(AdminModel):
+    publication_state: PublicationState = PublicationState.DRAFT
+    published_at: datetime | None = None
+    category_id: UUID
+    title_en: str = Field(default="", max_length=240)
+    title_fa: str = Field(default="", max_length=240)
+    excerpt_en: str = Field(default="", max_length=12_000)
+    excerpt_fa: str = Field(default="", max_length=12_000)
+    reading_minutes: int = Field(default=1, ge=1, le=1_440)
+    cover_image_url: str | None = Field(default=None, max_length=500)
+    cover_alt_en: str | None = Field(default=None, max_length=500)
+    cover_alt_fa: str | None = Field(default=None, max_length=500)
+    seo_title_en: str | None = Field(default=None, max_length=240)
+    seo_title_fa: str | None = Field(default=None, max_length=240)
+    seo_description_en: str | None = Field(default=None, max_length=320)
+    seo_description_fa: str | None = Field(default=None, max_length=320)
+    blocks: list[JournalArticleBlockWriteRequest] = Field(default_factory=list, max_length=80)
+
+    @field_validator(
+        "cover_image_url",
+        "cover_alt_en",
+        "cover_alt_fa",
+        "seo_title_en",
+        "seo_title_fa",
+        "seo_description_en",
+        "seo_description_fa",
+    )
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+    @model_validator(mode="after")
+    def bilingual_optional_fields_must_be_complete(self) -> JournalArticleEditableFields:
+        fields = (
+            ("cover_alt_en", "cover_alt_fa"),
+            ("seo_title_en", "seo_title_fa"),
+            ("seo_description_en", "seo_description_fa"),
+        )
+        for english, persian in fields:
+            if bool(getattr(self, english)) != bool(getattr(self, persian)):
+                raise ValueError(f"{english} and {persian} must be provided together")
+        return self
+
+
+class JournalArticleCreateRequest(JournalArticleEditableFields):
+    slug: str = Field(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=120)
+
+
+class JournalArticleUpdateRequest(JournalArticleEditableFields):
+    """The immutable public slug is intentionally absent from updates."""
+
+
+class AdminJournalArticleListItemResponse(AdminModel):
+    id: UUID
+    slug: str
+    publication_state: PublicationState
+    published_at: datetime | None
+    category: AdminJournalCategoryResponse
+    title_en: str
+    title_fa: str
+    updated_at: datetime
+
+
+class AdminJournalArticleListResponse(AdminModel):
+    items: list[AdminJournalArticleListItemResponse]
+
+
+class AdminJournalArticleResponse(AdminJournalArticleListItemResponse):
+    excerpt_en: str
+    excerpt_fa: str
+    reading_minutes: int
+    cover_image_url: str | None
+    cover_alt_en: str | None
+    cover_alt_fa: str | None
+    seo_title_en: str | None
+    seo_title_fa: str | None
+    seo_description_en: str | None
+    seo_description_fa: str | None
+    blocks: list[AdminJournalArticleBlockResponse]

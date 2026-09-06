@@ -17,7 +17,7 @@ test("administrator drafts, publishes, and orders an expertise entry", async ({ 
 
   await expect(page).toHaveURL(/\/admin$/);
   await page.getByRole("link", { name: "Expertise" }).click();
-  await expect(page.getByRole("heading", { name: "Expertise" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Expertise", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Create draft" }).click();
   await expect(page.locator(".admin-form__message")).toHaveText("Draft created.");
 

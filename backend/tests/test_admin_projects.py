@@ -531,3 +531,147 @@ def test_recognition_workflow_publishes_to_the_public_response_and_audits_mutati
         "recognition.reordered",
         "recognition.deleted",
     ]
+
+
+def test_journal_categories_and_articles_publish_bilingual_editorial_blocks(
+    session: Session, client: tuple[TestClient, RecordingCache]
+) -> None:
+    test_client, cache = client
+    _administrator(session)
+    headers = _login(test_client)
+
+    category = test_client.post(
+        "/api/v1/admin/journal/categories",
+        headers=headers,
+        json={
+            "slug": "material-culture",
+            "title_en": "Material Culture",
+            "title_fa": "فرهنگ مصالح",
+        },
+    )
+    assert category.status_code == 201
+    category_id = category.json()["id"]
+
+    second_category = test_client.post(
+        "/api/v1/admin/journal/categories",
+        headers=headers,
+        json={"slug": "field-notes", "title_en": "Field Notes", "title_fa": "یادداشت‌های میدانی"},
+    )
+    assert second_category.status_code == 201
+
+    listed_categories = test_client.get("/api/v1/admin/journal/categories")
+    assert listed_categories.status_code == 200
+    identifiers = [item["id"] for item in listed_categories.json()["items"]]
+    reordered_categories = test_client.put(
+        "/api/v1/admin/journal/categories/order",
+        headers=headers,
+        json={"identifiers": list(reversed(identifiers))},
+    )
+    assert reordered_categories.status_code == 200
+    assert [item["display_order"] for item in reordered_categories.json()["items"]] == list(
+        range(len(identifiers))
+    )
+
+    draft = test_client.post(
+        "/api/v1/admin/journal/articles",
+        headers=headers,
+        json={"slug": "measured-material", "category_id": category_id},
+    )
+    assert draft.status_code == 201
+    article_id = UUID(draft.json()["id"])
+    assert draft.json()["publication_state"] == "draft"
+
+    invalid_publish = test_client.put(
+        f"/api/v1/admin/journal/articles/{article_id}",
+        headers=headers,
+        json={
+            "publication_state": "published",
+            "category_id": category_id,
+            "title_en": "Measured Material",
+            "title_fa": "مصالح سنجیده",
+            "excerpt_en": "An editorial test article.",
+            "excerpt_fa": "یک یادداشت تحریری آزمایشی.",
+            "blocks": [],
+        },
+    )
+    assert invalid_publish.status_code == 422
+    assert invalid_publish.json()["detail"]["fields"] == ["blocks"]
+
+    published = test_client.put(
+        f"/api/v1/admin/journal/articles/{article_id}",
+        headers=headers,
+        json={
+            "publication_state": "published",
+            "category_id": category_id,
+            "title_en": "Measured Material",
+            "title_fa": "مصالح سنجیده",
+            "excerpt_en": "An editorial test article with bilingual structured blocks.",
+            "excerpt_fa": "یک یادداشت آزمایشی با بلوک‌های ساخت‌یافتهٔ دوزبانه.",
+            "reading_minutes": 4,
+            "blocks": [
+                {
+                    "block_type": "text",
+                    "content_en": {"heading": "Material", "body": "A measured English paragraph."},
+                    "content_fa": {"heading": "مصالح", "body": "یک بند فارسی سنجیده."},
+                },
+                {
+                    "block_type": "quote",
+                    "content_en": {"quote": "Material records time.", "attribution": "VOLUMA"},
+                    "content_fa": {"quote": "مصالح زمان را ثبت می‌کند.", "attribution": "ولوما"},
+                },
+            ],
+        },
+    )
+    assert published.status_code == 200
+    assert published.json()["published_at"] is not None
+    assert len(published.json()["blocks"]) == 2
+    assert cache.invalidated[-1] >= {
+        "home",
+        "journal-list",
+        "article:measured-material",
+        "article:measured-material:en",
+        "article:measured-material:fa",
+    }
+
+    public = test_client.get("/api/v1/public/journal/measured-material?locale=fa")
+    assert public.status_code == 200
+    assert public.json()["seo_title"] == "مصالح سنجیده"
+    assert public.json()["blocks"][0]["body"] == "یک بند فارسی سنجیده."
+    assert public.json()["blocks"][1]["quote"] == "مصالح زمان را ثبت می‌کند."
+
+    category_in_use = test_client.delete(
+        f"/api/v1/admin/journal/categories/{category_id}", headers=headers
+    )
+    assert category_in_use.status_code == 409
+
+    renamed_category = test_client.put(
+        f"/api/v1/admin/journal/categories/{category_id}",
+        headers=headers,
+        json={
+            "slug": "material-culture",
+            "title_en": "Material Studies",
+            "title_fa": "پژوهش مصالح",
+        },
+    )
+    assert renamed_category.status_code == 200
+    assert cache.invalidated[-1] >= {"journal-list", "article:measured-material"}
+
+    deleted_article = test_client.delete(
+        f"/api/v1/admin/journal/articles/{article_id}", headers=headers
+    )
+    assert deleted_article.status_code == 204
+    deleted_category = test_client.delete(
+        f"/api/v1/admin/journal/categories/{category_id}", headers=headers
+    )
+    assert deleted_category.status_code == 204
+
+    actions = session.scalars(
+        select(AuditEvent.action)
+        .where(AuditEvent.target_id == article_id)
+        .order_by(AuditEvent.created_at)
+    ).all()
+    assert actions == [
+        "journal_article.created",
+        "journal_article.updated",
+        "journal_article.deleted",
+    ]

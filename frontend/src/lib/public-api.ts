@@ -58,11 +58,14 @@ export type PublicProcessStep = PublicExpertise;
 
 export type PublicJournalArticle = {
   body: string[];
+  blocks: PublicProjectEditorialBlock[];
   category: PublicTaxonomy;
   cover_image: PublicImage | null;
   excerpt: string;
   published_at: string;
   reading_minutes: number;
+  seo_description: string;
+  seo_title: string;
   slug: string;
   title: string;
 };

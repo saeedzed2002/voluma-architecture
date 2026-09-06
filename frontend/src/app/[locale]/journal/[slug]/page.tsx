@@ -23,10 +23,10 @@ export async function generateMetadata({ params }: JournalArticlePageProps): Pro
   try {
     const article = await getArticle(currentLocale, slug);
     return publicMetadata({
-      description: article.excerpt,
+      description: article.seo_description,
       locale: currentLocale,
       path: `/journal/${article.slug}`,
-      title: article.title,
+      title: article.seo_title,
     });
   } catch (error) {
     if (error instanceof PublicApiError && error.status === 404) return {};
@@ -72,11 +72,29 @@ export default async function JournalArticlePage({ params }: JournalArticlePageP
         <FixtureNotice>{copy.fixture}</FixtureNotice>
       </div>
       <article className="journal-article__body section-shell">
-        {article.body.map((paragraph, index) => (
-          <Reveal as="div" delay={index * 0.05} key={paragraph}>
-            <p>{paragraph}</p>
-          </Reveal>
-        ))}
+        {article.blocks.length > 0
+          ? article.blocks.map((block, index) =>
+              block.block_type === "text" ? (
+                <Reveal as="div" delay={index * 0.05} key={`${block.block_type}-${index}`}>
+                  {block.heading ? <h2>{block.heading}</h2> : null}
+                  {block.body.split(/\n{2,}/).map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))}
+                </Reveal>
+              ) : (
+                <Reveal as="div" delay={index * 0.05} key={`${block.block_type}-${index}`}>
+                  <blockquote>
+                    <p>{block.quote}</p>
+                    {block.attribution ? <footer>{block.attribution}</footer> : null}
+                  </blockquote>
+                </Reveal>
+              ),
+            )
+          : article.body.map((paragraph, index) => (
+              <Reveal as="div" delay={index * 0.05} key={paragraph}>
+                <p>{paragraph}</p>
+              </Reveal>
+            ))}
       </article>
       <section className="journal-article__related section-shell">
         <h2>{locale === "fa" ? "ادامهٔ خواندن" : "Continue reading"}</h2>

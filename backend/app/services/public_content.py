@@ -68,14 +68,17 @@ def _published_projects(*, include_blocks: bool = False) -> Select[tuple[Project
     )
 
 
-def _published_articles() -> Select[tuple[JournalArticle]]:
+def _published_articles(*, include_blocks: bool = False) -> Select[tuple[JournalArticle]]:
+    options = [selectinload(JournalArticle.category)]
+    if include_blocks:
+        options.append(selectinload(JournalArticle.blocks))
     return (
         select(JournalArticle)
         .where(
             JournalArticle.publication_state == PublicationState.PUBLISHED,
             JournalArticle.published_at.is_not(None),
         )
-        .options(selectinload(JournalArticle.category))
+        .options(*options)
     )
 
 
@@ -182,6 +185,29 @@ def journal_card(article: JournalArticle, locale: Locale) -> JournalCardResponse
         reading_minutes=article.reading_minutes,
         cover_image=_image(article.cover_image_url, _locale_field(article, "cover_alt", locale)),
     )
+
+
+def _journal_blocks(article: JournalArticle, locale: Locale) -> list[ProjectEditorialBlockResponse]:
+    blocks: list[ProjectEditorialBlockResponse] = []
+    for block in article.blocks:
+        content = block.content_fa if locale == "fa" else block.content_en
+        if block.block_type == "text":
+            text_payload = TextBlockPayload.model_validate(content)
+            blocks.append(
+                TextEditorialBlockResponse(
+                    block_type="text", heading=text_payload.heading, body=text_payload.body
+                )
+            )
+        elif block.block_type == "quote":
+            quote_payload = QuoteBlockPayload.model_validate(content)
+            blocks.append(
+                QuoteEditorialBlockResponse(
+                    block_type="quote",
+                    quote=quote_payload.quote,
+                    attribution=quote_payload.attribution,
+                )
+            )
+    return blocks
 
 
 class PublicContentService:
@@ -363,13 +389,29 @@ class PublicContentService:
         )
 
     def article(self, slug: str, locale: Locale) -> JournalArticleResponse | None:
-        article = self.session.scalar(_published_articles().where(JournalArticle.slug == slug))
+        article = self.session.scalar(
+            _published_articles(include_blocks=True).where(JournalArticle.slug == slug)
+        )
         if article is None:
             return None
-        body = _locale_field(article, "body", locale)
-        assert body is not None
+        blocks = _journal_blocks(article, locale)
+        body = [
+            paragraph
+            for block in blocks
+            if block.block_type == "text"
+            for paragraph in self._paragraphs(block.body)
+        ]
+        if not body:
+            legacy_body = _locale_field(article, "body", locale)
+            assert legacy_body is not None
+            body = self._paragraphs(legacy_body)
+        card = journal_card(article, locale)
         return JournalArticleResponse(
-            **journal_card(article, locale).model_dump(), body=self._paragraphs(body)
+            **card.model_dump(),
+            body=body,
+            blocks=blocks,
+            seo_title=_locale_field(article, "seo_title", locale) or card.title,
+            seo_description=_locale_field(article, "seo_description", locale) or card.excerpt,
         )
 
     def search(self, locale: Locale, query: str, *, limit: int = 10) -> SearchResponse:

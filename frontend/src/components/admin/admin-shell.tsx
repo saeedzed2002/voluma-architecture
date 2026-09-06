@@ -44,6 +44,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <Link aria-current={pathname === "/admin/process" ? "page" : undefined} href="/admin/process">
             Process
           </Link>
+          <Link aria-current={pathname === "/admin/journal" ? "page" : undefined} href="/admin/journal">
+            Journal
+          </Link>
           <Link aria-current={pathname === "/admin/people" ? "page" : undefined} href="/admin/people">
             People
           </Link>

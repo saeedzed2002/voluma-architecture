@@ -293,6 +293,9 @@ class Recognition(TimestampedUUIDModel):
 
 class JournalCategory(TimestampedUUIDModel):
     __tablename__ = "journal_categories"
+    __table_args__ = (
+        UniqueConstraint("display_order", name="uq_journal_categories_display_order"),
+    )
 
     slug: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
     title_en: Mapped[str] = mapped_column(String(160), nullable=False)
@@ -329,3 +332,35 @@ class JournalArticle(TimestampedUUIDModel):
     cover_image_url: Mapped[str | None] = mapped_column(String(500))
     cover_alt_en: Mapped[str | None] = mapped_column(String(500))
     cover_alt_fa: Mapped[str | None] = mapped_column(String(500))
+    seo_title_en: Mapped[str | None] = mapped_column(String(240))
+    seo_title_fa: Mapped[str | None] = mapped_column(String(240))
+    seo_description_en: Mapped[str | None] = mapped_column(String(320))
+    seo_description_fa: Mapped[str | None] = mapped_column(String(320))
+    blocks: Mapped[list[JournalArticleBlock]] = relationship(
+        back_populates="article",
+        cascade="all, delete-orphan",
+        order_by="JournalArticleBlock.display_order",
+    )
+
+
+class JournalArticleBlock(TimestampedUUIDModel):
+    __tablename__ = "article_blocks"
+    __table_args__ = (
+        CheckConstraint(
+            "block_type IN ('text', 'quote')",
+            name="ck_article_blocks_type",
+        ),
+        UniqueConstraint(
+            "article_id", "display_order", name="uq_article_blocks_article_display_order"
+        ),
+        Index("ix_article_blocks_article_order", "article_id", "display_order"),
+    )
+
+    article_id: Mapped[UUID] = mapped_column(
+        ForeignKey("journal_articles.id", ondelete="CASCADE"), nullable=False
+    )
+    block_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    content_en: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    content_fa: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    article: Mapped[JournalArticle] = relationship(back_populates="blocks")

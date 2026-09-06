@@ -1774,6 +1774,36 @@ html[lang="fa"] .journal-article__header h1 {
   max-width: 39ch;
 }
 
+.journal-article__body h2 {
+  font-size: clamp(1.7rem, 3vw, 3.25rem);
+  font-weight: 430;
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+  margin-block-end: 1rem;
+}
+
+.journal-article__body blockquote {
+  border-inline-start: 1px solid var(--accent);
+  grid-column: 2;
+  margin: clamp(1rem, 3vw, 3rem) 0;
+  padding-inline-start: clamp(1.25rem, 3vw, 3rem);
+}
+
+.journal-article__body blockquote p {
+  font-size: clamp(1.8rem, 3.4vw, 3.8rem);
+  font-weight: 420;
+  letter-spacing: -0.045em;
+  line-height: 1.08;
+}
+
+.journal-article__body blockquote footer {
+  color: var(--ink-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  margin-block-start: 1rem;
+  text-transform: uppercase;
+}
+
 .journal-article__related {
   border-block-start: 1px solid var(--line);
   padding-block-start: clamp(2rem, 5vw, 5rem);

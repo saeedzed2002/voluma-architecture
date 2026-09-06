@@ -77,6 +77,8 @@ jobs:
         env:
           DATABASE_URL: postgresql+psycopg://voluma:ci-only-postgres-password@127.0.0.1:5432/voluma
           REDIS_URL: redis://127.0.0.1:6379/0
+          VOLUMA_INITIAL_ADMIN_EMAIL: e2e-administrator@example.com
+          VOLUMA_INITIAL_ADMIN_PASSWORD: ci-only-administrator-password
         run: |
           uv run ruff format --check .
           uv run ruff check .
@@ -84,6 +86,7 @@ jobs:
           uv run pytest
           uv run alembic upgrade head
           uv run python -m app.fixtures.seed
+          uv run python -m app.commands.provision_initial_administrator
 
       - name: Start API for browser checks
         working-directory: backend
@@ -101,6 +104,10 @@ jobs:
 
       - name: Run browser and accessibility checks against the API
         working-directory: frontend
+        env:
+          VOLUMA_API_BASE_URL: http://127.0.0.1:8000
+          VOLUMA_E2E_ADMIN_EMAIL: e2e-administrator@example.com
+          VOLUMA_E2E_ADMIN_PASSWORD: ci-only-administrator-password
         run: corepack pnpm test:e2e
 
       - name: Check whitespace errors

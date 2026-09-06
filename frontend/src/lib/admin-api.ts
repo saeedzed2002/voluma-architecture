@@ -64,6 +64,86 @@ export type AdminRecognition = {
 
 export type AdminStudioContent = AdminStudioMember | AdminRecognition;
 
+export type AdminJournalCategory = {
+  display_order: number;
+  id: string;
+  slug: string;
+  title_en: string;
+  title_fa: string;
+};
+
+export type AdminJournalArticleBlock =
+  | {
+      block_type: "quote";
+      content_en: { attribution?: string; quote: string };
+      content_fa: { attribution?: string; quote: string };
+      display_order: number;
+      id: string;
+    }
+  | {
+      block_type: "text";
+      content_en: { body: string; heading?: string };
+      content_fa: { body: string; heading?: string };
+      display_order: number;
+      id: string;
+    };
+
+export type JournalArticleBlockWrite =
+  | {
+      block_type: "quote";
+      content_en: { attribution?: string; quote: string };
+      content_fa: { attribution?: string; quote: string };
+    }
+  | {
+      block_type: "text";
+      content_en: { body: string; heading?: string };
+      content_fa: { body: string; heading?: string };
+    };
+
+export type AdminJournalArticleListItem = {
+  category: AdminJournalCategory;
+  id: string;
+  publication_state: "draft" | "published";
+  published_at: string | null;
+  slug: string;
+  title_en: string;
+  title_fa: string;
+  updated_at: string;
+};
+
+export type AdminJournalArticle = AdminJournalArticleListItem & {
+  blocks: AdminJournalArticleBlock[];
+  cover_alt_en: string | null;
+  cover_alt_fa: string | null;
+  cover_image_url: string | null;
+  excerpt_en: string;
+  excerpt_fa: string;
+  reading_minutes: number;
+  seo_description_en: string | null;
+  seo_description_fa: string | null;
+  seo_title_en: string | null;
+  seo_title_fa: string | null;
+};
+
+export type JournalArticleWrite = {
+  blocks: JournalArticleBlockWrite[];
+  category_id: string;
+  cover_alt_en: string | null;
+  cover_alt_fa: string | null;
+  cover_image_url: string | null;
+  excerpt_en: string;
+  excerpt_fa: string;
+  publication_state: "draft" | "published";
+  published_at: string | null;
+  reading_minutes: number;
+  seo_description_en: string | null;
+  seo_description_fa: string | null;
+  seo_title_en: string | null;
+  seo_title_fa: string | null;
+  title_en: string;
+  title_fa: string;
+};
+
 export type AdminProjectBlock =
   | { block_type: "quote"; content_en: { attribution?: string; quote: string }; content_fa: { attribution?: string; quote: string }; display_order: number; id: string }
   | { block_type: "text"; content_en: { body: string; heading?: string }; content_fa: { body: string; heading?: string }; display_order: number; id: string }
@@ -396,6 +476,86 @@ export function deleteAdminStudioContent(
   csrfToken: string,
 ) {
   return adminFetch<void>(`/${kind}/${encodeURIComponent(identifier)}`, {
+    csrfToken,
+    method: "DELETE",
+  });
+}
+
+export function getAdminJournalCategories() {
+  return adminFetch<{ items: AdminJournalCategory[] }>("/journal/categories");
+}
+
+export function createAdminJournalCategory(
+  payload: Pick<AdminJournalCategory, "slug" | "title_en" | "title_fa">,
+  csrfToken: string,
+) {
+  return adminFetch<AdminJournalCategory>("/journal/categories", {
+    body: payload,
+    csrfToken,
+    method: "POST",
+  });
+}
+
+export function updateAdminJournalCategory(
+  identifier: string,
+  payload: Pick<AdminJournalCategory, "slug" | "title_en" | "title_fa">,
+  csrfToken: string,
+) {
+  return adminFetch<AdminJournalCategory>(`/journal/categories/${encodeURIComponent(identifier)}`, {
+    body: payload,
+    csrfToken,
+    method: "PUT",
+  });
+}
+
+export function reorderAdminJournalCategories(identifiers: string[], csrfToken: string) {
+  return adminFetch<{ items: AdminJournalCategory[] }>("/journal/categories/order", {
+    body: { identifiers },
+    csrfToken,
+    method: "PUT",
+  });
+}
+
+export function deleteAdminJournalCategory(identifier: string, csrfToken: string) {
+  return adminFetch<void>(`/journal/categories/${encodeURIComponent(identifier)}`, {
+    csrfToken,
+    method: "DELETE",
+  });
+}
+
+export function getAdminJournalArticles() {
+  return adminFetch<{ items: AdminJournalArticleListItem[] }>("/journal/articles");
+}
+
+export function getAdminJournalArticle(identifier: string) {
+  return adminFetch<AdminJournalArticle>(`/journal/articles/${encodeURIComponent(identifier)}`);
+}
+
+export function createAdminJournalArticle(
+  payload: JournalArticleWrite & { slug: string },
+  csrfToken: string,
+) {
+  return adminFetch<AdminJournalArticle>("/journal/articles", {
+    body: payload,
+    csrfToken,
+    method: "POST",
+  });
+}
+
+export function updateAdminJournalArticle(
+  identifier: string,
+  payload: JournalArticleWrite,
+  csrfToken: string,
+) {
+  return adminFetch<AdminJournalArticle>(`/journal/articles/${encodeURIComponent(identifier)}`, {
+    body: payload,
+    csrfToken,
+    method: "PUT",
+  });
+}
+
+export function deleteAdminJournalArticle(identifier: string, csrfToken: string) {
+  return adminFetch<void>(`/journal/articles/${encodeURIComponent(identifier)}`, {
     csrfToken,
     method: "DELETE",
   });

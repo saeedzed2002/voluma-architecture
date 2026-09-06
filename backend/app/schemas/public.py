@@ -144,6 +144,9 @@ class HomeResponse(PublicModel):
 
 class JournalArticleResponse(JournalCardResponse):
     body: list[str]
+    blocks: list[ProjectEditorialBlockResponse]
+    seo_title: str
+    seo_description: str
 
 
 class JournalListResponse(PublicModel):
