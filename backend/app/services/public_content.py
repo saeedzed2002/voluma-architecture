@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import Literal, cast
 
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session, selectinload
@@ -39,6 +39,7 @@ from app.schemas.public import (
     SearchResponse,
     SearchResultResponse,
     SiteResponse,
+    SocialLinkResponse,
     StudioMemberResponse,
     StudioPrincipleResponse,
     StudioResponse,
@@ -222,7 +223,21 @@ class PublicContentService:
             return None
         privacy = _locale_field(settings, "privacy", locale)
         assert privacy is not None
-        return SiteResponse(studio_name=settings.studio_name, privacy=privacy)
+        return SiteResponse(
+            studio_name=settings.studio_name,
+            logo_url=settings.logo_url,
+            favicon_url=settings.favicon_url,
+            contact_email=settings.contact_email,
+            contact_phone=settings.contact_phone,
+            contact_address=_locale_field(settings, "contact_address", locale),
+            social_links=[
+                SocialLinkResponse.model_validate(link) for link in settings.social_links
+            ],
+            default_theme=cast(Literal["system", "light", "dark"], settings.default_theme),
+            seo_title=_locale_field(settings, "default_seo_title", locale),
+            seo_description=_locale_field(settings, "default_seo_description", locale),
+            privacy=privacy,
+        )
 
     def home(self, locale: Locale) -> HomeResponse | None:
         settings = self._settings()

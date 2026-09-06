@@ -21,8 +21,8 @@ export async function generateMetadata({ params }: ProcessPageProps): Promise<Me
   const title = currentLocale === "fa" ? "فرایند" : "Process";
   const description =
     currentLocale === "fa"
-      ? "فرایند طراحی ولوما، از شناخت تا تحویل."
-      : "The VOLUMA design process, from discovery to delivery.";
+      ? "فرایند طراحی، از شناخت تا تحویل."
+      : "The design process, from discovery to delivery.";
 
   return publicMetadata({ description, locale: currentLocale, path: "/process", title });
 }

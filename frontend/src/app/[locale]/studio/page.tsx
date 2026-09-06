@@ -22,8 +22,8 @@ export async function generateMetadata({ params }: StudioPageProps): Promise<Met
   const title = currentLocale === "fa" ? "استودیو" : "Studio";
   const description =
     currentLocale === "fa"
-      ? "رویکرد و فلسفهٔ استودیوی ولوما در پیش‌نمایش توسعه."
-      : "The VOLUMA studio approach and philosophy in the development preview.";
+      ? "رویکرد و فلسفهٔ استودیو در پیش‌نمایش توسعه."
+      : "The studio approach and philosophy in the development preview.";
 
   return publicMetadata({ description, locale: currentLocale, path: "/studio", title });
 }

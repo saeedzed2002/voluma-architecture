@@ -91,7 +91,16 @@ export type PublicStudio = {
 };
 
 export type PublicSite = {
+  contact_address: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  default_theme: "system" | "light" | "dark";
+  favicon_url: string | null;
+  logo_url: string | null;
   privacy: string;
+  seo_description: string | null;
+  seo_title: string | null;
+  social_links: { label: string; url: string }[];
   studio_name: string;
 };
 

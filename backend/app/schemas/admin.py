@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Literal
+from urllib.parse import urlparse
 from uuid import UUID
 
 from pydantic import (
@@ -579,3 +580,143 @@ class AdminJournalArticleResponse(AdminJournalArticleListItemResponse):
     seo_description_en: str | None
     seo_description_fa: str | None
     blocks: list[AdminJournalArticleBlockResponse]
+
+
+ThemeMode = Literal["system", "light", "dark"]
+
+
+class SiteSettingsSocialLink(AdminModel):
+    label: str = Field(min_length=1, max_length=80)
+    url: str = Field(min_length=1, max_length=500)
+
+    @field_validator("label")
+    @classmethod
+    def normalize_label(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("social link label is required")
+        return normalized
+
+    @field_validator("url")
+    @classmethod
+    def require_https_url(cls, value: str) -> str:
+        normalized = value.strip()
+        parsed = urlparse(normalized)
+        if parsed.scheme != "https" or not parsed.netloc:
+            raise ValueError("social link URL must use HTTPS")
+        return normalized
+
+
+class SiteSettingsPrinciple(AdminModel):
+    title_en: str = Field(min_length=1, max_length=160)
+    title_fa: str = Field(min_length=1, max_length=160)
+    body_en: str = Field(min_length=1, max_length=2_000)
+    body_fa: str = Field(min_length=1, max_length=2_000)
+
+    @field_validator("title_en", "title_fa", "body_en", "body_fa")
+    @classmethod
+    def normalize_required_text(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("site principle text is required")
+        return normalized
+
+
+class SiteSettingsWriteRequest(AdminModel):
+    studio_name: str = Field(min_length=1, max_length=120)
+    logo_url: str | None = Field(default=None, max_length=500)
+    favicon_url: str | None = Field(default=None, max_length=500)
+    contact_email: EmailStr | None = None
+    contact_phone: str | None = Field(default=None, max_length=64)
+    contact_address_en: str | None = Field(default=None, max_length=1_000)
+    contact_address_fa: str | None = Field(default=None, max_length=1_000)
+    social_links: list[SiteSettingsSocialLink] = Field(default_factory=list, max_length=10)
+    default_theme: ThemeMode = "system"
+    default_seo_title_en: str | None = Field(default=None, max_length=240)
+    default_seo_title_fa: str | None = Field(default=None, max_length=240)
+    default_seo_description_en: str | None = Field(default=None, max_length=320)
+    default_seo_description_fa: str | None = Field(default=None, max_length=320)
+    home_title_en: str = Field(min_length=1, max_length=4_000)
+    home_title_fa: str = Field(min_length=1, max_length=4_000)
+    home_body_en: str = Field(min_length=1, max_length=12_000)
+    home_body_fa: str = Field(min_length=1, max_length=12_000)
+    home_hero_image_url: str | None = Field(default=None, max_length=500)
+    home_hero_alt_en: str | None = Field(default=None, max_length=500)
+    home_hero_alt_fa: str | None = Field(default=None, max_length=500)
+    studio_intro_en: str = Field(min_length=1, max_length=12_000)
+    studio_intro_fa: str = Field(min_length=1, max_length=12_000)
+    studio_principles: list[SiteSettingsPrinciple] = Field(default_factory=list, max_length=12)
+    privacy_en: str = Field(min_length=1, max_length=12_000)
+    privacy_fa: str = Field(min_length=1, max_length=12_000)
+
+    @field_validator(
+        "studio_name",
+        "home_title_en",
+        "home_title_fa",
+        "home_body_en",
+        "home_body_fa",
+        "studio_intro_en",
+        "studio_intro_fa",
+        "privacy_en",
+        "privacy_fa",
+    )
+    @classmethod
+    def normalize_required_text(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("site settings text is required")
+        return normalized
+
+    @field_validator(
+        "contact_phone",
+        "contact_address_en",
+        "contact_address_fa",
+        "default_seo_title_en",
+        "default_seo_title_fa",
+        "default_seo_description_en",
+        "default_seo_description_fa",
+        "home_hero_alt_en",
+        "home_hero_alt_fa",
+    )
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+    @field_validator("logo_url", "favicon_url", "home_hero_image_url")
+    @classmethod
+    def require_public_media_path(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if not normalized.startswith("/media/") or ".." in normalized:
+            raise ValueError("public media must use an approved /media/ path")
+        return normalized
+
+    @model_validator(mode="after")
+    def related_localized_settings_must_be_complete(self) -> SiteSettingsWriteRequest:
+        paired_fields = (
+            ("contact_address_en", "contact_address_fa"),
+            ("default_seo_title_en", "default_seo_title_fa"),
+            ("default_seo_description_en", "default_seo_description_fa"),
+            ("home_hero_alt_en", "home_hero_alt_fa"),
+        )
+        for english, persian in paired_fields:
+            if bool(getattr(self, english)) != bool(getattr(self, persian)):
+                raise ValueError(f"{english} and {persian} must be provided together")
+        if self.home_hero_image_url is None and any((self.home_hero_alt_en, self.home_hero_alt_fa)):
+            raise ValueError("hero alt text requires a hero image")
+        if self.home_hero_image_url is not None and not all(
+            (self.home_hero_alt_en, self.home_hero_alt_fa)
+        ):
+            raise ValueError("hero image requires localized alt text")
+        return self
+
+
+class AdminSiteSettingsResponse(SiteSettingsWriteRequest):
+    id: UUID | None
+    updated_at: datetime | None

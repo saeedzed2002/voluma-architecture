@@ -9,6 +9,7 @@ import { PublicFooter } from "@/components/public-footer";
 import { PublicHeader } from "@/components/public-header";
 import { routing, type Locale } from "@/i18n/routing";
 import { directionForLocale } from "@/lib/locale";
+import { getSite } from "@/lib/public-api";
 import { siteOrigin } from "@/lib/seo";
 import { themeInitScript } from "@/lib/theme";
 
@@ -28,6 +29,9 @@ export async function generateMetadata({ params }: LocaleLayoutProps): Promise<M
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) return {};
   const t = await getTranslations({ locale, namespace: "Metadata" });
+  const site = await getSite(locale as Locale);
+  const title = site.seo_title ?? t("title");
+  const description = site.seo_description ?? t("description");
 
   return {
     alternates: {
@@ -39,20 +43,21 @@ export async function generateMetadata({ params }: LocaleLayoutProps): Promise<M
       },
     },
     metadataBase: siteOrigin,
-    title: { default: t("title"), template: `%s — ${t("title")}` },
-    description: t("description"),
+    title: { default: title, template: `%s — ${site.studio_name}` },
+    description,
+    icons: site.favicon_url ? { icon: site.favicon_url } : undefined,
     openGraph: {
-      description: t("description"),
+      description,
       locale: locale === "fa" ? "fa_IR" : "en_US",
-      siteName: "VOLUMA",
-      title: t("title"),
+      siteName: site.studio_name,
+      title,
       type: "website",
       url: `/${locale}`,
     },
     twitter: {
       card: "summary_large_image",
-      description: t("description"),
-      title: t("title"),
+      description,
+      title,
     },
   };
 }
@@ -63,18 +68,19 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
 
   const locale = localeParam as Locale;
   const direction = directionForLocale(locale);
+  const site = await getSite(locale);
   const structuredData = {
     "@context": "https://schema.org",
     "@graph": [
       {
         "@type": "Organization",
-        name: "VOLUMA",
+        name: site.studio_name,
         url: siteOrigin.origin,
       },
       {
         "@type": "WebSite",
         inLanguage: locale === "fa" ? "fa-IR" : "en-US",
-        name: "VOLUMA",
+        name: site.studio_name,
         url: new URL(`/${locale}`, siteOrigin).toString(),
       },
     ],
@@ -91,7 +97,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
     >
       <body>
         <Script id="voluma-theme-init" strategy="beforeInteractive">
-          {themeInitScript}
+          {themeInitScript(site.default_theme)}
         </Script>
         <script
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
@@ -101,11 +107,11 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
           <a className="skip-link" href="#main-content">
             {locale === "fa" ? "رفتن به محتوای اصلی" : "Skip to main content"}
           </a>
-          <PublicHeader locale={locale} />
+          <PublicHeader locale={locale} studioName={site.studio_name} />
           <div id="main-content" tabIndex={-1}>
             {children}
           </div>
-          <PublicFooter locale={locale} />
+          <PublicFooter locale={locale} site={site} />
         </NextIntlClientProvider>
       </body>
     </html>

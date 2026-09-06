@@ -93,8 +93,22 @@ class ProcessStepResponse(PublicModel):
     display_order: int
 
 
+class SocialLinkResponse(PublicModel):
+    label: str
+    url: str
+
+
 class SiteResponse(PublicModel):
     studio_name: str
+    logo_url: str | None = None
+    favicon_url: str | None = None
+    contact_email: str | None = None
+    contact_phone: str | None = None
+    contact_address: str | None = None
+    social_links: list[SocialLinkResponse]
+    default_theme: Literal["system", "light", "dark"]
+    seo_title: str | None = None
+    seo_description: str | None = None
     privacy: str
 
 

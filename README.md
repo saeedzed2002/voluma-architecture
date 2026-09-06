@@ -12,11 +12,12 @@ does not duplicate that specification.
 
 ## Current phase
 
-Phase 3 delivers the public content foundation. The approved public experience now
-renders from purpose-built, published-only FastAPI response schemas with `no-store`
-Next.js fetches. It includes the initial Alembic migration, PostgreSQL archive indexes,
-Redis tagged response cache, health/readiness endpoints, and explicit development-only
-content fixtures. Phase 4 is next: authenticated administrative CMS workflows.
+Phases 1 through 4 are implemented. The approved public experience renders from
+purpose-built, published-only FastAPI response schemas with `no-store` Next.js fetches.
+The administrator workspace provides protected bilingual content, ordering, publishing,
+message triage, and singleton site-settings workflows with audit events and Redis tagged
+cache invalidation. Media upload, derivative processing, worker behavior, and production
+deployment remain the documented later phases.
 
 ## Planned layout
 
@@ -47,8 +48,13 @@ $env:DATABASE_URL = "postgresql+psycopg://voluma:<local-password>@127.0.0.1:5432
 $env:REDIS_URL = "redis://127.0.0.1:56379/0"
 uv run alembic upgrade head
 uv run python -m app.fixtures.seed
+uv run python -m app.commands.provision_initial_administrator
 uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
+
+Before running the provisioning command, set `VOLUMA_INITIAL_ADMIN_EMAIL` and
+`VOLUMA_INITIAL_ADMIN_PASSWORD` in the current terminal or a protected local `.env`.
+The command is idempotent and no administrator password is committed to this repository.
 
 In a second terminal, install the exact Node.js `24.20.0` runtime and run the frontend.
 Corepack reads the locked `pnpm@11.25.0` package-manager version from
@@ -71,7 +77,7 @@ The public routes are locale-prefixed:
 - `/en/expertise`, `/en/process`, `/en/studio`, `/en/journal`, `/en/contact`
 - `/en/privacy`, `/en/search`, and their Persian equivalents
 
-The seeded names, text, dates, locations, and media are representative development
+The seeded names, text, dates, locations, and media paths are representative development
 fixtures, not final client material. Never use the local commands or credentials above
 as a deployment procedure.
 

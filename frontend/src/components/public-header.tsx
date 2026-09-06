@@ -12,9 +12,10 @@ import { ThemeControl } from "./theme-control";
 
 type PublicHeaderProps = {
   locale: Locale;
+  studioName: string;
 };
 
-export function PublicHeader({ locale }: PublicHeaderProps) {
+export function PublicHeader({ locale, studioName }: PublicHeaderProps) {
   const copy = siteCopy[locale];
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -56,8 +57,8 @@ export function PublicHeader({ locale }: PublicHeaderProps) {
   return (
     <header className="site-header">
       <div className="site-header__inner">
-        <Link aria-label="VOLUMA home" className="wordmark" href="/">
-          VOLUMA
+        <Link aria-label={`${studioName} home`} className="wordmark" href="/">
+          {studioName}
         </Link>
 
         <nav aria-label={locale === "fa" ? "پیمایش اصلی" : "Primary"} className="desktop-nav">

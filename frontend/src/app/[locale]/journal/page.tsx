@@ -24,8 +24,8 @@ export async function generateMetadata({ params }: JournalPageProps): Promise<Me
   const title = currentLocale === "fa" ? "یادداشت‌ها" : "Journal";
   const description =
     currentLocale === "fa"
-      ? "یادداشت‌های ولوما دربارهٔ معماری، طراحی و فرایند."
-      : "VOLUMA notes on architecture, design, and process.";
+      ? "یادداشت‌هایی دربارهٔ معماری، طراحی و فرایند."
+      : "Notes on architecture, design, and process.";
 
   return publicMetadata({ description, locale: currentLocale, path: "/journal", title });
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import type { Locale } from "@/i18n/routing";
+import { getSite } from "@/lib/public-api";
 
 const fallbackOrigin = "http://localhost:3000";
 
@@ -17,7 +18,13 @@ function localizedPath(locale: Locale, path: string) {
   return `/${locale}${path}`;
 }
 
-export function publicMetadata({ description, locale, path, title }: PageMetadataInput): Metadata {
+export async function publicMetadata({
+  description,
+  locale,
+  path,
+  title,
+}: PageMetadataInput): Promise<Metadata> {
+  const site = await getSite(locale);
   const canonical = localizedPath(locale, path);
 
   return {
@@ -33,7 +40,7 @@ export function publicMetadata({ description, locale, path, title }: PageMetadat
     openGraph: {
       description,
       locale: locale === "fa" ? "fa_IR" : "en_US",
-      siteName: "VOLUMA",
+      siteName: site.studio_name,
       title,
       type: "website",
       url: canonical,

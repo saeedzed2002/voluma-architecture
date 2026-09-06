@@ -19,8 +19,8 @@ export async function generateMetadata({ params }: PrivacyPageProps): Promise<Me
   const title = currentLocale === "fa" ? "حریم خصوصی" : "Privacy";
   const description =
     currentLocale === "fa"
-      ? "اطلاعات روشن دربارهٔ داده‌های فرم تماس در پیش‌نمایش ولوما."
-      : "Plain-language contact-form data information for the VOLUMA preview.";
+      ? "اطلاعات روشن دربارهٔ داده‌های فرم تماس در پیش‌نمایش توسعه."
+      : "Plain-language contact-form data information for the development preview.";
 
   return publicMetadata({ description, locale: currentLocale, path: "/privacy", title });
 }

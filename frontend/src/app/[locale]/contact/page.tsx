@@ -7,6 +7,7 @@ import { EditorialHeader } from "@/components/editorial-header";
 import { FixtureNotice } from "@/components/fixture-notice";
 import { siteCopy } from "@/content/site";
 import { routing, type Locale } from "@/i18n/routing";
+import { getSite } from "@/lib/public-api";
 import { publicMetadata } from "@/lib/seo";
 
 type ContactPageProps = {
@@ -31,6 +32,7 @@ export default async function ContactPage({ params }: ContactPageProps) {
   if (!hasLocale(routing.locales, localeParam)) notFound();
   const locale = localeParam as Locale;
   const copy = siteCopy[locale];
+  const site = await getSite(locale);
 
   return (
     <main className="editorial-page section-shell contact-page">
@@ -44,6 +46,13 @@ export default async function ContactPage({ params }: ContactPageProps) {
         title={locale === "fa" ? "گفت‌وگویی برای شروع." : "A conversation to begin."}
       />
       <FixtureNotice>{copy.fixture}</FixtureNotice>
+      {site.contact_email || site.contact_phone || site.contact_address ? (
+        <aside className="contact-details" aria-label={locale === "fa" ? "اطلاعات تماس" : "Contact details"}>
+          {site.contact_email ? <a href={`mailto:${site.contact_email}`}>{site.contact_email}</a> : null}
+          {site.contact_phone ? <a href={`tel:${site.contact_phone}`}>{site.contact_phone}</a> : null}
+          {site.contact_address ? <p>{site.contact_address}</p> : null}
+        </aside>
+      ) : null}
       <ContactForm locale={locale} />
     </main>
   );

@@ -75,8 +75,29 @@ project_typologies = Table(
 
 class SiteSettings(TimestampedUUIDModel):
     __tablename__ = "site_settings"
+    __table_args__ = (
+        CheckConstraint("singleton IS TRUE", name="ck_site_settings_singleton"),
+        CheckConstraint(
+            "default_theme IN ('system', 'light', 'dark')",
+            name="ck_site_settings_default_theme",
+        ),
+        UniqueConstraint("singleton", name="uq_site_settings_singleton"),
+    )
 
+    singleton: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     studio_name: Mapped[str] = mapped_column(String(120), default="VOLUMA", nullable=False)
+    logo_url: Mapped[str | None] = mapped_column(String(500))
+    favicon_url: Mapped[str | None] = mapped_column(String(500))
+    contact_email: Mapped[str | None] = mapped_column(String(320))
+    contact_phone: Mapped[str | None] = mapped_column(String(64))
+    contact_address_en: Mapped[str | None] = mapped_column(Text)
+    contact_address_fa: Mapped[str | None] = mapped_column(Text)
+    social_links: Mapped[list[dict[str, str]]] = mapped_column(JSON, default=list, nullable=False)
+    default_theme: Mapped[str] = mapped_column(String(10), default="system", nullable=False)
+    default_seo_title_en: Mapped[str | None] = mapped_column(String(240))
+    default_seo_title_fa: Mapped[str | None] = mapped_column(String(240))
+    default_seo_description_en: Mapped[str | None] = mapped_column(String(320))
+    default_seo_description_fa: Mapped[str | None] = mapped_column(String(320))
     home_title_en: Mapped[str] = mapped_column(Text, nullable=False)
     home_title_fa: Mapped[str] = mapped_column(Text, nullable=False)
     home_body_en: Mapped[str] = mapped_column(Text, nullable=False)

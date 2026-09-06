@@ -7,6 +7,7 @@ from app.api.admin_editorial_content import router as admin_editorial_content_ro
 from app.api.admin_journal import router as admin_journal_router
 from app.api.admin_messages import router as admin_messages_router
 from app.api.admin_projects import router as admin_projects_router
+from app.api.admin_settings import router as admin_settings_router
 from app.api.admin_studio import router as admin_studio_router
 from app.api.admin_taxonomies import router as admin_taxonomies_router
 from app.api.contact import router as contact_router
@@ -41,4 +42,5 @@ app.include_router(admin_taxonomies_router, prefix="/api/v1/admin")
 app.include_router(admin_editorial_content_router, prefix="/api/v1/admin")
 app.include_router(admin_journal_router, prefix="/api/v1/admin")
 app.include_router(admin_messages_router, prefix="/api/v1/admin")
+app.include_router(admin_settings_router, prefix="/api/v1/admin")
 app.include_router(admin_studio_router, prefix="/api/v1/admin")

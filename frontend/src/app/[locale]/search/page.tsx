@@ -23,11 +23,11 @@ export async function generateMetadata({ params }: SearchPageProps): Promise<Met
   const title = currentLocale === "fa" ? "جست‌وجو" : "Search";
   const description =
     currentLocale === "fa"
-      ? "جست‌وجو در پروژه‌ها و یادداشت‌های منتشرشدهٔ ولوما."
-      : "Search VOLUMA projects and journal articles.";
+      ? "جست‌وجو در پروژه‌ها و یادداشت‌های منتشرشده."
+      : "Search published projects and journal articles.";
 
   return {
-    ...publicMetadata({ description, locale: currentLocale, path: "/search", title }),
+    ...(await publicMetadata({ description, locale: currentLocale, path: "/search", title })),
     robots: { follow: false, index: false },
   };
 }

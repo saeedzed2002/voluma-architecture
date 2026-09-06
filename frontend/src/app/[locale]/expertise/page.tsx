@@ -22,8 +22,8 @@ export async function generateMetadata({ params }: ExpertisePageProps): Promise<
   const title = currentLocale === "fa" ? "تخصص‌ها" : "Expertise";
   const description =
     currentLocale === "fa"
-      ? "معماری، معماری داخلی و باززنده‌سازی در پیش‌نمایش توسعهٔ ولوما."
-      : "Architecture, interior architecture, and adaptive reuse in the VOLUMA development preview.";
+      ? "معماری، معماری داخلی و باززنده‌سازی در پیش‌نمایش توسعه."
+      : "Architecture, interior architecture, and adaptive reuse in the development preview.";
 
   return publicMetadata({ description, locale: currentLocale, path: "/expertise", title });
 }

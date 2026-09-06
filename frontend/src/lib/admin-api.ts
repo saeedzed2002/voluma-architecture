@@ -30,6 +30,50 @@ export type AdminContactMessage = {
   updated_at: string;
 };
 
+export type AdminSiteSettingsSocialLink = {
+  label: string;
+  url: string;
+};
+
+export type AdminSiteSettingsPrinciple = {
+  body_en: string;
+  body_fa: string;
+  title_en: string;
+  title_fa: string;
+};
+
+export type AdminSiteSettings = {
+  contact_address_en: string | null;
+  contact_address_fa: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  default_seo_description_en: string | null;
+  default_seo_description_fa: string | null;
+  default_seo_title_en: string | null;
+  default_seo_title_fa: string | null;
+  default_theme: "system" | "light" | "dark";
+  favicon_url: string | null;
+  home_body_en: string;
+  home_body_fa: string;
+  home_hero_alt_en: string | null;
+  home_hero_alt_fa: string | null;
+  home_hero_image_url: string | null;
+  home_title_en: string;
+  home_title_fa: string;
+  id: string | null;
+  logo_url: string | null;
+  privacy_en: string;
+  privacy_fa: string;
+  social_links: AdminSiteSettingsSocialLink[];
+  studio_intro_en: string;
+  studio_intro_fa: string;
+  studio_name: string;
+  studio_principles: AdminSiteSettingsPrinciple[];
+  updated_at: string | null;
+};
+
+export type SiteSettingsWrite = Omit<AdminSiteSettings, "id" | "updated_at">;
+
 export type AdminTaxonomy = {
   display_order: number;
   id: string;
@@ -297,6 +341,14 @@ export function logoutAdministrator(csrfToken: string) {
 
 export function getAdminDashboard() {
   return adminFetch<AdminDashboard>("/dashboard");
+}
+
+export function getAdminSiteSettings() {
+  return adminFetch<AdminSiteSettings>("/settings");
+}
+
+export function updateAdminSiteSettings(payload: SiteSettingsWrite, csrfToken: string) {
+  return adminFetch<AdminSiteSettings>("/settings", { body: payload, csrfToken, method: "PUT" });
 }
 
 export function getAdminProjects() {

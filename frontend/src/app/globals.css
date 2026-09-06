@@ -1927,6 +1927,22 @@ html[lang="fa"] .journal-article__header h1 {
   max-width: 48ch;
 }
 
+.contact-details {
+  border-block: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  margin-block: 2rem;
+  margin-inline-start: 16.666%;
+  max-width: 70rem;
+  padding-block: 1rem;
+}
+
+.contact-details a,
+.contact-details p {
+  overflow-wrap: anywhere;
+}
+
 .privacy-page__sections {
   border-block-start: 1px solid var(--line);
   margin-inline-start: 16.666%;
@@ -2330,6 +2346,7 @@ html[lang="fa"] .journal-article__header h1 {
   }
 
   .contact-form,
+  .contact-details,
   .privacy-page__sections,
   .search-experience {
     margin-inline-start: 0;
@@ -2966,18 +2983,131 @@ html[lang="fa"] .journal-article__header h1 {
   min-width: 12rem;
 }
 
+.admin-settings {
+  display: grid;
+  gap: 2rem;
+  max-width: 76rem;
+}
+
+.admin-settings__form {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.admin-settings__section {
+  border: 1px solid #353835;
+  display: grid;
+  gap: 1.25rem;
+  margin: 0;
+  padding: 1.25rem;
+}
+
+.admin-settings__section legend {
+  color: #f4f1e7;
+  font-size: 1.1rem;
+  font-weight: 500;
+  padding-inline: 0.25rem;
+}
+
+.admin-settings__collection {
+  border-block-start: 1px solid #353835;
+  display: grid;
+  gap: 1rem;
+  padding-block-start: 1.25rem;
+}
+
+.admin-settings__collection-heading {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.admin-settings__collection-heading h2 {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.admin-settings__collection button,
+.admin-settings__pair > button,
+.admin-settings__principle > button {
+  border: 1px solid #4b504b;
+  color: #f4f1e7;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.85rem;
+  width: fit-content;
+}
+
+.admin-settings__pair,
+.admin-settings__principle {
+  align-items: end;
+  border-block-start: 1px solid #353835;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  padding-block-start: 1rem;
+}
+
+.admin-settings__principle {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+}
+
+.admin-settings__principle > button {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+}
+
+.admin-editor__field--wide {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 47.99rem) {
   .admin-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
   }
 
   .admin-sidebar {
-    gap: 1.5rem;
+    gap: 1rem;
+    min-width: 0;
     padding: 1.25rem;
   }
 
+  .admin-sidebar nav {
+    border-block: 1px solid #353835;
+    display: flex;
+    gap: 0;
+    max-width: 100%;
+    margin-inline: -1.25rem;
+    min-width: 0;
+    overflow-x: auto;
+    padding-inline: 1.25rem;
+    scrollbar-width: thin;
+    width: 100%;
+  }
+
+  .admin-sidebar nav a {
+    align-items: center;
+    border-block: 0;
+    border-inline-end: 1px solid #353835;
+    display: inline-flex;
+    flex: 0 0 auto;
+    padding-inline: 0.8rem;
+    white-space: nowrap;
+  }
+
+  .admin-sidebar nav a:first-child {
+    border-inline-start: 1px solid #353835;
+  }
+
   .admin-sidebar__account {
+    align-items: center;
+    grid-template-columns: minmax(0, 1fr) auto;
     margin-block-start: 0;
+  }
+
+  .admin-main {
+    min-width: 0;
   }
 
   .admin-card-grid {
@@ -2994,5 +3124,15 @@ html[lang="fa"] .journal-article__header h1 {
 
   .admin-editor__grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-settings__pair,
+  .admin-settings__principle {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-settings__principle > button {
+    grid-column: auto;
+    grid-row: auto;
   }
 }

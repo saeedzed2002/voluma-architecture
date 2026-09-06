@@ -28,7 +28,7 @@ from app.services.public_cache import TaggedPublicCache
 from app.services.public_content import DEFAULT_PAGE_LIMIT, MAX_PAGE_LIMIT, PublicContentService
 
 router = APIRouter(tags=["public"])
-PUBLIC_RESPONSE_CACHE_VERSION = "v3"
+PUBLIC_RESPONSE_CACHE_VERSION = "v4"
 
 LocaleQuery = Annotated[Locale, Query(description="Response locale.")]
 PageLimit = Annotated[int, Query(ge=1, le=MAX_PAGE_LIMIT)]
