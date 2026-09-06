@@ -1,11 +1,10 @@
-import Image from "next/image";
-
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { formatYear } from "@/lib/locale";
 import type { PublicProject } from "@/lib/public-api";
 
 import { ArrowIcon } from "./icons";
+import { ResponsiveImage } from "./responsive-image";
 
 type ProjectLinkProps = {
   locale: Locale;
@@ -28,16 +27,16 @@ export function ProjectLink({
       <Link aria-label={project.title} href={`/projects/${project.slug}`}>
         <div className="project-link__media">
           {coverImage ? (
-            <Image
-              alt={coverImage.alt}
+            <ResponsiveImage
               fill
+              image={coverImage}
+              loading={priority ? "eager" : "lazy"}
               priority={priority}
               sizes={
                 variant === "feature"
                   ? "(max-width: 767px) 100vw, 58vw"
                   : "(max-width: 767px) 100vw, (max-width: 1199px) 50vw, 34vw"
               }
-              src={coverImage.url}
             />
           ) : null}
         </div>

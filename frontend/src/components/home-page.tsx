@@ -9,6 +9,7 @@ import { ArrowIcon } from "./icons";
 import { FixtureNotice } from "./fixture-notice";
 import { ProjectLink } from "./project-link";
 import { Reveal } from "./reveal";
+import { ResponsiveImage } from "./responsive-image";
 
 type HomePageProps = {
   home: PublicHome;
@@ -32,12 +33,12 @@ export function HomePage({ home, locale }: HomePageProps) {
         </Reveal>
         <div className="home-hero__media">
           {home.hero_image ? (
-            <Image
-              alt={home.hero_image.alt}
+            <ResponsiveImage
               fill
+              image={home.hero_image}
+              loading="eager"
               priority
               sizes="(max-width: 767px) 100vw, 58vw"
-              src={home.hero_image.url}
             />
           ) : null}
         </div>
@@ -126,11 +127,10 @@ export function HomePage({ home, locale }: HomePageProps) {
               </Reveal>
               <Reveal className="featured-story__media" delay={0.08}>
                 {featuredStory.cover_image ? (
-                  <Image
-                    alt={featuredStory.cover_image.alt}
+                  <ResponsiveImage
                     fill
+                    image={featuredStory.cover_image}
                     sizes="(max-width: 767px) 100vw, 58vw"
-                    src={featuredStory.cover_image.url}
                   />
                 ) : null}
               </Reveal>
@@ -164,11 +164,10 @@ export function HomePage({ home, locale }: HomePageProps) {
               <article className="journal-row">
                 <div className="journal-row__media">
                   {item.cover_image ? (
-                    <Image
-                      alt={item.cover_image.alt}
+                    <ResponsiveImage
                       fill
+                      image={item.cover_image}
                       sizes="(max-width: 767px) 100vw, 45vw"
-                      src={item.cover_image.url}
                     />
                   ) : null}
                 </div>

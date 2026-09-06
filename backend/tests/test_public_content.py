@@ -203,7 +203,7 @@ def test_public_route_excludes_draft_and_uses_response_schema(session: Session) 
         assert detail_response.status_code == 200
         assert "blocks" in detail_response.json()
         assert detail_response.json()["title"] != "stale payload"
-        assert "voluma:cache:v4:project:courtyard-house:en" in redis.values
+        assert "voluma:cache:v5:project:courtyard-house:en" in redis.values
 
         draft_response = client.get("/api/v1/public/projects/internal-draft?locale=en")
         assert draft_response.status_code == 404

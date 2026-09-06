@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Literal, cast
+from uuid import UUID
 
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session, selectinload
@@ -10,18 +11,28 @@ from app.models.content import (
     Expertise,
     JournalArticle,
     JournalCategory,
+    MediaAsset,
+    MediaProcessingState,
     ProcessStep,
     Project,
+    ProjectMedia,
     PublicationState,
     Recognition,
     SiteSettings,
     StudioMember,
     Typology,
 )
-from app.schemas.admin import QuoteBlockPayload, TextBlockPayload
+from app.schemas.admin import (
+    GalleryBlockPayload,
+    PairedImageBlockPayload,
+    QuoteBlockPayload,
+    SingleImageBlockPayload,
+    TextBlockPayload,
+)
 from app.schemas.public import (
     EditorialSectionResponse,
     ExpertiseResponse,
+    GalleryEditorialBlockResponse,
     HomeResponse,
     ImageResponse,
     JournalArticleResponse,
@@ -30,6 +41,7 @@ from app.schemas.public import (
     JournalListResponse,
     Locale,
     PaginationResponse,
+    PairedImageEditorialBlockResponse,
     ProcessStepResponse,
     ProjectCardResponse,
     ProjectDetailResponse,
@@ -38,6 +50,7 @@ from app.schemas.public import (
     QuoteEditorialBlockResponse,
     SearchResponse,
     SearchResultResponse,
+    SingleImageEditorialBlockResponse,
     SiteResponse,
     SocialLinkResponse,
     StudioMemberResponse,
@@ -56,7 +69,11 @@ def _locale_field(record: object, field: str, locale: Locale) -> str | None:
 
 
 def _published_projects(*, include_blocks: bool = False) -> Select[tuple[Project]]:
-    options = [selectinload(Project.disciplines), selectinload(Project.typologies)]
+    options = [
+        selectinload(Project.disciplines),
+        selectinload(Project.typologies),
+        selectinload(Project.media_links).selectinload(ProjectMedia.media),
+    ]
     if include_blocks:
         options.append(selectinload(Project.blocks))
     return (
@@ -89,6 +106,39 @@ def _image(url: str | None, alt: str | None) -> ImageResponse | None:
     return ImageResponse(url=url, alt=alt)
 
 
+def _managed_image(asset: MediaAsset, locale: Locale) -> ImageResponse | None:
+    alt = asset.alt_fa if locale == "fa" else asset.alt_en
+    if (
+        asset.processing_state != MediaProcessingState.READY
+        or asset.derivative_version is None
+        or asset.deleted_at is not None
+        or not alt
+    ):
+        return None
+    base = f"/media/{asset.id}/{asset.derivative_version}"
+    widths = (640, 1024, 1600, 2400)
+    return ImageResponse(
+        url=f"{base}/w1024.webp",
+        alt=alt,
+        avif_srcset=", ".join(f"{base}/w{width}.avif {width}w" for width in widths),
+        webp_srcset=", ".join(f"{base}/w{width}.webp {width}w" for width in widths),
+        placeholder_url=f"{base}/placeholder.webp",
+        width=asset.derivative_width,
+        height=asset.derivative_height,
+    )
+
+
+def _project_media_images(
+    project: Project, locale: Locale
+) -> list[tuple[ProjectMedia, ImageResponse]]:
+    images: list[tuple[ProjectMedia, ImageResponse]] = []
+    for link in project.media_links:
+        image = _managed_image(link.media, locale)
+        if image is not None:
+            images.append((link, image))
+    return images
+
+
 def _taxonomy_response(taxonomy: Discipline | Typology, locale: Locale) -> TaxonomyResponse:
     title = _locale_field(taxonomy, "title", locale)
     assert title is not None
@@ -100,6 +150,8 @@ def project_card(project: Project, locale: Locale) -> ProjectCardResponse:
     summary = _locale_field(project, "summary", locale)
     location = _locale_field(project, "location", locale)
     assert title is not None and summary is not None and location is not None
+    managed_media = _project_media_images(project, locale)
+    managed_cover = next((image for link, image in managed_media if link.is_cover), None)
     return ProjectCardResponse(
         slug=project.slug,
         title=title,
@@ -108,10 +160,8 @@ def project_card(project: Project, locale: Locale) -> ProjectCardResponse:
         location=location,
         completion_year=project.completion_year,
         status=_locale_field(project, "status", locale),
-        cover_image=_image(
-            project.cover_image_url,
-            _locale_field(project, "cover_alt", locale),
-        ),
+        cover_image=managed_cover
+        or _image(project.cover_image_url, _locale_field(project, "cover_alt", locale)),
         disciplines=[_taxonomy_response(item, locale) for item in project.disciplines],
         typologies=[_taxonomy_response(item, locale) for item in project.typologies],
     )
@@ -135,7 +185,8 @@ def project_detail(project: Project, locale: Locale) -> ProjectDetailResponse:
         narrative=section("narrative"),
         quote=_locale_field(project, "quote", locale),
         material=section("material"),
-        gallery=[
+        gallery=[image for _, image in _project_media_images(project, locale)]
+        or [
             ImageResponse(url=image["url"], alt=image[f"alt_{locale}"])
             for image in project.gallery_images
             if image.get("url") and image.get(f"alt_{locale}")
@@ -147,7 +198,11 @@ def project_detail(project: Project, locale: Locale) -> ProjectDetailResponse:
 
 
 def _project_blocks(project: Project, locale: Locale) -> list[ProjectEditorialBlockResponse]:
-    """Expose only block types whose public renderer needs no unresolved media asset."""
+    media_by_id = {link.media.id: link.media for link in project.media_links}
+
+    def media_image(media_id: object) -> ImageResponse | None:
+        asset = media_by_id.get(cast(UUID, media_id))
+        return _managed_image(asset, locale) if asset is not None else None
 
     blocks: list[ProjectEditorialBlockResponse] = []
     for block in project.blocks:
@@ -168,6 +223,39 @@ def _project_blocks(project: Project, locale: Locale) -> list[ProjectEditorialBl
                     attribution=quote_payload.attribution,
                 )
             )
+        elif block.block_type in {"single_image", "full_width_image"}:
+            single_payload = SingleImageBlockPayload.model_validate(content)
+            image = media_image(single_payload.media_id)
+            if image is not None:
+                if block.block_type == "single_image":
+                    blocks.append(
+                        SingleImageEditorialBlockResponse(block_type="single_image", image=image)
+                    )
+                else:
+                    blocks.append(
+                        SingleImageEditorialBlockResponse(
+                            block_type="full_width_image", image=image
+                        )
+                    )
+        elif block.block_type == "paired_image":
+            paired_payload = PairedImageBlockPayload.model_validate(content)
+            left = media_image(paired_payload.left_media_id)
+            right = media_image(paired_payload.right_media_id)
+            if left is not None and right is not None:
+                blocks.append(
+                    PairedImageEditorialBlockResponse(
+                        block_type="paired_image", left_image=left, right_image=right
+                    )
+                )
+        elif block.block_type == "gallery":
+            gallery_payload = GalleryBlockPayload.model_validate(content)
+            images = [
+                image
+                for media_id in gallery_payload.media_ids
+                if (image := media_image(media_id)) is not None
+            ]
+            if images:
+                blocks.append(GalleryEditorialBlockResponse(block_type="gallery", images=images))
     return blocks
 
 

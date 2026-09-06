@@ -1,15 +1,15 @@
 "use client";
 
-import Image from "next/image";
 import { useRef, useState } from "react";
 
 import type { Locale } from "@/i18n/routing";
+import type { PublicImage } from "@/lib/public-api";
 
 import { ArrowIcon, CloseIcon } from "./icons";
+import { ResponsiveImage } from "./responsive-image";
 
 export type GalleryImage = {
-  src: string;
-  alt: string;
+  image: PublicImage;
   caption: string;
 };
 
@@ -50,14 +50,14 @@ export function ProjectGallery({
     <>
       <div className="project-gallery">
         {images.map((image, index) => (
-          <figure className="project-gallery__figure" key={`${image.src}-${image.caption}`}>
+          <figure className="project-gallery__figure" key={`${image.image.url}-${image.caption}`}>
             <button
               aria-label={`${openLabel}: ${image.caption}`}
               className="project-gallery__button"
               onClick={(event) => openImage(index, event.currentTarget)}
               type="button"
             >
-              <Image alt={image.alt} fill sizes="(max-width: 767px) 100vw, 50vw" src={image.src} />
+              <ResponsiveImage fill image={image.image} sizes="(max-width: 767px) 100vw, 50vw" />
             </button>
             <figcaption>{image.caption}</figcaption>
           </figure>
@@ -116,12 +116,12 @@ export function ProjectGallery({
         </div>
         <figure>
           <div className="gallery-dialog__media">
-            <Image
-              alt={images[activeIndex].alt}
+            <ResponsiveImage
               fill
+              image={images[activeIndex].image}
+              loading="eager"
               priority
               sizes="95vw"
-              src={images[activeIndex].src}
             />
           </div>
           <figcaption>{images[activeIndex].caption}</figcaption>

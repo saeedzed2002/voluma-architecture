@@ -17,6 +17,11 @@ class PublicModel(BaseModel):
 class ImageResponse(PublicModel):
     url: str
     alt: str
+    avif_srcset: str | None = None
+    webp_srcset: str | None = None
+    placeholder_url: str | None = None
+    width: int | None = Field(default=None, ge=1)
+    height: int | None = Field(default=None, ge=1)
 
 
 class TaxonomyResponse(PublicModel):
@@ -54,7 +59,29 @@ class QuoteEditorialBlockResponse(PublicModel):
     attribution: str | None = None
 
 
-ProjectEditorialBlockResponse = TextEditorialBlockResponse | QuoteEditorialBlockResponse
+class SingleImageEditorialBlockResponse(PublicModel):
+    block_type: Literal["single_image", "full_width_image"]
+    image: ImageResponse
+
+
+class PairedImageEditorialBlockResponse(PublicModel):
+    block_type: Literal["paired_image"]
+    left_image: ImageResponse
+    right_image: ImageResponse
+
+
+class GalleryEditorialBlockResponse(PublicModel):
+    block_type: Literal["gallery"]
+    images: list[ImageResponse]
+
+
+ProjectEditorialBlockResponse = (
+    TextEditorialBlockResponse
+    | QuoteEditorialBlockResponse
+    | SingleImageEditorialBlockResponse
+    | PairedImageEditorialBlockResponse
+    | GalleryEditorialBlockResponse
+)
 
 
 class ProjectDetailResponse(ProjectCardResponse):

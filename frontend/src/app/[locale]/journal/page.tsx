@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { hasLocale } from "next-intl";
 import { notFound } from "next/navigation";
 
@@ -7,6 +6,7 @@ import { EditorialHeader } from "@/components/editorial-header";
 import { FixtureNotice } from "@/components/fixture-notice";
 import { ArrowIcon } from "@/components/icons";
 import { Reveal } from "@/components/reveal";
+import { ResponsiveImage } from "@/components/responsive-image";
 import { siteCopy } from "@/content/site";
 import { Link } from "@/i18n/navigation";
 import { routing, type Locale } from "@/i18n/routing";
@@ -59,12 +59,12 @@ export default async function JournalPage({ params }: JournalPageProps) {
               <Link href={`/journal/${article.slug}`}>
                 <div className="journal-archive__media">
                   {article.cover_image ? (
-                    <Image
-                      alt={article.cover_image.alt}
+                    <ResponsiveImage
                       fill
+                      image={article.cover_image}
+                      loading={index === 0 ? "eager" : "lazy"}
                       priority={index === 0}
                       sizes="(max-width: 767px) 100vw, 38vw"
-                      src={article.cover_image.url}
                     />
                   ) : null}
                 </div>

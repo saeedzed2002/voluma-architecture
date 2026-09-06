@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { hasLocale } from "next-intl";
 import { notFound } from "next/navigation";
 
 import { FixtureNotice } from "@/components/fixture-notice";
 import { ArrowIcon } from "@/components/icons";
 import { Reveal } from "@/components/reveal";
+import { ResponsiveImage } from "@/components/responsive-image";
 import { siteCopy } from "@/content/site";
 import { Link } from "@/i18n/navigation";
 import { routing, type Locale } from "@/i18n/routing";
@@ -65,7 +65,7 @@ export default async function JournalArticlePage({ params }: JournalArticlePageP
       </header>
       <div className="journal-article__cover">
         {article.cover_image ? (
-          <Image alt={article.cover_image.alt} fill priority sizes="100vw" src={article.cover_image.url} />
+          <ResponsiveImage fill image={article.cover_image} loading="eager" priority sizes="100vw" />
         ) : null}
       </div>
       <div className="section-shell journal-article__fixture">
@@ -81,14 +81,14 @@ export default async function JournalArticlePage({ params }: JournalArticlePageP
                     <p key={paragraph}>{paragraph}</p>
                   ))}
                 </Reveal>
-              ) : (
+              ) : block.block_type === "quote" ? (
                 <Reveal as="div" delay={index * 0.05} key={`${block.block_type}-${index}`}>
                   <blockquote>
                     <p>{block.quote}</p>
                     {block.attribution ? <footer>{block.attribution}</footer> : null}
                   </blockquote>
                 </Reveal>
-              ),
+              ) : null,
             )
           : article.body.map((paragraph, index) => (
               <Reveal as="div" delay={index * 0.05} key={paragraph}>

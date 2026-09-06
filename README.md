@@ -15,9 +15,10 @@ does not duplicate that specification.
 Phases 1 through 4 are implemented. The approved public experience renders from
 purpose-built, published-only FastAPI response schemas with `no-store` Next.js fetches.
 The administrator workspace provides protected bilingual content, ordering, publishing,
-message triage, and singleton site-settings workflows with audit events and Redis tagged
-cache invalidation. Media upload, derivative processing, worker behavior, and production
-deployment remain the documented later phases.
+message triage, singleton site-settings workflows, and a managed media library with audit
+events and Redis tagged cache invalidation. Phase 5 adds validated JPEG/PNG/WebP uploads,
+durable processing states, Celery derivative generation, versioned public media paths, and
+project gallery selection. Production container hardening and deployment remain Phase 6.
 
 ## Planned layout
 
@@ -46,6 +47,8 @@ Run the migration, load representative development-only content, and start the A
 cd D:\Project\VOLUMA\backend
 $env:DATABASE_URL = "postgresql+psycopg://voluma:<local-password>@127.0.0.1:54329/voluma"
 $env:REDIS_URL = "redis://127.0.0.1:56379/0"
+$env:CELERY_BROKER_URL = "redis://127.0.0.1:56379/1"
+$env:VOLUMA_MEDIA_ROOT = "D:\Project\VOLUMA\.voluma-media"
 uv run alembic upgrade head
 uv run python -m app.fixtures.seed
 uv run python -m app.commands.provision_initial_administrator
@@ -55,6 +58,22 @@ uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
 Before running the provisioning command, set `VOLUMA_INITIAL_ADMIN_EMAIL` and
 `VOLUMA_INITIAL_ADMIN_PASSWORD` in the current terminal or a protected local `.env`.
 The command is idempotent and no administrator password is committed to this repository.
+
+In a third terminal, use the same broker and media-root values to run the worker. The
+API and worker must share this directory; it contains private originals and staging
+files as well as the Nginx-readable `public/` derivative subtree.
+
+```powershell
+cd D:\Project\VOLUMA\backend
+$env:DATABASE_URL = "postgresql+psycopg://voluma:<local-password>@127.0.0.1:54329/voluma"
+$env:REDIS_URL = "redis://127.0.0.1:56379/0"
+$env:CELERY_BROKER_URL = "redis://127.0.0.1:56379/1"
+$env:VOLUMA_MEDIA_ROOT = "D:\Project\VOLUMA\.voluma-media"
+uv run celery -A app.worker:celery_app worker --pool=solo --loglevel=INFO
+```
+
+`--pool=solo` is the compatible local Windows worker mode. The production worker
+process and shared persistent volume are delivered with the Phase 6 Compose release.
 
 In a second terminal, install the exact Node.js `24.20.0` runtime and run the frontend.
 Corepack reads the locked `pnpm@11.25.0` package-manager version from

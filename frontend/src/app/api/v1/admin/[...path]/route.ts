@@ -30,8 +30,17 @@ async function proxyAdminRequest(
     redirect: "manual",
   };
   if (request.method !== "GET" && request.method !== "HEAD") {
-    const body = await request.arrayBuffer();
-    if (body.byteLength > 0) init.body = body;
+    const contentType = request.headers.get("content-type") ?? "";
+    if (contentType.startsWith("multipart/form-data")) {
+      // Rebuild multipart payloads so Undici owns the boundary it advertises to
+      // FastAPI. Forwarding an incoming byte stream with its original boundary
+      // can otherwise make the `file` field disappear at the upstream parser.
+      headers.delete("content-type");
+      init.body = await request.formData();
+    } else {
+      const body = await request.arrayBuffer();
+      if (body.byteLength > 0) init.body = body;
+    }
   }
 
   try {

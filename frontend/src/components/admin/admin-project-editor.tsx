@@ -17,6 +17,7 @@ import {
 } from "@/lib/admin-api";
 
 import { useAdminSession } from "./admin-session-provider";
+import { AdminProjectMediaManager } from "./admin-project-media-manager";
 
 type ProjectFormState = {
   architect_en: string;
@@ -266,9 +267,15 @@ function ProjectBlocksEditor({
     onChange(blocks.map((block, current) => (current === index ? nextBlock : block)));
   };
 
+  const splitMediaIds = (value: string) =>
+    value
+      .split(",")
+      .map((mediaId) => mediaId.trim())
+      .filter(Boolean);
+
   return (
     <div className="admin-block-editor">
-      <p>Text and quote blocks are rendered publicly now. Image blocks require managed media and become editable in the media phase.</p>
+      <p>All editorial block types are public-ready. Use media IDs from the managed media library; the same ready asset must be selected for both locales.</p>
       {blocks.map((block, index) => (
         <article className="admin-block-editor__block" key={`${block.block_type}-${index}`}>
           {block.block_type === "text" ? (
@@ -311,9 +318,57 @@ function ProjectBlocksEditor({
                 value={block.content_fa.quote}
               />
             </>
-          ) : (
-            <p>Managed media block: {block.block_type}</p>
-          )}
+          ) : block.block_type === "single_image" || block.block_type === "full_width_image" ? (
+            <TextField
+              label="Managed media ID"
+              onChange={(media_id) =>
+                update(index, {
+                  ...block,
+                  content_en: { media_id },
+                  content_fa: { media_id },
+                })
+              }
+              value={block.content_en.media_id}
+            />
+          ) : block.block_type === "paired_image" ? (
+            <>
+              <TextField
+                label="Left managed media ID"
+                onChange={(left_media_id) =>
+                  update(index, {
+                    ...block,
+                    content_en: { ...block.content_en, left_media_id },
+                    content_fa: { ...block.content_fa, left_media_id },
+                  })
+                }
+                value={block.content_en.left_media_id}
+              />
+              <TextField
+                label="Right managed media ID"
+                onChange={(right_media_id) =>
+                  update(index, {
+                    ...block,
+                    content_en: { ...block.content_en, right_media_id },
+                    content_fa: { ...block.content_fa, right_media_id },
+                  })
+                }
+                value={block.content_en.right_media_id}
+              />
+            </>
+          ) : block.block_type === "gallery" ? (
+            <TextField
+              label="Managed media IDs (comma-separated)"
+              onChange={(value) => {
+                const media_ids = splitMediaIds(value);
+                update(index, {
+                  ...block,
+                  content_en: { media_ids },
+                  content_fa: { media_ids },
+                });
+              }}
+              value={block.content_en.media_ids.join(", ")}
+            />
+          ) : null}
           <button disabled={disabled} onClick={() => onChange(blocks.filter((_, current) => current !== index))} type="button">
             Remove block
           </button>
@@ -343,6 +398,58 @@ function ProjectBlocksEditor({
           type="button"
         >
           Add quote block
+        </button>
+        <button
+          disabled={disabled}
+          onClick={() =>
+            onChange([
+              ...blocks,
+              { block_type: "single_image", content_en: { media_id: "" }, content_fa: { media_id: "" } },
+            ])
+          }
+          type="button"
+        >
+          Add image block
+        </button>
+        <button
+          disabled={disabled}
+          onClick={() =>
+            onChange([
+              ...blocks,
+              { block_type: "full_width_image", content_en: { media_id: "" }, content_fa: { media_id: "" } },
+            ])
+          }
+          type="button"
+        >
+          Add full-width image
+        </button>
+        <button
+          disabled={disabled}
+          onClick={() =>
+            onChange([
+              ...blocks,
+              {
+                block_type: "paired_image",
+                content_en: { left_media_id: "", right_media_id: "" },
+                content_fa: { left_media_id: "", right_media_id: "" },
+              },
+            ])
+          }
+          type="button"
+        >
+          Add paired images
+        </button>
+        <button
+          disabled={disabled}
+          onClick={() =>
+            onChange([
+              ...blocks,
+              { block_type: "gallery", content_en: { media_ids: [] }, content_fa: { media_ids: [] } },
+            ])
+          }
+          type="button"
+        >
+          Add gallery block
         </button>
       </div>
     </div>
@@ -509,7 +616,9 @@ export function AdminProjectEditor({ projectId }: { projectId?: string }) {
             <label className="admin-editor__field"><span>Completion date</span><input onChange={(event) => setText("completion_date", event.target.value)} type="date" value={form.completion_date} /></label>
           </div>
         ) : null}
-        {activeTab === "Gallery" ? <p className="admin-editor__notice">The gallery is intentionally unavailable until media assets, upload validation, and derivative processing are implemented. It does not accept external image URLs.</p> : null}
+        {activeTab === "Gallery" ? (
+          project === null ? <p className="admin-editor__notice">Save the project before managing its media gallery.</p> : <AdminProjectMediaManager projectId={project.id} />
+        ) : null}
         {activeTab === "SEO" ? (
           <div className="admin-editor__grid">
             <TextField label="SEO title / EN" onChange={(value) => setText("seo_title_en", value)} value={form.seo_title_en} />

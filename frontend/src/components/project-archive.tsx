@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useTransition } from "react";
 
@@ -18,6 +17,7 @@ import {
 } from "@/lib/project-filters";
 
 import { ArrowIcon, GridIcon, ListIcon, SearchIcon } from "./icons";
+import { ResponsiveImage } from "./responsive-image";
 
 const categoryOrder: CategoryFilter[] = [
   "all",
@@ -126,12 +126,12 @@ export function ProjectArchive({ locale, projects }: ProjectArchiveProps) {
               <Link href={`/projects/${project.slug}`}>
                 <div className="archive-project__media">
                   {project.cover_image ? (
-                    <Image
-                      alt={project.cover_image.alt}
+                    <ResponsiveImage
                       fill
+                      image={project.cover_image}
+                      loading={index < 3 ? "eager" : "lazy"}
                       priority={index < 3}
                       sizes={view === "list" ? "38vw" : "(max-width: 767px) 100vw, 34vw"}
-                      src={project.cover_image.url}
                     />
                   ) : null}
                 </div>

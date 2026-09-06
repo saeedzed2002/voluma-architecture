@@ -15,7 +15,7 @@ from pydantic import (
     model_validator,
 )
 
-from app.models.content import PublicationState
+from app.models.content import MediaProcessingState, PublicationState
 
 
 class AdminModel(BaseModel):
@@ -720,3 +720,74 @@ class SiteSettingsWriteRequest(AdminModel):
 class AdminSiteSettingsResponse(SiteSettingsWriteRequest):
     id: UUID | None
     updated_at: datetime | None
+
+
+class MediaAssetResponse(AdminModel):
+    id: UUID
+    original_extension: str
+    source_content_type: str
+    source_size_bytes: int
+    source_width: int
+    source_height: int
+    processing_state: MediaProcessingState
+    processing_attempts: int
+    processing_error: str | None
+    derivative_version: str | None
+    derivative_width: int | None
+    derivative_height: int | None
+    preview_url: str | None
+    placeholder_url: str | None
+    alt_en: str | None
+    alt_fa: str | None
+    caption_en: str | None
+    caption_fa: str | None
+    credit: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class MediaAssetListResponse(AdminModel):
+    items: list[MediaAssetResponse]
+
+
+class MediaAssetMetadataWriteRequest(AdminModel):
+    alt_en: str | None = Field(default=None, max_length=500)
+    alt_fa: str | None = Field(default=None, max_length=500)
+    caption_en: str | None = Field(default=None, max_length=12_000)
+    caption_fa: str | None = Field(default=None, max_length=12_000)
+    credit: str | None = Field(default=None, max_length=500)
+
+    @field_validator("alt_en", "alt_fa", "caption_en", "caption_fa", "credit")
+    @classmethod
+    def normalize_optional_media_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
+
+class ProjectMediaWriteItem(AdminModel):
+    media_id: UUID
+    is_cover: bool = False
+
+
+class ProjectMediaReplaceRequest(AdminModel):
+    items: list[ProjectMediaWriteItem] = Field(default_factory=list, max_length=100)
+
+    @model_validator(mode="after")
+    def media_items_are_usable(self) -> ProjectMediaReplaceRequest:
+        identifiers = [item.media_id for item in self.items]
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError("project media assets must be unique")
+        if sum(item.is_cover for item in self.items) > 1:
+            raise ValueError("a project can have only one cover image")
+        return self
+
+
+class ProjectMediaResponse(AdminModel):
+    media: MediaAssetResponse
+    display_order: int
+    is_cover: bool
+
+
+class ProjectMediaListResponse(AdminModel):
+    items: list[ProjectMediaResponse]

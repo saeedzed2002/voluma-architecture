@@ -5,7 +5,12 @@ const apiBaseUrl =
 
 export type PublicImage = {
   alt: string;
+  avif_srcset: string | null;
+  height: number | null;
+  placeholder_url: string | null;
   url: string;
+  webp_srcset: string | null;
+  width: number | null;
 };
 
 export type PublicTaxonomy = {
@@ -40,7 +45,10 @@ export type PublicProjectDetail = PublicProject & {
 };
 
 export type PublicProjectEditorialBlock =
+  | { block_type: "gallery"; images: PublicImage[] }
+  | { block_type: "paired_image"; left_image: PublicImage; right_image: PublicImage }
   | { attribution: string | null; block_type: "quote"; quote: string }
+  | { block_type: "single_image" | "full_width_image"; image: PublicImage }
   | { block_type: "text"; body: string; heading: string | null };
 
 export type PublicEditorialSection = {

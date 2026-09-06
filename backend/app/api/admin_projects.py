@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.admin import AdministratorDep, CsrfAdministratorDep
 from app.api.public import PublicCacheDep
+from app.core.config import Settings, get_settings
 from app.db.session import get_session
 from app.schemas.admin import (
     AdminProjectFormOptionsResponse,
@@ -16,9 +17,16 @@ from app.schemas.admin import (
     AdminProjectResponse,
     ProjectBlocksReplaceRequest,
     ProjectCreateRequest,
+    ProjectMediaListResponse,
+    ProjectMediaReplaceRequest,
     ProjectReorderRequest,
     ProjectUpdateRequest,
 )
+from app.services.media_administration import (
+    MediaAdministrationService,
+    ProjectMediaValidationError,
+)
+from app.services.media_storage import MediaStorage
 from app.services.project_administration import (
     ProjectAdministrationService,
     ProjectNotFoundError,
@@ -30,10 +38,17 @@ from app.services.project_administration import (
 
 router = APIRouter(prefix="/projects", tags=["admin projects"])
 SessionDep = Annotated[Session, Depends(get_session)]
+SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
 def _service(session: Session, cache: PublicCacheDep) -> ProjectAdministrationService:
     return ProjectAdministrationService(session, cache)
+
+
+def _media_service(
+    session: Session, settings: Settings, cache: PublicCacheDep
+) -> MediaAdministrationService:
+    return MediaAdministrationService(session, MediaStorage(settings.media_root), cache)
 
 
 def _not_found() -> HTTPException:
@@ -201,5 +216,41 @@ def delete_project(
     except ProjectNotFoundError as error:
         session.rollback()
         raise _not_found() from error
+    except RedisError as error:
+        raise _cache_unavailable() from error
+
+
+@router.get("/{project_id}/media", response_model=ProjectMediaListResponse)
+def project_media(
+    project_id: UUID,
+    _administrator: AdministratorDep,
+    session: SessionDep,
+    settings: SettingsDep,
+    cache: PublicCacheDep,
+) -> ProjectMediaListResponse:
+    try:
+        return _media_service(session, settings, cache).project_media(project_id)
+    except ProjectMediaValidationError as error:
+        raise _not_found() from error
+
+
+@router.put("/{project_id}/media", response_model=ProjectMediaListResponse)
+def replace_project_media(
+    project_id: UUID,
+    payload: ProjectMediaReplaceRequest,
+    authenticated: CsrfAdministratorDep,
+    session: SessionDep,
+    settings: SettingsDep,
+    cache: PublicCacheDep,
+) -> ProjectMediaListResponse:
+    try:
+        return _media_service(session, settings, cache).replace_project_media(
+            project_id, payload, authenticated[0]
+        )
+    except ProjectMediaValidationError as error:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
+        ) from error
     except RedisError as error:
         raise _cache_unavailable() from error

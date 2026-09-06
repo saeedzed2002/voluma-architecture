@@ -38,6 +38,13 @@ class ContactMessageState(StrEnum):
     ARCHIVED = "archived"
 
 
+class MediaProcessingState(StrEnum):
+    PROCESSING = "processing"
+    READY = "ready"
+    FAILED = "failed"
+    DELETED = "deleted"
+
+
 project_disciplines = Table(
     "project_disciplines",
     Base.metadata,
@@ -241,6 +248,71 @@ class Project(TimestampedUUIDModel):
         cascade="all, delete-orphan",
         order_by="ProjectBlock.display_order",
     )
+    media_links: Mapped[list[ProjectMedia]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+        order_by="ProjectMedia.display_order",
+    )
+
+
+class MediaAsset(TimestampedUUIDModel):
+    __tablename__ = "media_assets"
+    __table_args__ = (
+        CheckConstraint("source_size_bytes > 0", name="ck_media_assets_source_size_positive"),
+        CheckConstraint("source_width > 0", name="ck_media_assets_source_width_positive"),
+        CheckConstraint("source_height > 0", name="ck_media_assets_source_height_positive"),
+        CheckConstraint(
+            "processing_attempts >= 0", name="ck_media_assets_processing_attempts_nonnegative"
+        ),
+        Index("ix_media_assets_status_created_at", "processing_state", "created_at"),
+    )
+
+    original_extension: Mapped[str] = mapped_column(String(8), nullable=False)
+    source_content_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    source_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    source_width: Mapped[int] = mapped_column(Integer, nullable=False)
+    source_height: Mapped[int] = mapped_column(Integer, nullable=False)
+    processing_state: Mapped[MediaProcessingState] = mapped_column(
+        Enum(
+            MediaProcessingState,
+            name="mediaprocessingstate",
+            values_callable=lambda enum_class: [state.value for state in enum_class],
+        ),
+        default=MediaProcessingState.PROCESSING,
+        nullable=False,
+    )
+    processing_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    processing_error: Mapped[str | None] = mapped_column(String(500))
+    derivative_version: Mapped[str | None] = mapped_column(String(40))
+    derivative_width: Mapped[int | None] = mapped_column(Integer)
+    derivative_height: Mapped[int | None] = mapped_column(Integer)
+    alt_en: Mapped[str | None] = mapped_column(String(500))
+    alt_fa: Mapped[str | None] = mapped_column(String(500))
+    caption_en: Mapped[str | None] = mapped_column(Text)
+    caption_fa: Mapped[str | None] = mapped_column(Text)
+    credit: Mapped[str | None] = mapped_column(String(500))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    project_links: Mapped[list[ProjectMedia]] = relationship(back_populates="media")
+
+
+class ProjectMedia(TimestampedUUIDModel):
+    __tablename__ = "project_media"
+    __table_args__ = (
+        UniqueConstraint("project_id", "media_asset_id", name="uq_project_media_asset"),
+        UniqueConstraint("project_id", "display_order", name="uq_project_media_display_order"),
+        Index("ix_project_media_project_cover", "project_id", "is_cover"),
+    )
+
+    project_id: Mapped[UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    media_asset_id: Mapped[UUID] = mapped_column(
+        ForeignKey("media_assets.id", ondelete="RESTRICT"), nullable=False
+    )
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_cover: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    project: Mapped[Project] = relationship(back_populates="media_links")
+    media: Mapped[MediaAsset] = relationship(back_populates="project_links")
 
 
 class ProjectBlock(TimestampedUUIDModel):

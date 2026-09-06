@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { hasLocale } from "next-intl";
 import { notFound } from "next/navigation";
 
@@ -8,6 +7,7 @@ import { ArrowIcon } from "@/components/icons";
 import { ProjectGallery, type GalleryImage } from "@/components/project-gallery";
 import { ProjectEditorialBlocks } from "@/components/project-editorial-blocks";
 import { ProjectLink } from "@/components/project-link";
+import { ResponsiveImage } from "@/components/responsive-image";
 import { Reveal } from "@/components/reveal";
 import { siteCopy } from "@/content/site";
 import { Link } from "@/i18n/navigation";
@@ -57,8 +57,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   const next = archive.items[(projectIndex + 1) % archive.items.length];
   const related = archive.items.filter((entry) => entry.slug !== slug).slice(0, 2);
   const galleryImages: GalleryImage[] = project.gallery.map((image, index) => ({
-    src: image.url,
-    alt: image.alt,
+    image,
     caption: index === 0 ? copy.detailCaption : copy.materialCaption,
   }));
 
@@ -77,7 +76,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
       <div className="project-hero__media">
         {project.cover_image ? (
-          <Image alt={project.cover_image.alt} fill priority sizes="100vw" src={project.cover_image.url} />
+          <ResponsiveImage fill image={project.cover_image} loading="eager" priority sizes="100vw" />
         ) : null}
       </div>
 
@@ -114,11 +113,10 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           </Reveal>
           <Reveal className="project-intro__drawing" delay={0.08}>
             {project.cover_image ? (
-              <Image
-                alt={project.cover_image.alt}
+              <ResponsiveImage
                 fill
+                image={project.cover_image}
                 sizes="(max-width: 767px) 100vw, 44vw"
-                src={project.cover_image.url}
               />
             ) : null}
           </Reveal>
@@ -134,11 +132,10 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           </Reveal>
           <Reveal className="project-narrative__media" delay={0.08}>
             {project.cover_image ? (
-              <Image
-                alt={project.cover_image.alt}
+              <ResponsiveImage
                 fill
+                image={project.cover_image}
                 sizes="(max-width: 767px) 100vw, 58vw"
-                src={project.cover_image.url}
               />
             ) : null}
           </Reveal>

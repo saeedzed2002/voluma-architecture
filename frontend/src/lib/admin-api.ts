@@ -74,6 +74,41 @@ export type AdminSiteSettings = {
 
 export type SiteSettingsWrite = Omit<AdminSiteSettings, "id" | "updated_at">;
 
+export type AdminMediaAsset = {
+  alt_en: string | null;
+  alt_fa: string | null;
+  caption_en: string | null;
+  caption_fa: string | null;
+  created_at: string;
+  credit: string | null;
+  derivative_height: number | null;
+  derivative_version: string | null;
+  derivative_width: number | null;
+  id: string;
+  original_extension: string;
+  placeholder_url: string | null;
+  preview_url: string | null;
+  processing_attempts: number;
+  processing_error: string | null;
+  processing_state: "processing" | "ready" | "failed" | "deleted";
+  source_content_type: string;
+  source_height: number;
+  source_size_bytes: number;
+  source_width: number;
+  updated_at: string;
+};
+
+export type MediaAssetMetadataWrite = Pick<
+  AdminMediaAsset,
+  "alt_en" | "alt_fa" | "caption_en" | "caption_fa" | "credit"
+>;
+
+export type AdminProjectMedia = {
+  display_order: number;
+  is_cover: boolean;
+  media: AdminMediaAsset;
+};
+
 export type AdminTaxonomy = {
   display_order: number;
   id: string;
@@ -327,6 +362,21 @@ async function adminFetch<T>(path: string, options: RequestOptions = {}): Promis
   return (await response.json()) as T;
 }
 
+async function adminUpload<T>(path: string, file: File, csrfToken: string): Promise<T> {
+  const headers = new Headers({ Accept: "application/json", "X-VOLUMA-CSRF": csrfToken });
+  const body = new FormData();
+  body.append("file", file);
+  const response = await fetch(`/api/v1/admin${path}`, {
+    body,
+    cache: "no-store",
+    credentials: "same-origin",
+    headers,
+    method: "POST",
+  });
+  if (!response.ok) throw new AdminApiError(response.status);
+  return (await response.json()) as T;
+}
+
 export function getAdminSession() {
   return adminFetch<AdminSession>("/auth/me");
 }
@@ -349,6 +399,57 @@ export function getAdminSiteSettings() {
 
 export function updateAdminSiteSettings(payload: SiteSettingsWrite, csrfToken: string) {
   return adminFetch<AdminSiteSettings>("/settings", { body: payload, csrfToken, method: "PUT" });
+}
+
+export function getAdminMedia() {
+  return adminFetch<{ items: AdminMediaAsset[] }>("/media");
+}
+
+export function uploadAdminMedia(file: File, csrfToken: string) {
+  return adminUpload<AdminMediaAsset>("/media", file, csrfToken);
+}
+
+export function updateAdminMedia(
+  mediaId: string,
+  payload: MediaAssetMetadataWrite,
+  csrfToken: string,
+) {
+  return adminFetch<AdminMediaAsset>(`/media/${encodeURIComponent(mediaId)}`, {
+    body: payload,
+    csrfToken,
+    method: "PUT",
+  });
+}
+
+export function retryAdminMedia(mediaId: string, csrfToken: string) {
+  return adminFetch<AdminMediaAsset>(`/media/${encodeURIComponent(mediaId)}/retry`, {
+    csrfToken,
+    method: "POST",
+  });
+}
+
+export function deleteAdminMedia(mediaId: string, csrfToken: string) {
+  return adminFetch<void>(`/media/${encodeURIComponent(mediaId)}`, {
+    csrfToken,
+    method: "DELETE",
+  });
+}
+
+export function getAdminProjectMedia(projectId: string) {
+  return adminFetch<{ items: AdminProjectMedia[] }>(
+    `/projects/${encodeURIComponent(projectId)}/media`,
+  );
+}
+
+export function replaceAdminProjectMedia(
+  projectId: string,
+  items: { is_cover: boolean; media_id: string }[],
+  csrfToken: string,
+) {
+  return adminFetch<{ items: AdminProjectMedia[] }>(
+    `/projects/${encodeURIComponent(projectId)}/media`,
+    { body: { items }, csrfToken, method: "PUT" },
+  );
 }
 
 export function getAdminProjects() {
