@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import type { Locale } from "@/i18n/routing";
 
@@ -17,8 +17,10 @@ const labels = {
     phone: "Phone (optional)",
     projectType: "Project type (optional)",
     selectProjectType: "Select a project type",
-    status:
-      "This development preview does not transmit or store contact messages. The secured contact service is scheduled for a later phase.",
+    error: "We could not send your enquiry right now. Please try again shortly.",
+    rateLimited: "Please wait before sending another enquiry.",
+    submittedTooQuickly: "Please take a moment to complete the form before sending it.",
+    success: "Thank you. Your enquiry has been received.",
     submit: "Send enquiry",
   },
   fa: {
@@ -29,24 +31,67 @@ const labels = {
     phone: "تلفن (اختیاری)",
     projectType: "نوع پروژه (اختیاری)",
     selectProjectType: "نوع پروژه را انتخاب کنید",
-    status:
-      "این پیش‌نمایش توسعه، پیام‌های تماس را ارسال یا ذخیره نمی‌کند. سرویس امن تماس در مرحله‌ای بعد پیاده‌سازی می‌شود.",
+    error: "ارسال درخواست اکنون ممکن نیست. لطفاً کمی بعد دوباره تلاش کنید.",
+    rateLimited: "لطفاً پیش از ارسال درخواست دیگر کمی صبر کنید.",
+    submittedTooQuickly: "لطفاً پیش از ارسال فرم، کمی برای تکمیل آن زمان بگذارید.",
+    success: "سپاسگزاریم. درخواست شما دریافت شد.",
     submit: "ارسال درخواست",
   },
 } as const;
 
 export function ContactForm({ locale }: ContactFormProps) {
   const copy = labels[locale];
-  const [statusVisible, setStatusVisible] = useState(false);
+  const startedAt = useRef<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    startedAt.current = Date.now();
+  }, []);
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isSubmitting) return;
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    setIsSubmitting(true);
+    setStatus(null);
+    try {
+      const response = await fetch("/api/v1/contact", {
+        body: JSON.stringify({
+          company: String(data.get("company") ?? "") || null,
+          email: String(data.get("email") ?? ""),
+          message: String(data.get("message") ?? ""),
+          name: String(data.get("name") ?? ""),
+          phone: String(data.get("phone") ?? "") || null,
+          project_type: String(data.get("projectType") ?? "") || null,
+          source_locale: locale,
+          started_at: startedAt.current ?? Date.now(),
+          website: String(data.get("website") ?? ""),
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      if (response.ok) {
+        form.reset();
+        startedAt.current = Date.now();
+        setStatus(copy.success);
+      } else if (response.status === 429) {
+        setStatus(copy.rateLimited);
+      } else if (response.status === 422) {
+        setStatus(copy.submittedTooQuickly);
+      } else {
+        setStatus(copy.error);
+      }
+    } catch {
+      setStatus(copy.error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <form
-      className="contact-form"
-      onSubmit={(event) => {
-        event.preventDefault();
-        setStatusVisible(true);
-      }}
-    >
+    <form className="contact-form" onSubmit={(event) => void submit(event)}>
       <div className="contact-form__honeypot" aria-hidden="true">
         <label htmlFor="website">Website</label>
         <input autoComplete="off" id="website" name="website" tabIndex={-1} type="text" />
@@ -83,10 +128,12 @@ export function ContactForm({ locale }: ContactFormProps) {
         <textarea name="message" required rows={7} />
       </label>
       <div className="contact-form__actions">
-        <button type="submit">{copy.submit}</button>
-        {statusVisible ? (
+        <button disabled={isSubmitting} type="submit">
+          {copy.submit}
+        </button>
+        {status !== null ? (
           <p aria-live="polite" role="status">
-            {copy.status}
+            {status}
           </p>
         ) : null}
       </div>

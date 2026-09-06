@@ -10,7 +10,24 @@ export type AdminSession = {
 
 export type AdminDashboard = {
   journal_articles: Record<"draft" | "published", number>;
+  messages: Record<"new" | "read" | "archived", number>;
   projects: Record<"draft" | "published", number>;
+};
+
+export type AdminContactMessage = {
+  archived_at: string | null;
+  body: string;
+  company: string | null;
+  created_at: string;
+  email: string;
+  id: string;
+  name: string;
+  phone: string | null;
+  project_type: "architecture" | "interior" | "reuse" | null;
+  read_at: string | null;
+  source_locale: "en" | "fa";
+  state: "new" | "read" | "archived";
+  updated_at: string;
 };
 
 export type AdminTaxonomy = {
@@ -556,6 +573,30 @@ export function updateAdminJournalArticle(
 
 export function deleteAdminJournalArticle(identifier: string, csrfToken: string) {
   return adminFetch<void>(`/journal/articles/${encodeURIComponent(identifier)}`, {
+    csrfToken,
+    method: "DELETE",
+  });
+}
+
+export function getAdminContactMessages(state?: AdminContactMessage["state"]) {
+  const query = state === undefined ? "" : `?state=${encodeURIComponent(state)}`;
+  return adminFetch<{ items: AdminContactMessage[]; total: number }>(`/messages${query}`);
+}
+
+export function updateAdminContactMessageState(
+  identifier: string,
+  state: AdminContactMessage["state"],
+  csrfToken: string,
+) {
+  return adminFetch<AdminContactMessage>(`/messages/${encodeURIComponent(identifier)}`, {
+    body: { state },
+    csrfToken,
+    method: "PATCH",
+  });
+}
+
+export function deleteAdminContactMessage(identifier: string, csrfToken: string) {
+  return adminFetch<void>(`/messages/${encodeURIComponent(identifier)}`, {
     csrfToken,
     method: "DELETE",
   });

@@ -39,6 +39,7 @@ class AdminSessionResponse(AdminModel):
 class AdminDashboardResponse(AdminModel):
     projects: dict[str, int]
     journal_articles: dict[str, int]
+    messages: dict[str, int]
 
 
 class AdminTaxonomyResponse(AdminModel):

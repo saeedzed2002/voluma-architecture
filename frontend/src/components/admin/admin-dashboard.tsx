@@ -22,6 +22,19 @@ function ContentCard({ counts, label }: { counts: Record<"draft" | "published", 
   );
 }
 
+function MessageCard({ counts }: { counts: AdminDashboard["messages"] }) {
+  return (
+    <article className="admin-card">
+      <h2>Messages</h2>
+      <dl>
+        <div><dt>New</dt><dd>{counts.new}</dd></div>
+        <div><dt>Read</dt><dd>{counts.read}</dd></div>
+        <div><dt>Archived</dt><dd>{counts.archived}</dd></div>
+      </dl>
+    </article>
+  );
+}
+
 export function AdminDashboard() {
   const [dashboard, setDashboard] = useState<AdminDashboard | null>(null);
   const [hasError, setHasError] = useState(false);
@@ -53,6 +66,7 @@ export function AdminDashboard() {
         <div className="admin-card-grid">
           <ContentCard counts={dashboard.projects} label="Projects" />
           <ContentCard counts={dashboard.journal_articles} label="Journal articles" />
+          <MessageCard counts={dashboard.messages} />
         </div>
       ) : null}
     </section>

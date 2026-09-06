@@ -1893,6 +1893,18 @@ html[lang="fa"] .journal-article__header h1 {
   width: 0;
 }
 
+.admin-message-filter {
+  margin-block: 1.5rem;
+  max-width: 18rem;
+}
+
+.admin-message-list__body {
+  margin-block-start: 1.25rem;
+  max-width: 72ch;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .contact-form__actions {
   align-items: center;
   display: flex;

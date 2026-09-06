@@ -32,6 +32,12 @@ class PublicationState(StrEnum):
     PUBLISHED = "published"
 
 
+class ContactMessageState(StrEnum):
+    NEW = "new"
+    READ = "read"
+    ARCHIVED = "archived"
+
+
 project_disciplines = Table(
     "project_disciplines",
     Base.metadata,
@@ -88,6 +94,30 @@ class SiteSettings(TimestampedUUIDModel):
     )
     privacy_en: Mapped[str] = mapped_column(Text, nullable=False)
     privacy_fa: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class ContactMessage(TimestampedUUIDModel):
+    __tablename__ = "contact_messages"
+    __table_args__ = (Index("ix_contact_messages_state_created_at", "state", "created_at"),)
+
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    phone: Mapped[str | None] = mapped_column(String(64))
+    company: Mapped[str | None] = mapped_column(String(160))
+    project_type: Mapped[str | None] = mapped_column(String(40))
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    source_locale: Mapped[str] = mapped_column(String(2), nullable=False)
+    state: Mapped[ContactMessageState] = mapped_column(
+        Enum(
+            ContactMessageState,
+            name="contactmessagestate",
+            values_callable=lambda enum_class: [state.value for state in enum_class],
+        ),
+        default=ContactMessageState.NEW,
+        nullable=False,
+    )
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Discipline(TimestampedUUIDModel):

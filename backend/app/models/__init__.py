@@ -1,5 +1,7 @@
 from app.models.admin import AdminUser, AuditEvent
 from app.models.content import (
+    ContactMessage,
+    ContactMessageState,
     Discipline,
     Expertise,
     JournalArticle,
@@ -17,6 +19,8 @@ from app.models.content import (
 __all__ = [
     "AdminUser",
     "AuditEvent",
+    "ContactMessage",
+    "ContactMessageState",
     "Discipline",
     "Expertise",
     "JournalArticle",

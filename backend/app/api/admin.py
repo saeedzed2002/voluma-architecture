@@ -11,7 +11,13 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings, get_settings
 from app.db.session import get_session
 from app.models.admin import AdminUser
-from app.models.content import JournalArticle, Project, PublicationState
+from app.models.content import (
+    ContactMessage,
+    ContactMessageState,
+    JournalArticle,
+    Project,
+    PublicationState,
+)
 from app.schemas.admin import (
     AdminDashboardResponse,
     AdminLoginRequest,
@@ -231,5 +237,16 @@ def dashboard(session: SessionDep, _: AdministratorDep) -> AdminDashboardRespons
         journal_articles={
             "draft": count_records(JournalArticle, PublicationState.DRAFT),
             "published": count_records(JournalArticle, PublicationState.PUBLISHED),
+        },
+        messages={
+            state.value: int(
+                session.scalar(
+                    select(func.count())
+                    .select_from(ContactMessage)
+                    .where(ContactMessage.state == state)
+                )
+                or 0
+            )
+            for state in ContactMessageState
         },
     )

@@ -70,7 +70,7 @@ test("navigates gallery images with keyboard controls and restores the trigger f
   await expect(trigger).toBeFocused();
 });
 
-test("does not pretend to submit contact data before the secure backend exists", async ({
+test("submits a validated contact enquiry through the secured service", async ({
   page,
 }) => {
   await page.goto("/en/contact");
@@ -78,13 +78,10 @@ test("does not pretend to submit contact data before the secure backend exists",
   await page.getByRole("textbox", { name: "Email address" }).fill("visitor@example.com");
   await page
     .getByRole("textbox", { name: "Tell us about the place or question" })
-    .fill("A quiet place.");
+    .fill("A quiet place with a careful relationship to street life and daylight.");
+  await page.waitForTimeout(3_100);
   await page.getByRole("button", { name: "Send enquiry" }).click();
-  await expect(
-    page.getByText(
-      "This development preview does not transmit or store contact messages. The secured contact service is scheduled for a later phase.",
-    ),
-  ).toBeVisible();
+  await expect(page.getByText("Thank you. Your enquiry has been received.")).toBeVisible();
 });
 
 test("searches only public project and journal fixture summaries", async ({ page }) => {
