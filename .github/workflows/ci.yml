@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   locked-bootstrap:
-    name: Verify Phase 3 foundation
+    name: Verify Phase 4 CMS workflows
     runs-on: ubuntu-24.04
     services:
       postgres:
@@ -90,6 +90,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+psycopg://voluma:ci-only-postgres-password@127.0.0.1:5432/voluma
           REDIS_URL: redis://127.0.0.1:6379/0
+          VOLUMA_PUBLIC_ORIGIN: http://127.0.0.1:3000
         run: |
           nohup uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/voluma-api.log" 2>&1 &
           for attempt in {1..30}; do
