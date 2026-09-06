@@ -38,6 +38,18 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <Link aria-current={pathname === "/admin/typologies" ? "page" : undefined} href="/admin/typologies">
             Typologies
           </Link>
+          <Link aria-current={pathname === "/admin/expertise" ? "page" : undefined} href="/admin/expertise">
+            Expertise
+          </Link>
+          <Link aria-current={pathname === "/admin/process" ? "page" : undefined} href="/admin/process">
+            Process
+          </Link>
+          <Link aria-current={pathname === "/admin/people" ? "page" : undefined} href="/admin/people">
+            People
+          </Link>
+          <Link aria-current={pathname === "/admin/recognition" ? "page" : undefined} href="/admin/recognition">
+            Recognition
+          </Link>
         </nav>
         <div className="admin-sidebar__account">
           <span>{session.administrator.email}</span>

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -181,7 +182,13 @@ def test_tagged_cache_invalidates_only_known_tag_members() -> None:
 def test_public_route_excludes_draft_and_uses_response_schema(session: Session) -> None:
     session.add(_draft_project())
     session.commit()
-    cache = TaggedPublicCache(FakeRedis())  # type: ignore[arg-type]
+    redis = FakeRedis()
+    # Simulate a cache entry written before the public project detail added blocks.
+    # A deployment must never deserialize it as the current response shape.
+    redis.values["voluma:cache:v1:project:courtyard-house:en"] = json.dumps(
+        {"slug": "courtyard-house", "title": "stale payload"}
+    )
+    cache = TaggedPublicCache(redis)  # type: ignore[arg-type]
     app.dependency_overrides[get_session] = lambda: session
     app.dependency_overrides[get_public_cache] = lambda: cache
     try:
@@ -191,6 +198,12 @@ def test_public_route_excludes_draft_and_uses_response_schema(session: Session) 
         payload = list_response.json()
         assert all(item["slug"] != "internal-draft" for item in payload["items"])
         assert "publication_state" not in payload["items"][0]
+
+        detail_response = client.get("/api/v1/public/projects/courtyard-house?locale=en")
+        assert detail_response.status_code == 200
+        assert "blocks" in detail_response.json()
+        assert detail_response.json()["title"] != "stale payload"
+        assert "voluma:cache:v2:project:courtyard-house:en" in redis.values
 
         draft_response = client.get("/api/v1/public/projects/internal-draft?locale=en")
         assert draft_response.status_code == 404

@@ -218,6 +218,10 @@ class ProjectBlock(TimestampedUUIDModel):
 
 class Expertise(TimestampedUUIDModel):
     __tablename__ = "expertise"
+    __table_args__ = (
+        UniqueConstraint("display_order", name="uq_expertise_display_order"),
+        Index("ix_expertise_public_list", "publication_state", "display_order"),
+    )
 
     publication_state: Mapped[PublicationState] = mapped_column(
         Enum(PublicationState, name="publication_state"),
@@ -233,6 +237,10 @@ class Expertise(TimestampedUUIDModel):
 
 class ProcessStep(TimestampedUUIDModel):
     __tablename__ = "process_steps"
+    __table_args__ = (
+        UniqueConstraint("display_order", name="uq_process_steps_display_order"),
+        Index("ix_process_steps_public_list", "publication_state", "display_order"),
+    )
 
     publication_state: Mapped[PublicationState] = mapped_column(
         Enum(PublicationState, name="publication_state"),
@@ -248,6 +256,10 @@ class ProcessStep(TimestampedUUIDModel):
 
 class StudioMember(TimestampedUUIDModel):
     __tablename__ = "studio_members"
+    __table_args__ = (
+        UniqueConstraint("display_order", name="uq_studio_members_display_order"),
+        Index("ix_studio_members_public_list", "publication_state", "display_order"),
+    )
 
     publication_state: Mapped[PublicationState] = mapped_column(
         Enum(PublicationState, name="publication_state"),
@@ -264,6 +276,10 @@ class StudioMember(TimestampedUUIDModel):
 
 class Recognition(TimestampedUUIDModel):
     __tablename__ = "recognitions"
+    __table_args__ = (
+        UniqueConstraint("display_order", name="uq_recognitions_display_order"),
+        Index("ix_recognitions_public_list", "publication_state", "display_order"),
+    )
 
     publication_state: Mapped[PublicationState] = mapped_column(
         Enum(PublicationState, name="publication_state"),

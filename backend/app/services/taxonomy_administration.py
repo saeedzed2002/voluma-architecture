@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Literal, cast
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -71,6 +71,7 @@ class TaxonomyAdministrationService:
             is not None
         ):
             raise TaxonomyConflictError()
+        self._lock_collection_for_append(kind)
         highest = self.session.scalar(select(func.max(record_type.display_order)))
         record = record_type(
             slug=payload.slug,
@@ -223,6 +224,13 @@ class TaxonomyAdministrationService:
         for slug in slugs:
             tags.update({f"project:{slug}", f"project:{slug}:en", f"project:{slug}:fa"})
         self.cache.invalidate(tags)
+
+    def _lock_collection_for_append(self, kind: TaxonomyKind) -> None:
+        if self.session.get_bind().dialect.name != "postgresql":
+            return
+        table = "disciplines" if kind == "discipline" else "typologies"
+        # The table name is selected from a closed literal set, never request input.
+        self.session.execute(text(f"LOCK TABLE {table} IN SHARE ROW EXCLUSIVE MODE"))
 
 
 def _response(record: TaxonomyRecord) -> AdminTaxonomyResponse:

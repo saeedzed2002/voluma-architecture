@@ -3,7 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.admin import auth_router as admin_auth_router
 from app.api.admin import router as admin_router
+from app.api.admin_editorial_content import router as admin_editorial_content_router
 from app.api.admin_projects import router as admin_projects_router
+from app.api.admin_studio import router as admin_studio_router
 from app.api.admin_taxonomies import router as admin_taxonomies_router
 from app.api.health import router as health_router
 from app.api.public import router as public_router
@@ -32,3 +34,5 @@ app.include_router(admin_auth_router, prefix="/api/v1/admin")
 app.include_router(admin_router, prefix="/api/v1/admin")
 app.include_router(admin_projects_router, prefix="/api/v1/admin")
 app.include_router(admin_taxonomies_router, prefix="/api/v1/admin")
+app.include_router(admin_editorial_content_router, prefix="/api/v1/admin")
+app.include_router(admin_studio_router, prefix="/api/v1/admin")

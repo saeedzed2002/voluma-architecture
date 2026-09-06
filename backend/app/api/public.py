@@ -28,6 +28,7 @@ from app.services.public_cache import TaggedPublicCache
 from app.services.public_content import DEFAULT_PAGE_LIMIT, MAX_PAGE_LIMIT, PublicContentService
 
 router = APIRouter(tags=["public"])
+PUBLIC_RESPONSE_CACHE_VERSION = "v2"
 
 LocaleQuery = Annotated[Locale, Query(description="Response locale.")]
 PageLimit = Annotated[int, Query(ge=1, le=MAX_PAGE_LIMIT)]
@@ -87,6 +88,12 @@ def _query_cache_key(namespace: str, parameters: dict[str, str | int | None]) ->
     return f"{namespace}?{encoded}"
 
 
+def _cache_namespace(name: str) -> str:
+    """Version cached response shapes so a deployment cannot deserialize stale payloads."""
+
+    return f"{PUBLIC_RESPONSE_CACHE_VERSION}:{name}"
+
+
 @router.get("/site", response_model=SiteResponse)
 def site(
     session: SessionDep,
@@ -96,7 +103,7 @@ def site(
     service = PublicContentService(session)
     response = _cached(
         cache,
-        key=f"v1:site:{locale}",
+        key=f"{_cache_namespace('site')}:{locale}",
         tags=_locale_tags("site", locale=locale),
         factory=lambda: service.site(locale) or (_raise_not_found()),
         parser=SiteResponse.model_validate,
@@ -113,7 +120,7 @@ def home(
     service = PublicContentService(session)
     response = _cached(
         cache,
-        key=f"v1:home:{locale}",
+        key=f"{_cache_namespace('home')}:{locale}",
         tags=_locale_tags(
             "home", "site", "project-list", "expertise", "process", "journal-list", locale=locale
         ),
@@ -151,7 +158,7 @@ def projects(
     }
     return _cached(
         cache,
-        key=_query_cache_key("v1:projects", parameters),
+        key=_query_cache_key(_cache_namespace("projects"), parameters),
         tags=_locale_tags("project-list", locale=locale),
         factory=lambda: service.projects(
             locale,
@@ -178,7 +185,7 @@ def project(
     service = PublicContentService(session)
     return _cached(
         cache,
-        key=f"v1:project:{slug}:{locale}",
+        key=f"{_cache_namespace(f'project:{slug}')}:{locale}",
         tags=_locale_tags(f"project:{slug}", "project-list", locale=locale),
         factory=lambda: service.project(slug, locale) or (_raise_not_found()),
         parser=ProjectDetailResponse.model_validate,
@@ -194,7 +201,7 @@ def expertise(
     service = PublicContentService(session)
     return _cached(
         cache,
-        key=f"v1:expertise:{locale}",
+        key=f"{_cache_namespace('expertise')}:{locale}",
         tags=_locale_tags("expertise", locale=locale),
         factory=lambda: service.expertise(locale),
         parser=lambda value: _parse_model_list(value, ExpertiseResponse.model_validate),
@@ -210,7 +217,7 @@ def process(
     service = PublicContentService(session)
     return _cached(
         cache,
-        key=f"v1:process:{locale}",
+        key=f"{_cache_namespace('process')}:{locale}",
         tags=_locale_tags("process", locale=locale),
         factory=lambda: service.process(locale),
         parser=lambda value: _parse_model_list(value, ProcessStepResponse.model_validate),
@@ -226,7 +233,7 @@ def studio(
     service = PublicContentService(session)
     return _cached(
         cache,
-        key=f"v1:studio:{locale}",
+        key=f"{_cache_namespace('studio')}:{locale}",
         tags=_locale_tags("studio", "site", locale=locale),
         factory=lambda: service.studio(locale) or (_raise_not_found()),
         parser=StudioResponse.model_validate,
@@ -246,7 +253,7 @@ def journal(
     parameters = {"locale": locale, "limit": limit, "offset": offset, "category": category}
     return _cached(
         cache,
-        key=_query_cache_key("v1:journal", parameters),
+        key=_query_cache_key(_cache_namespace("journal"), parameters),
         tags=_locale_tags("journal-list", locale=locale),
         factory=lambda: service.journal(locale, limit=limit, offset=offset, category=category),
         parser=JournalListResponse.model_validate,
@@ -263,7 +270,7 @@ def article(
     service = PublicContentService(session)
     return _cached(
         cache,
-        key=f"v1:article:{slug}:{locale}",
+        key=f"{_cache_namespace(f'article:{slug}')}:{locale}",
         tags=_locale_tags(f"article:{slug}", "journal-list", locale=locale),
         factory=lambda: service.article(slug, locale) or (_raise_not_found()),
         parser=JournalArticleResponse.model_validate,

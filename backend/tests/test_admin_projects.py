@@ -310,3 +310,224 @@ def test_taxonomy_workflow_prevents_deleting_referenced_records_and_invalidates_
         f"/api/v1/admin/disciplines/{created.json()['id']}", headers=headers
     )
     assert deleted.status_code == 204
+
+
+@pytest.mark.parametrize("kind", ["expertise", "process"])
+def test_editorial_content_workflow_drafts_validates_publishing_and_invalidates_cache(
+    session: Session,
+    client: tuple[TestClient, RecordingCache],
+    kind: str,
+) -> None:
+    test_client, cache = client
+    _administrator(session)
+    headers = _login(test_client)
+
+    draft = test_client.post(f"/api/v1/admin/{kind}", headers=headers, json={})
+    assert draft.status_code == 201
+    record_id = UUID(draft.json()["id"])
+    assert draft.json()["publication_state"] == "draft"
+    assert cache.invalidated == []
+
+    invalid_publish = test_client.put(
+        f"/api/v1/admin/{kind}/{record_id}",
+        headers=headers,
+        json={"publication_state": "published"},
+    )
+    assert invalid_publish.status_code == 422
+    assert set(invalid_publish.json()["detail"]["fields"]) == {
+        "title_en",
+        "title_fa",
+        "summary_en",
+        "summary_fa",
+    }
+
+    published = test_client.put(
+        f"/api/v1/admin/{kind}/{record_id}",
+        headers=headers,
+        json={
+            "publication_state": "published",
+            "title_en": f"Test {kind.title()}",
+            "title_fa": f"آزمون {kind}",
+            "summary_en": "A bilingual editorial entry managed through the administrator API.",
+            "summary_fa": "یک مدخل تحریری دوزبانه که از مسیر ادمین مدیریت می‌شود.",
+        },
+    )
+    assert published.status_code == 200
+    assert published.json()["publication_state"] == "published"
+    assert cache.invalidated[-1] >= {"home", kind, f"{kind}:en", f"{kind}:fa"}
+
+    public = test_client.get(f"/api/v1/public/{kind}?locale=en")
+    assert public.status_code == 200
+    assert any(item["title"] == f"Test {kind.title()}" for item in public.json())
+
+    listed = test_client.get(f"/api/v1/admin/{kind}")
+    assert listed.status_code == 200
+    identifiers = [item["id"] for item in listed.json()["items"]]
+    incomplete = test_client.put(
+        f"/api/v1/admin/{kind}/order", headers=headers, json={"identifiers": identifiers[:1]}
+    )
+    assert incomplete.status_code == 422
+
+    reordered = test_client.put(
+        f"/api/v1/admin/{kind}/order",
+        headers=headers,
+        json={"identifiers": list(reversed(identifiers))},
+    )
+    assert reordered.status_code == 200
+    assert [item["display_order"] for item in reordered.json()["items"]] == list(
+        range(len(identifiers))
+    )
+
+    deleted = test_client.delete(f"/api/v1/admin/{kind}/{record_id}", headers=headers)
+    assert deleted.status_code == 204
+    assert cache.invalidated[-1] >= {"home", kind}
+
+    actions = session.scalars(
+        select(AuditEvent.action)
+        .where(AuditEvent.target_id == record_id)
+        .order_by(AuditEvent.created_at)
+    ).all()
+    assert actions == [f"{kind}.created", f"{kind}.updated", f"{kind}.reordered", f"{kind}.deleted"]
+
+
+def test_studio_people_workflow_publishes_to_the_public_response_and_audits_mutations(
+    session: Session, client: tuple[TestClient, RecordingCache]
+) -> None:
+    test_client, cache = client
+    _administrator(session)
+    headers = _login(test_client)
+
+    draft = test_client.post("/api/v1/admin/people", headers=headers, json={})
+    assert draft.status_code == 201
+    person_id = UUID(draft.json()["id"])
+    assert draft.json()["publication_state"] == "draft"
+    assert cache.invalidated == []
+
+    invalid_publish = test_client.put(
+        f"/api/v1/admin/people/{person_id}",
+        headers=headers,
+        json={"publication_state": "published"},
+    )
+    assert invalid_publish.status_code == 422
+    assert set(invalid_publish.json()["detail"]["fields"]) == {"name", "role_en", "role_fa"}
+
+    published = test_client.put(
+        f"/api/v1/admin/people/{person_id}",
+        headers=headers,
+        json={
+            "publication_state": "published",
+            "name": "Test Studio Member",
+            "role_en": "Architect",
+            "role_fa": "معمار",
+            "biography_en": "A public bilingual biography.",
+            "biography_fa": "یک زندگی‌نامهٔ عمومی دوزبانه.",
+        },
+    )
+    assert published.status_code == 200
+    assert cache.invalidated[-1] >= {"home", "studio", "studio:en", "studio:fa"}
+
+    public = test_client.get("/api/v1/public/studio?locale=en")
+    assert public.status_code == 200
+    assert any(member["name"] == "Test Studio Member" for member in public.json()["members"])
+
+    second = test_client.post(
+        "/api/v1/admin/people",
+        headers=headers,
+        json={
+            "publication_state": "published",
+            "name": "Second Studio Member",
+            "role_en": "Designer",
+            "role_fa": "طراح",
+        },
+    )
+    assert second.status_code == 201
+    reordered = test_client.put(
+        "/api/v1/admin/people/order",
+        headers=headers,
+        json={"identifiers": [second.json()["id"], str(person_id)]},
+    )
+    assert reordered.status_code == 200
+    assert [item["display_order"] for item in reordered.json()["items"]] == [0, 1]
+
+    deleted = test_client.delete(f"/api/v1/admin/people/{person_id}", headers=headers)
+    assert deleted.status_code == 204
+    assert cache.invalidated[-1] >= {"home", "studio"}
+
+    actions = session.scalars(
+        select(AuditEvent.action)
+        .where(AuditEvent.target_id == person_id)
+        .order_by(AuditEvent.created_at)
+    ).all()
+    assert actions == ["people.created", "people.updated", "people.reordered", "people.deleted"]
+
+
+def test_recognition_workflow_publishes_to_the_public_response_and_audits_mutations(
+    session: Session, client: tuple[TestClient, RecordingCache]
+) -> None:
+    test_client, cache = client
+    _administrator(session)
+    headers = _login(test_client)
+
+    draft = test_client.post("/api/v1/admin/recognition", headers=headers, json={})
+    assert draft.status_code == 201
+    recognition_id = UUID(draft.json()["id"])
+    assert draft.json()["publication_state"] == "draft"
+    assert cache.invalidated == []
+
+    invalid_publish = test_client.put(
+        f"/api/v1/admin/recognition/{recognition_id}",
+        headers=headers,
+        json={"publication_state": "published"},
+    )
+    assert invalid_publish.status_code == 422
+    assert set(invalid_publish.json()["detail"]["fields"]) == {"title_en", "title_fa"}
+
+    published = test_client.put(
+        f"/api/v1/admin/recognition/{recognition_id}",
+        headers=headers,
+        json={
+            "publication_state": "published",
+            "title_en": "Test Recognition",
+            "title_fa": "تقدیر آزمایشی",
+        },
+    )
+    assert published.status_code == 200
+    assert cache.invalidated[-1] >= {"home", "studio", "studio:en", "studio:fa"}
+
+    public = test_client.get("/api/v1/public/studio?locale=en")
+    assert public.status_code == 200
+    assert "Test Recognition" in public.json()["recognitions"]
+
+    second = test_client.post(
+        "/api/v1/admin/recognition",
+        headers=headers,
+        json={
+            "publication_state": "published",
+            "title_en": "Second Recognition",
+            "title_fa": "تقدیر دوم",
+        },
+    )
+    assert second.status_code == 201
+    reordered = test_client.put(
+        "/api/v1/admin/recognition/order",
+        headers=headers,
+        json={"identifiers": [second.json()["id"], str(recognition_id)]},
+    )
+    assert reordered.status_code == 200
+    assert [item["display_order"] for item in reordered.json()["items"]] == [0, 1]
+
+    deleted = test_client.delete(f"/api/v1/admin/recognition/{recognition_id}", headers=headers)
+    assert deleted.status_code == 204
+    assert cache.invalidated[-1] >= {"home", "studio"}
+
+    actions = session.scalars(
+        select(AuditEvent.action)
+        .where(AuditEvent.target_id == recognition_id)
+        .order_by(AuditEvent.created_at)
+    ).all()
+    assert actions == [
+        "recognition.created",
+        "recognition.updated",
+        "recognition.reordered",
+        "recognition.deleted",
+    ]

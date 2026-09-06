@@ -72,7 +72,9 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("project_id", "display_order", name="uq_project_blocks_project_display_order"),
+        sa.UniqueConstraint(
+            "project_id", "display_order", name="uq_project_blocks_project_display_order"
+        ),
     )
     op.create_index(
         "ix_project_blocks_project_order", "project_blocks", ["project_id", "display_order"]

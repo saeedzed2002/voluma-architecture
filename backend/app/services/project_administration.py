@@ -6,7 +6,7 @@ from typing import cast
 from uuid import UUID
 
 from redis.exceptions import RedisError
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -135,6 +135,7 @@ class ProjectAdministrationService:
     ) -> AdminProjectResponse:
         if self.session.scalar(select(Project.id).where(Project.slug == payload.slug)) is not None:
             raise ProjectSlugConflictError()
+        self._lock_collection_for_append()
         project = Project(slug=payload.slug, display_order=self._next_display_order())
         self._apply_fields(project, payload)
         self.session.add(project)
@@ -358,6 +359,11 @@ class ProjectAdministrationService:
         self.cache.invalidate(
             {"home", "home:en", "home:fa", "project-list", "project-list:en", "project-list:fa"}
         )
+
+    def _lock_collection_for_append(self) -> None:
+        if self.session.get_bind().dialect.name != "postgresql":
+            return
+        self.session.execute(text("LOCK TABLE projects IN SHARE ROW EXCLUSIVE MODE"))
 
 
 def _published_at(value: datetime | None) -> datetime:

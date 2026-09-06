@@ -70,6 +70,95 @@ class TaxonomyReorderRequest(AdminModel):
         return value
 
 
+class AdminBilingualContentResponse(AdminModel):
+    id: UUID
+    publication_state: PublicationState
+    display_order: int
+    title_en: str
+    title_fa: str
+    summary_en: str
+    summary_fa: str
+    updated_at: datetime
+
+
+class AdminBilingualContentWriteRequest(AdminModel):
+    publication_state: PublicationState = PublicationState.DRAFT
+    title_en: str = Field(default="", max_length=180)
+    title_fa: str = Field(default="", max_length=180)
+    summary_en: str = Field(default="", max_length=12_000)
+    summary_fa: str = Field(default="", max_length=12_000)
+
+
+class AdminBilingualContentListResponse(AdminModel):
+    items: list[AdminBilingualContentResponse]
+
+
+class BilingualContentReorderRequest(AdminModel):
+    identifiers: list[UUID] = Field(min_length=1, max_length=250)
+
+    @field_validator("identifiers")
+    @classmethod
+    def identifiers_must_be_unique(cls, value: list[UUID]) -> list[UUID]:
+        if len(value) != len(set(value)):
+            raise ValueError("content identifiers must be unique")
+        return value
+
+
+class AdminStudioMemberResponse(AdminModel):
+    id: UUID
+    publication_state: PublicationState
+    display_order: int
+    name: str
+    role_en: str
+    role_fa: str
+    biography_en: str | None
+    biography_fa: str | None
+    updated_at: datetime
+
+
+class AdminStudioMemberWriteRequest(AdminModel):
+    publication_state: PublicationState = PublicationState.DRAFT
+    name: str = Field(default="", max_length=180)
+    role_en: str = Field(default="", max_length=180)
+    role_fa: str = Field(default="", max_length=180)
+    biography_en: str | None = Field(default=None, max_length=12_000)
+    biography_fa: str | None = Field(default=None, max_length=12_000)
+
+
+class AdminStudioMemberListResponse(AdminModel):
+    items: list[AdminStudioMemberResponse]
+
+
+class AdminRecognitionResponse(AdminModel):
+    id: UUID
+    publication_state: PublicationState
+    display_order: int
+    title_en: str
+    title_fa: str
+    updated_at: datetime
+
+
+class AdminRecognitionWriteRequest(AdminModel):
+    publication_state: PublicationState = PublicationState.DRAFT
+    title_en: str = Field(default="", max_length=240)
+    title_fa: str = Field(default="", max_length=240)
+
+
+class AdminRecognitionListResponse(AdminModel):
+    items: list[AdminRecognitionResponse]
+
+
+class StudioContentReorderRequest(AdminModel):
+    identifiers: list[UUID] = Field(min_length=1, max_length=250)
+
+    @field_validator("identifiers")
+    @classmethod
+    def identifiers_must_be_unique(cls, value: list[UUID]) -> list[UUID]:
+        if len(value) != len(set(value)):
+            raise ValueError("studio content identifiers must be unique")
+        return value
+
+
 class TextBlockPayload(AdminModel):
     heading: str | None = Field(default=None, max_length=240)
     body: str = Field(min_length=1, max_length=12_000)

@@ -1596,6 +1596,62 @@ html[lang="fa"] .privacy-page__header h1 {
   padding: clamp(2rem, 6vw, 7rem) var(--gutter);
 }
 
+.studio-records__content {
+  display: grid;
+  gap: clamp(2rem, 5vw, 5rem);
+}
+
+.studio-records__group {
+  border-block-start: 1px solid var(--line);
+  padding-block-start: 1rem;
+}
+
+.studio-records__group h3 {
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.studio-records__list {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+}
+
+.studio-records__list > li {
+  border-block-end: 1px solid var(--line);
+  padding-block: 1.25rem;
+}
+
+.studio-records__list h4 {
+  font-size: clamp(1.35rem, 2vw, 2.1rem);
+  font-weight: 430;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+.studio-records__role {
+  color: var(--accent) !important;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  margin-block-start: 0.5rem !important;
+  text-transform: uppercase;
+}
+
+.studio-records__list--recognition > li {
+  color: var(--ink);
+  font-size: clamp(1.15rem, 1.7vw, 1.65rem);
+  line-height: 1.35;
+}
+
+html[lang="fa"] .studio-records__group h3,
+html[lang="fa"] .studio-records__role {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .journal-archive {
   border-block-start: 1px solid var(--line);
 }

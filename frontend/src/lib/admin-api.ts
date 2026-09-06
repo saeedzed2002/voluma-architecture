@@ -21,6 +21,49 @@ export type AdminTaxonomy = {
   title_fa: string;
 };
 
+export type AdminBilingualContent = {
+  display_order: number;
+  id: string;
+  publication_state: "draft" | "published";
+  summary_en: string;
+  summary_fa: string;
+  title_en: string;
+  title_fa: string;
+  updated_at: string;
+};
+
+export type AdminBilingualContentWrite = Pick<
+  AdminBilingualContent,
+  "publication_state" | "summary_en" | "summary_fa" | "title_en" | "title_fa"
+>;
+
+export type AdminBilingualContentKind = "expertise" | "process";
+
+export type AdminStudioContentKind = "people" | "recognition";
+
+export type AdminStudioMember = {
+  biography_en: string | null;
+  biography_fa: string | null;
+  display_order: number;
+  id: string;
+  name: string;
+  publication_state: "draft" | "published";
+  role_en: string;
+  role_fa: string;
+  updated_at: string;
+};
+
+export type AdminRecognition = {
+  display_order: number;
+  id: string;
+  publication_state: "draft" | "published";
+  title_en: string;
+  title_fa: string;
+  updated_at: string;
+};
+
+export type AdminStudioContent = AdminStudioMember | AdminRecognition;
+
 export type AdminProjectBlock =
   | { block_type: "quote"; content_en: { attribution?: string; quote: string }; content_fa: { attribution?: string; quote: string }; display_order: number; id: string }
   | { block_type: "text"; content_en: { body: string; heading?: string }; content_fa: { body: string; heading?: string }; display_order: number; id: string }
@@ -249,6 +292,106 @@ export function updateAdminTaxonomy(
 
 export function deleteAdminTaxonomy(
   kind: "disciplines" | "typologies",
+  identifier: string,
+  csrfToken: string,
+) {
+  return adminFetch<void>(`/${kind}/${encodeURIComponent(identifier)}`, {
+    csrfToken,
+    method: "DELETE",
+  });
+}
+
+export function getAdminBilingualContent(kind: AdminBilingualContentKind) {
+  return adminFetch<{ items: AdminBilingualContent[] }>(`/${kind}`);
+}
+
+export function createAdminBilingualContent(
+  kind: AdminBilingualContentKind,
+  payload: Partial<AdminBilingualContentWrite>,
+  csrfToken: string,
+) {
+  return adminFetch<AdminBilingualContent>(`/${kind}`, {
+    body: payload,
+    csrfToken,
+    method: "POST",
+  });
+}
+
+export function updateAdminBilingualContent(
+  kind: AdminBilingualContentKind,
+  identifier: string,
+  payload: AdminBilingualContentWrite,
+  csrfToken: string,
+) {
+  return adminFetch<AdminBilingualContent>(`/${kind}/${encodeURIComponent(identifier)}`, {
+    body: payload,
+    csrfToken,
+    method: "PUT",
+  });
+}
+
+export function reorderAdminBilingualContent(
+  kind: AdminBilingualContentKind,
+  identifiers: string[],
+  csrfToken: string,
+) {
+  return adminFetch<{ items: AdminBilingualContent[] }>(`/${kind}/order`, {
+    body: { identifiers },
+    csrfToken,
+    method: "PUT",
+  });
+}
+
+export function deleteAdminBilingualContent(
+  kind: AdminBilingualContentKind,
+  identifier: string,
+  csrfToken: string,
+) {
+  return adminFetch<void>(`/${kind}/${encodeURIComponent(identifier)}`, {
+    csrfToken,
+    method: "DELETE",
+  });
+}
+
+export function getAdminStudioContent(kind: AdminStudioContentKind) {
+  return adminFetch<{ items: AdminStudioContent[] }>(`/${kind}`);
+}
+
+export function createAdminStudioContent(
+  kind: AdminStudioContentKind,
+  payload: Record<string, string | null>,
+  csrfToken: string,
+) {
+  return adminFetch<AdminStudioContent>(`/${kind}`, { body: payload, csrfToken, method: "POST" });
+}
+
+export function updateAdminStudioContent(
+  kind: AdminStudioContentKind,
+  identifier: string,
+  payload: Record<string, string | null>,
+  csrfToken: string,
+) {
+  return adminFetch<AdminStudioContent>(`/${kind}/${encodeURIComponent(identifier)}`, {
+    body: payload,
+    csrfToken,
+    method: "PUT",
+  });
+}
+
+export function reorderAdminStudioContent(
+  kind: AdminStudioContentKind,
+  identifiers: string[],
+  csrfToken: string,
+) {
+  return adminFetch<{ items: AdminStudioContent[] }>(`/${kind}/order`, {
+    body: { identifiers },
+    csrfToken,
+    method: "PUT",
+  });
+}
+
+export function deleteAdminStudioContent(
+  kind: AdminStudioContentKind,
   identifier: string,
   csrfToken: string,
 ) {

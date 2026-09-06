@@ -69,17 +69,49 @@ export default async function StudioPage({ params }: StudioPageProps) {
           ))}
         </div>
       </section>
-      <section className="studio-records">
-        <h2>{locale === "fa" ? "اطلاعاتی که با تأیید منتشر می‌شوند." : "Records published with approval."}</h2>
-        <p>
-          {studio.members.length || studio.recognitions.length
-            ? locale === "fa"
-              ? "اطلاعات تأییدشدهٔ استودیو در این صفحه منتشر شده است."
-              : "Approved studio information is published on this page."
-            : locale === "fa"
-              ? "افراد، همکاران و تقدیرها تا تأیید مالک منتشر نمی‌شوند."
-              : "People, collaborators, and recognition remain unpublished until owner approval."}
-        </p>
+      <section className="studio-records" aria-labelledby="studio-records-title">
+        <div className="studio-records__intro">
+          <h2 id="studio-records-title">
+            {locale === "fa" ? "اطلاعاتی که با تأیید منتشر می‌شوند." : "Records published with approval."}
+          </h2>
+          <p>
+            {studio.members.length || studio.recognitions.length
+              ? locale === "fa"
+                ? "اطلاعات تأییدشدهٔ استودیو در این صفحه منتشر شده است."
+                : "Approved studio information is published on this page."
+              : locale === "fa"
+                ? "افراد، همکاران و تقدیرها تا تأیید مالک منتشر نمی‌شوند."
+                : "People, collaborators, and recognition remain unpublished until owner approval."}
+          </p>
+        </div>
+        {studio.members.length || studio.recognitions.length ? (
+          <div className="studio-records__content">
+            {studio.members.length ? (
+              <section className="studio-records__group" aria-labelledby="studio-people-title">
+                <h3 id="studio-people-title">{locale === "fa" ? "افراد" : "People"}</h3>
+                <ol className="studio-records__list">
+                  {studio.members.map((member) => (
+                    <li key={member.name}>
+                      <h4>{member.name}</h4>
+                      <p className="studio-records__role">{member.role}</p>
+                      {member.biography ? <p>{member.biography}</p> : null}
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            ) : null}
+            {studio.recognitions.length ? (
+              <section className="studio-records__group" aria-labelledby="studio-recognition-title">
+                <h3 id="studio-recognition-title">{locale === "fa" ? "تقدیرها" : "Recognition"}</h3>
+                <ol className="studio-records__list studio-records__list--recognition">
+                  {studio.recognitions.map((recognition) => (
+                    <li key={recognition}>{recognition}</li>
+                  ))}
+                </ol>
+              </section>
+            ) : null}
+          </div>
+        ) : null}
       </section>
     </main>
   );
