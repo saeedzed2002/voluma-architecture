@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from uuid import UUID
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Column,
+    Date,
     DateTime,
     Enum,
     ForeignKey,
@@ -16,7 +18,9 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    UniqueConstraint,
     Uuid,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -88,6 +92,7 @@ class SiteSettings(TimestampedUUIDModel):
 
 class Discipline(TimestampedUUIDModel):
     __tablename__ = "disciplines"
+    __table_args__ = (UniqueConstraint("display_order", name="uq_disciplines_display_order"),)
 
     slug: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
     title_en: Mapped[str] = mapped_column(String(160), nullable=False)
@@ -97,6 +102,7 @@ class Discipline(TimestampedUUIDModel):
 
 class Typology(TimestampedUUIDModel):
     __tablename__ = "typologies"
+    __table_args__ = (UniqueConstraint("display_order", name="uq_typologies_display_order"),)
 
     slug: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
     title_en: Mapped[str] = mapped_column(String(160), nullable=False)
@@ -107,8 +113,21 @@ class Typology(TimestampedUUIDModel):
 class Project(TimestampedUUIDModel):
     __tablename__ = "projects"
     __table_args__ = (
+        UniqueConstraint("display_order", name="uq_projects_display_order"),
         Index("ix_projects_public_archive", "publication_state", "display_order", "published_at"),
         Index("ix_projects_public_location", "publication_state", "location_en"),
+        Index(
+            "ix_projects_public_search_en",
+            "publication_state",
+            func.lower("title_en"),
+            func.lower("location_en"),
+        ),
+        Index(
+            "ix_projects_public_search_fa",
+            "publication_state",
+            func.lower("title_fa"),
+            func.lower("location_fa"),
+        ),
     )
 
     slug: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
@@ -135,6 +154,17 @@ class Project(TimestampedUUIDModel):
     area_fa: Mapped[str | None] = mapped_column(String(100))
     scope_en: Mapped[str | None] = mapped_column(String(240))
     scope_fa: Mapped[str | None] = mapped_column(String(240))
+    client_en: Mapped[str | None] = mapped_column(String(240))
+    client_fa: Mapped[str | None] = mapped_column(String(240))
+    architect_en: Mapped[str | None] = mapped_column(String(240))
+    architect_fa: Mapped[str | None] = mapped_column(String(240))
+    collaborators_en: Mapped[str | None] = mapped_column(Text)
+    collaborators_fa: Mapped[str | None] = mapped_column(Text)
+    completion_date: Mapped[date | None] = mapped_column(Date)
+    seo_title_en: Mapped[str | None] = mapped_column(String(240))
+    seo_title_fa: Mapped[str | None] = mapped_column(String(240))
+    seo_description_en: Mapped[str | None] = mapped_column(String(320))
+    seo_description_fa: Mapped[str | None] = mapped_column(String(320))
     intro_title_en: Mapped[str | None] = mapped_column(String(240))
     intro_title_fa: Mapped[str | None] = mapped_column(String(240))
     intro_en: Mapped[str | None] = mapped_column(Text)
@@ -155,6 +185,35 @@ class Project(TimestampedUUIDModel):
     gallery_images: Mapped[list[dict[str, str]]] = mapped_column(JSON, default=list, nullable=False)
     disciplines: Mapped[list[Discipline]] = relationship(secondary=project_disciplines)
     typologies: Mapped[list[Typology]] = relationship(secondary=project_typologies)
+    blocks: Mapped[list[ProjectBlock]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+        order_by="ProjectBlock.display_order",
+    )
+
+
+class ProjectBlock(TimestampedUUIDModel):
+    __tablename__ = "project_blocks"
+    __table_args__ = (
+        CheckConstraint(
+            "block_type IN ('text', 'quote', 'single_image', 'full_width_image', "
+            "'paired_image', 'gallery')",
+            name="ck_project_blocks_type",
+        ),
+        UniqueConstraint(
+            "project_id", "display_order", name="uq_project_blocks_project_display_order"
+        ),
+        Index("ix_project_blocks_project_order", "project_id", "display_order"),
+    )
+
+    project_id: Mapped[UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    block_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    content_en: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    content_fa: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    project: Mapped[Project] = relationship(back_populates="blocks")
 
 
 class Expertise(TimestampedUUIDModel):
@@ -227,7 +286,11 @@ class JournalCategory(TimestampedUUIDModel):
 
 class JournalArticle(TimestampedUUIDModel):
     __tablename__ = "journal_articles"
-    __table_args__ = (Index("ix_journal_public_archive", "publication_state", "published_at"),)
+    __table_args__ = (
+        Index("ix_journal_public_archive", "publication_state", "published_at"),
+        Index("ix_journal_public_search_en", "publication_state", func.lower("title_en")),
+        Index("ix_journal_public_search_fa", "publication_state", func.lower("title_fa")),
+    )
 
     slug: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
     publication_state: Mapped[PublicationState] = mapped_column(

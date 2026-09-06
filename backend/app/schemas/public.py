@@ -42,6 +42,21 @@ class EditorialSectionResponse(PublicModel):
     body: str
 
 
+class TextEditorialBlockResponse(PublicModel):
+    block_type: Literal["text"]
+    heading: str | None = None
+    body: str
+
+
+class QuoteEditorialBlockResponse(PublicModel):
+    block_type: Literal["quote"]
+    quote: str
+    attribution: str | None = None
+
+
+ProjectEditorialBlockResponse = TextEditorialBlockResponse | QuoteEditorialBlockResponse
+
+
 class ProjectDetailResponse(ProjectCardResponse):
     area: str | None = None
     scope: str | None = None
@@ -50,6 +65,9 @@ class ProjectDetailResponse(ProjectCardResponse):
     quote: str | None = None
     material: EditorialSectionResponse | None = None
     gallery: list[ImageResponse]
+    blocks: list[ProjectEditorialBlockResponse]
+    seo_title: str
+    seo_description: str
 
 
 class PaginationResponse(PublicModel):

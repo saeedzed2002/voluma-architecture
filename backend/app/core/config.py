@@ -16,10 +16,25 @@ class Settings(BaseSettings):
     public_origin: str = Field(
         default="http://localhost:3000", validation_alias="VOLUMA_PUBLIC_ORIGIN"
     )
+    initial_admin_email: str | None = Field(
+        default=None, validation_alias="VOLUMA_INITIAL_ADMIN_EMAIL"
+    )
+    initial_admin_password: str | None = Field(
+        default=None, validation_alias="VOLUMA_INITIAL_ADMIN_PASSWORD"
+    )
+    admin_session_ttl_seconds: int = Field(
+        default=8 * 60 * 60, validation_alias="VOLUMA_ADMIN_SESSION_TTL_SECONDS", ge=60
+    )
 
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @property
+    def admin_session_cookie_secure(self) -> bool:
+        """Require HTTPS session cookies outside the explicitly local development mode."""
+
+        return self.is_production
 
 
 @lru_cache

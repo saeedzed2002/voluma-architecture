@@ -1,3 +1,4 @@
+from app.models.admin import AdminUser, AuditEvent
 from app.models.content import (
     Discipline,
     Expertise,
@@ -5,6 +6,7 @@ from app.models.content import (
     JournalCategory,
     ProcessStep,
     Project,
+    ProjectBlock,
     PublicationState,
     Recognition,
     SiteSettings,
@@ -13,12 +15,15 @@ from app.models.content import (
 )
 
 __all__ = [
+    "AdminUser",
+    "AuditEvent",
     "Discipline",
     "Expertise",
     "JournalArticle",
     "JournalCategory",
     "ProcessStep",
     "Project",
+    "ProjectBlock",
     "PublicationState",
     "Recognition",
     "SiteSettings",

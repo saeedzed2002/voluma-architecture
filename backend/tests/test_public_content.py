@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -8,7 +10,7 @@ from app.api.public import get_public_cache
 from app.db.session import get_session
 from app.fixtures.development import seed_development_content
 from app.main import app
-from app.models.content import JournalArticle, Project, PublicationState
+from app.models.content import JournalArticle, Project, ProjectBlock, PublicationState
 from app.services.public_cache import TaggedPublicCache
 from app.services.public_content import PublicContentService
 
@@ -112,6 +114,40 @@ def test_public_queries_exclude_drafts_and_internal_state(session: Session) -> N
     project_detail = service.project("courtyard-house", "en")
     assert project_detail is not None
     assert len(project_detail.gallery) == 2
+    assert project_detail.seo_title == project_detail.title
+    assert project_detail.seo_description == project_detail.summary
+
+
+def test_project_editorial_blocks_expose_validated_text_and_quotes_only(session: Session) -> None:
+    project = session.scalar(select(Project).where(Project.slug == "courtyard-house"))
+    assert project is not None
+    project.blocks = [
+        ProjectBlock(
+            block_type="text",
+            content_en={"heading": "Approach", "body": "Measured light and shade."},
+            content_fa={"heading": "رویکرد", "body": "نور و سایهٔ سنجیده."},
+            display_order=0,
+        ),
+        ProjectBlock(
+            block_type="quote",
+            content_en={"quote": "Material should clarify the plan.", "attribution": "VOLUMA"},
+            content_fa={"quote": "مصالح باید پلان را روشن کنند.", "attribution": "ولوما"},
+            display_order=1,
+        ),
+        ProjectBlock(
+            block_type="single_image",
+            content_en={"media_id": str(uuid4())},
+            content_fa={"media_id": str(uuid4())},
+            display_order=2,
+        ),
+    ]
+    session.commit()
+
+    detail = PublicContentService(session).project("courtyard-house", "en")
+    assert detail is not None
+    assert [block.block_type for block in detail.blocks] == ["text", "quote"]
+    assert detail.blocks[0].body == "Measured light and shade."
+    assert detail.blocks[1].quote == "Material should clarify the plan."
 
 
 def test_tagged_cache_invalidates_only_known_tag_members() -> None:

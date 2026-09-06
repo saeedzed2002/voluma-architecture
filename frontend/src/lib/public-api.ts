@@ -33,8 +33,15 @@ export type PublicProjectDetail = PublicProject & {
   material: PublicEditorialSection | null;
   narrative: PublicEditorialSection | null;
   quote: string | null;
+  blocks: PublicProjectEditorialBlock[];
+  seo_description: string;
+  seo_title: string;
   scope: string | null;
 };
+
+export type PublicProjectEditorialBlock =
+  | { attribution: string | null; block_type: "quote"; quote: string }
+  | { block_type: "text"; body: string; heading: string | null };
 
 export type PublicEditorialSection = {
   body: string;

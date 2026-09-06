@@ -1,0 +1,351 @@
+from __future__ import annotations
+
+from datetime import date, datetime
+from typing import Literal
+from uuid import UUID
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
+
+from app.models.content import PublicationState
+
+
+class AdminModel(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class AdminLoginRequest(AdminModel):
+    email: EmailStr
+    password: str = Field(min_length=12, max_length=512)
+
+
+class AdminUserResponse(AdminModel):
+    id: UUID
+    email: EmailStr
+
+
+class AdminSessionResponse(AdminModel):
+    administrator: AdminUserResponse
+    csrf_token: str
+
+
+class AdminDashboardResponse(AdminModel):
+    projects: dict[str, int]
+    journal_articles: dict[str, int]
+
+
+class AdminTaxonomyResponse(AdminModel):
+    id: UUID
+    slug: str
+    title_en: str
+    title_fa: str
+    display_order: int
+
+
+class AdminTaxonomyWriteRequest(AdminModel):
+    slug: str = Field(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=80)
+    title_en: str = Field(min_length=1, max_length=160)
+    title_fa: str = Field(min_length=1, max_length=160)
+
+
+class AdminTaxonomyListResponse(AdminModel):
+    items: list[AdminTaxonomyResponse]
+
+
+class TaxonomyReorderRequest(AdminModel):
+    identifiers: list[UUID] = Field(min_length=1, max_length=250)
+
+    @field_validator("identifiers")
+    @classmethod
+    def identifiers_must_be_unique(cls, value: list[UUID]) -> list[UUID]:
+        if len(value) != len(set(value)):
+            raise ValueError("taxonomy identifiers must be unique")
+        return value
+
+
+class TextBlockPayload(AdminModel):
+    heading: str | None = Field(default=None, max_length=240)
+    body: str = Field(min_length=1, max_length=12_000)
+
+
+class QuoteBlockPayload(AdminModel):
+    quote: str = Field(min_length=1, max_length=4_000)
+    attribution: str | None = Field(default=None, max_length=240)
+
+
+class SingleImageBlockPayload(AdminModel):
+    media_id: UUID
+
+
+class PairedImageBlockPayload(AdminModel):
+    left_media_id: UUID
+    right_media_id: UUID
+
+    @model_validator(mode="after")
+    def image_ids_must_differ(self) -> PairedImageBlockPayload:
+        if self.left_media_id == self.right_media_id:
+            raise ValueError("paired-image blocks require two distinct media assets")
+        return self
+
+
+class GalleryBlockPayload(AdminModel):
+    media_ids: list[UUID] = Field(min_length=1, max_length=24)
+
+    @field_validator("media_ids")
+    @classmethod
+    def media_ids_must_be_unique(cls, value: list[UUID]) -> list[UUID]:
+        if len(value) != len(set(value)):
+            raise ValueError("gallery media assets must be unique")
+        return value
+
+
+ProjectBlockType = Literal[
+    "text", "quote", "single_image", "full_width_image", "paired_image", "gallery"
+]
+
+_BLOCK_PAYLOADS: dict[str, type[AdminModel]] = {
+    "text": TextBlockPayload,
+    "quote": QuoteBlockPayload,
+    "single_image": SingleImageBlockPayload,
+    "full_width_image": SingleImageBlockPayload,
+    "paired_image": PairedImageBlockPayload,
+    "gallery": GalleryBlockPayload,
+}
+
+
+class ProjectBlockWriteRequest(AdminModel):
+    block_type: ProjectBlockType
+    content_en: dict[str, object]
+    content_fa: dict[str, object]
+
+    @field_validator("content_en", "content_fa")
+    @classmethod
+    def content_must_match_block_type(
+        cls, value: dict[str, object], info: ValidationInfo
+    ) -> dict[str, object]:
+        block_type = info.data.get("block_type")
+        if not isinstance(block_type, str):
+            raise ValueError("block type is required before block content")
+        return _BLOCK_PAYLOADS[block_type].model_validate(value).model_dump(mode="json")
+
+
+class AdminProjectBlockResponse(AdminModel):
+    id: UUID
+    block_type: ProjectBlockType
+    content_en: dict[str, object]
+    content_fa: dict[str, object]
+    display_order: int
+
+
+class ProjectEditableFields(AdminModel):
+    publication_state: PublicationState = PublicationState.DRAFT
+    published_at: datetime | None = None
+    featured: bool = False
+    title_en: str = Field(min_length=1, max_length=240)
+    title_fa: str = Field(min_length=1, max_length=240)
+    subtitle_en: str | None = Field(default=None, max_length=320)
+    subtitle_fa: str | None = Field(default=None, max_length=320)
+    summary_en: str = Field(min_length=1, max_length=12_000)
+    summary_fa: str = Field(min_length=1, max_length=12_000)
+    location_en: str = Field(min_length=1, max_length=160)
+    location_fa: str = Field(min_length=1, max_length=160)
+    completion_year: int | None = Field(default=None, ge=1000, le=9999)
+    status_en: str | None = Field(default=None, max_length=100)
+    status_fa: str | None = Field(default=None, max_length=100)
+    area_en: str | None = Field(default=None, max_length=100)
+    area_fa: str | None = Field(default=None, max_length=100)
+    scope_en: str | None = Field(default=None, max_length=240)
+    scope_fa: str | None = Field(default=None, max_length=240)
+    client_en: str | None = Field(default=None, max_length=240)
+    client_fa: str | None = Field(default=None, max_length=240)
+    architect_en: str | None = Field(default=None, max_length=240)
+    architect_fa: str | None = Field(default=None, max_length=240)
+    collaborators_en: str | None = Field(default=None, max_length=4_000)
+    collaborators_fa: str | None = Field(default=None, max_length=4_000)
+    completion_date: date | None = None
+    seo_title_en: str | None = Field(default=None, max_length=240)
+    seo_title_fa: str | None = Field(default=None, max_length=240)
+    seo_description_en: str | None = Field(default=None, max_length=320)
+    seo_description_fa: str | None = Field(default=None, max_length=320)
+    intro_title_en: str | None = Field(default=None, max_length=240)
+    intro_title_fa: str | None = Field(default=None, max_length=240)
+    intro_en: str | None = Field(default=None, max_length=12_000)
+    intro_fa: str | None = Field(default=None, max_length=12_000)
+    narrative_title_en: str | None = Field(default=None, max_length=240)
+    narrative_title_fa: str | None = Field(default=None, max_length=240)
+    narrative_en: str | None = Field(default=None, max_length=12_000)
+    narrative_fa: str | None = Field(default=None, max_length=12_000)
+    quote_en: str | None = Field(default=None, max_length=4_000)
+    quote_fa: str | None = Field(default=None, max_length=4_000)
+    material_title_en: str | None = Field(default=None, max_length=240)
+    material_title_fa: str | None = Field(default=None, max_length=240)
+    material_en: str | None = Field(default=None, max_length=12_000)
+    material_fa: str | None = Field(default=None, max_length=12_000)
+    discipline_ids: list[UUID] = Field(default_factory=list, max_length=24)
+    typology_ids: list[UUID] = Field(default_factory=list, max_length=24)
+
+    @field_validator(
+        "subtitle_en",
+        "subtitle_fa",
+        "status_en",
+        "status_fa",
+        "area_en",
+        "area_fa",
+        "scope_en",
+        "scope_fa",
+        "client_en",
+        "client_fa",
+        "architect_en",
+        "architect_fa",
+        "collaborators_en",
+        "collaborators_fa",
+        "seo_title_en",
+        "seo_title_fa",
+        "seo_description_en",
+        "seo_description_fa",
+        "intro_title_en",
+        "intro_title_fa",
+        "intro_en",
+        "intro_fa",
+        "narrative_title_en",
+        "narrative_title_fa",
+        "narrative_en",
+        "narrative_fa",
+        "quote_en",
+        "quote_fa",
+        "material_title_en",
+        "material_title_fa",
+        "material_en",
+        "material_fa",
+    )
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+    @field_validator("discipline_ids", "typology_ids")
+    @classmethod
+    def taxonomy_ids_must_be_unique(cls, value: list[UUID]) -> list[UUID]:
+        if len(value) != len(set(value)):
+            raise ValueError("taxonomy identifiers must be unique")
+        return value
+
+    @model_validator(mode="after")
+    def bilingual_sections_must_be_complete(self) -> ProjectEditableFields:
+        fields = (
+            ("subtitle_en", "subtitle_fa"),
+            ("status_en", "status_fa"),
+            ("area_en", "area_fa"),
+            ("scope_en", "scope_fa"),
+            ("client_en", "client_fa"),
+            ("architect_en", "architect_fa"),
+            ("collaborators_en", "collaborators_fa"),
+            ("intro_title_en", "intro_title_fa"),
+            ("intro_en", "intro_fa"),
+            ("narrative_title_en", "narrative_title_fa"),
+            ("narrative_en", "narrative_fa"),
+            ("quote_en", "quote_fa"),
+            ("material_title_en", "material_title_fa"),
+            ("material_en", "material_fa"),
+        )
+        for english, persian in fields:
+            if bool(getattr(self, english)) != bool(getattr(self, persian)):
+                raise ValueError(f"{english} and {persian} must be provided together")
+        return self
+
+
+class ProjectCreateRequest(ProjectEditableFields):
+    slug: str = Field(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=120)
+
+
+class ProjectUpdateRequest(ProjectEditableFields):
+    """The immutable slug is intentionally absent from an update request."""
+
+
+class ProjectBlocksReplaceRequest(AdminModel):
+    blocks: list[ProjectBlockWriteRequest] = Field(default_factory=list, max_length=80)
+
+
+class ProjectReorderRequest(AdminModel):
+    project_ids: list[UUID] = Field(min_length=1, max_length=500)
+
+    @field_validator("project_ids")
+    @classmethod
+    def project_ids_must_be_unique(cls, value: list[UUID]) -> list[UUID]:
+        if len(value) != len(set(value)):
+            raise ValueError("project identifiers must be unique")
+        return value
+
+
+class AdminProjectListItemResponse(AdminModel):
+    id: UUID
+    slug: str
+    title_en: str
+    title_fa: str
+    publication_state: PublicationState
+    published_at: datetime | None
+    display_order: int
+    featured: bool
+    updated_at: datetime
+
+
+class AdminProjectListResponse(AdminModel):
+    items: list[AdminProjectListItemResponse]
+
+
+class AdminProjectFormOptionsResponse(AdminModel):
+    disciplines: list[AdminTaxonomyResponse]
+    typologies: list[AdminTaxonomyResponse]
+
+
+class AdminProjectResponse(AdminProjectListItemResponse):
+    subtitle_en: str | None
+    subtitle_fa: str | None
+    summary_en: str
+    summary_fa: str
+    location_en: str
+    location_fa: str
+    completion_year: int | None
+    status_en: str | None
+    status_fa: str | None
+    area_en: str | None
+    area_fa: str | None
+    scope_en: str | None
+    scope_fa: str | None
+    client_en: str | None
+    client_fa: str | None
+    architect_en: str | None
+    architect_fa: str | None
+    collaborators_en: str | None
+    collaborators_fa: str | None
+    completion_date: date | None
+    seo_title_en: str | None
+    seo_title_fa: str | None
+    seo_description_en: str | None
+    seo_description_fa: str | None
+    intro_title_en: str | None
+    intro_title_fa: str | None
+    intro_en: str | None
+    intro_fa: str | None
+    narrative_title_en: str | None
+    narrative_title_fa: str | None
+    narrative_en: str | None
+    narrative_fa: str | None
+    quote_en: str | None
+    quote_fa: str | None
+    material_title_en: str | None
+    material_title_fa: str | None
+    material_en: str | None
+    material_fa: str | None
+    disciplines: list[AdminTaxonomyResponse]
+    typologies: list[AdminTaxonomyResponse]
+    blocks: list[AdminProjectBlockResponse]

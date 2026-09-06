@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { FixtureNotice } from "@/components/fixture-notice";
 import { ArrowIcon } from "@/components/icons";
 import { ProjectGallery, type GalleryImage } from "@/components/project-gallery";
+import { ProjectEditorialBlocks } from "@/components/project-editorial-blocks";
 import { ProjectLink } from "@/components/project-link";
 import { Reveal } from "@/components/reveal";
 import { siteCopy } from "@/content/site";
@@ -26,10 +27,10 @@ export async function generateMetadata({ params }: ProjectPageProps): Promise<Me
   try {
     const project = await getProject(currentLocale, slug);
     return publicMetadata({
-      description: project.summary,
+      description: project.seo_description,
       locale: currentLocale,
       path: `/projects/${project.slug}`,
-      title: project.title,
+      title: project.seo_title,
     });
   } catch (error) {
     if (error instanceof PublicApiError && error.status === 404) return {};
@@ -168,6 +169,8 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           ) : null}
         </section>
       ) : null}
+
+      <ProjectEditorialBlocks blocks={project.blocks} />
 
       <section className="related-projects section-shell">
         <h2 className="section-title">{copy.continueExploring}</h2>

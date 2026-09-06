@@ -18,6 +18,7 @@ from app.models.content import (
     StudioMember,
     Typology,
 )
+from app.schemas.admin import QuoteBlockPayload, TextBlockPayload
 from app.schemas.public import (
     EditorialSectionResponse,
     ExpertiseResponse,
@@ -32,7 +33,9 @@ from app.schemas.public import (
     ProcessStepResponse,
     ProjectCardResponse,
     ProjectDetailResponse,
+    ProjectEditorialBlockResponse,
     ProjectListResponse,
+    QuoteEditorialBlockResponse,
     SearchResponse,
     SearchResultResponse,
     SiteResponse,
@@ -40,6 +43,7 @@ from app.schemas.public import (
     StudioPrincipleResponse,
     StudioResponse,
     TaxonomyResponse,
+    TextEditorialBlockResponse,
 )
 
 DEFAULT_PAGE_LIMIT = 12
@@ -50,14 +54,17 @@ def _locale_field(record: object, field: str, locale: Locale) -> str | None:
     return cast(str | None, getattr(record, f"{field}_{locale}"))
 
 
-def _published_projects() -> Select[tuple[Project]]:
+def _published_projects(*, include_blocks: bool = False) -> Select[tuple[Project]]:
+    options = [selectinload(Project.disciplines), selectinload(Project.typologies)]
+    if include_blocks:
+        options.append(selectinload(Project.blocks))
     return (
         select(Project)
         .where(
             Project.publication_state == PublicationState.PUBLISHED,
             Project.published_at.is_not(None),
         )
-        .options(selectinload(Project.disciplines), selectinload(Project.typologies))
+        .options(*options)
     )
 
 
@@ -129,7 +136,35 @@ def project_detail(project: Project, locale: Locale) -> ProjectDetailResponse:
             for image in project.gallery_images
             if image.get("url") and image.get(f"alt_{locale}")
         ],
+        blocks=_project_blocks(project, locale),
+        seo_title=_locale_field(project, "seo_title", locale) or card.title,
+        seo_description=_locale_field(project, "seo_description", locale) or card.summary,
     )
+
+
+def _project_blocks(project: Project, locale: Locale) -> list[ProjectEditorialBlockResponse]:
+    """Expose only block types whose public renderer needs no unresolved media asset."""
+
+    blocks: list[ProjectEditorialBlockResponse] = []
+    for block in project.blocks:
+        content = block.content_fa if locale == "fa" else block.content_en
+        if block.block_type == "text":
+            text_payload = TextBlockPayload.model_validate(content)
+            blocks.append(
+                TextEditorialBlockResponse(
+                    block_type="text", heading=text_payload.heading, body=text_payload.body
+                )
+            )
+        elif block.block_type == "quote":
+            quote_payload = QuoteBlockPayload.model_validate(content)
+            blocks.append(
+                QuoteEditorialBlockResponse(
+                    block_type="quote",
+                    quote=quote_payload.quote,
+                    attribution=quote_payload.attribution,
+                )
+            )
+    return blocks
 
 
 def journal_card(article: JournalArticle, locale: Locale) -> JournalCardResponse:
@@ -247,7 +282,9 @@ class PublicContentService:
         )
 
     def project(self, slug: str, locale: Locale) -> ProjectDetailResponse | None:
-        project = self.session.scalar(_published_projects().where(Project.slug == slug))
+        project = self.session.scalar(
+            _published_projects(include_blocks=True).where(Project.slug == slug)
+        )
         return project_detail(project, locale) if project is not None else None
 
     def expertise(self, locale: Locale) -> list[ExpertiseResponse]:
