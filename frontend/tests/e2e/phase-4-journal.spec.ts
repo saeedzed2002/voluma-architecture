@@ -48,7 +48,7 @@ test("administrator publishes a bilingual journal article with an editorial text
   await articleSection.getByLabel("Body / EN", { exact: true }).fill("A measured English journal paragraph.");
   await articleSection.getByLabel("Body / FA", { exact: true }).fill("یک بند فارسی سنجیده برای یادداشت.");
   await articleSection.getByRole("combobox", { name: "Publication state" }).selectOption("published");
-  await articleSection.getByRole("button", { name: "Create journal draft" }).click();
+  await articleSection.getByRole("button", { name: "Publish journal article" }).click();
   await expect(page.locator(".admin-form__message")).toHaveText("Journal article published.");
 
   await page.goto(`/en/journal/${articleSlug}`);
