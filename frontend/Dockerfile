@@ -29,6 +29,12 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
+# The production image executes node directly; npm is build-only tooling and
+# carries transitive packages that are neither needed nor appropriate at runtime.
+RUN rm -rf /usr/local/lib/node_modules/npm \
+    /usr/local/bin/npm \
+    /usr/local/bin/npx
+
 RUN groupadd --gid 10001 --system voluma \
     && useradd --uid 10001 --gid voluma --system --no-create-home voluma
 
