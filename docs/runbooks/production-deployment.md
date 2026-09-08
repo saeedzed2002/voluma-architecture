@@ -42,10 +42,11 @@ private `api` network address; browsers use the same public origin through Nginx
 
 ## First deployment
 
-1. Put the certificate and key at the paths named in the protected file. The key must
-   be readable by the non-root Nginx container account (the official image uses numeric
-   UID/GID `101`) but not world-readable; use a dedicated group-readable copy or a
-   Docker secret-compatible mount rather than making the private key globally readable.
+1. Put the certificate and key at the paths named in the protected file. The Nginx
+   master process starts as container root only to read the mounted private key and
+   then runs workers as the unprivileged `nginx` account. Keep the key root-readable
+   but not world-readable; do not relax its host permissions or make a globally
+   readable copy for the worker account.
 2. Set `VOLUMA_INITIAL_ADMIN_EMAIL` and `VOLUMA_INITIAL_ADMIN_PASSWORD` only in the
    protected bootstrap environment. The password must be unique and at least 12
    characters. It is never committed or printed by the release process.

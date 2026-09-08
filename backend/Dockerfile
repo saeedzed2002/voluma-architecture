@@ -1,4 +1,4 @@
-FROM python:3.14.7-slim-bookworm@sha256:416f0db2a2b561945630cef9877a7ea0581b27449eb9fd9df42f03e1b74b5b63 AS builder
+FROM python:3.14.7-slim-bookworm@sha256:9ab8d9c8514b44f90cf0029dd42fdd7e9e211e639c8b995304cc04568dee900f AS builder
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -17,7 +17,7 @@ COPY backend/alembic ./alembic
 COPY backend/alembic.ini ./
 COPY backend/app ./app
 
-FROM python:3.14.7-slim-bookworm@sha256:416f0db2a2b561945630cef9877a7ea0581b27449eb9fd9df42f03e1b74b5b63 AS runner
+FROM python:3.14.7-slim-bookworm@sha256:9ab8d9c8514b44f90cf0029dd42fdd7e9e211e639c8b995304cc04568dee900f AS runner
 
 ENV PATH="/opt/voluma-venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -26,9 +26,16 @@ ENV PATH="/opt/voluma-venv/bin:$PATH" \
 
 WORKDIR /app
 
+# Runtime dependencies are supplied exclusively by the frozen application virtual
+# environment below. Removing distribution-maintenance installers keeps their vendored
+# packages out of the production image and prevents runtime mutation.
 RUN groupadd --gid 10001 --system voluma \
     && useradd --uid 10001 --gid voluma --system --no-create-home voluma \
-    && install --directory --owner=voluma --group=voluma --mode=0750 /var/lib/voluma-media
+    && install --directory --owner=voluma --group=voluma --mode=0750 /var/lib/voluma-media \
+    && rm -rf /usr/local/lib/python3.14/ensurepip \
+        /usr/local/lib/python3.14/site-packages/pip \
+        /usr/local/lib/python3.14/site-packages/pip-*.dist-info \
+    && rm -f /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.14
 
 COPY --chown=voluma:voluma --from=builder /opt/voluma-venv /opt/voluma-venv
 COPY --chown=voluma:voluma --from=builder /app /app

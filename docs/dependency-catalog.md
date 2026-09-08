@@ -10,6 +10,29 @@ version tables that would drift from the specification and lockfiles.
 The initial locked frontend and backend direct dependencies use the specification's
 2026-09-05 baseline, including the compatibility correction below.
 
+## 2026-09-08 — Python runtime image security refresh
+
+- Owner: project owner, authorized during Phase 6 CI remediation.
+- Change: refreshed the exact-pinned `python:3.14.7-slim-bookworm` multi-platform
+  image digest from `sha256:416f0db2a2b561945630cef9877a7ea0581b27449eb9fd9df42f03e1b74b5b63`
+  to `sha256:9ab8d9c8514b44f90cf0029dd42fdd7e9e211e639c8b995304cc04568dee900f`, then
+  removed the base image's unused `pip` and `ensurepip` installers from the production
+  stage.
+- Reason: Trivy reported the fixed high-severity findings `GHSA-6v7p-g79w-8964` and
+  `CVE-2025-47273` in `msgpack==1.1.2` and `setuptools==70.3.0`. Neither package is
+  in the backend manifest, lockfile, or application virtual environment: they are
+  vendored by the base image's distribution-maintenance `pip==26.2.1`. The production
+  image executes only the frozen `/opt/voluma-venv`, so retaining either installer
+  would add unused vulnerable code and permit unnecessary runtime mutation.
+- Evidence: Docker Hub manifest inspection on 2026-09-08, isolated local inspection
+  of the refreshed image with networking disabled, the CI Trivy report for the
+  previous image, and local Trivy reproduction identifying `pip/_vendor` as the source.
+- Files: `backend/Dockerfile` and this catalog. No application dependency or lockfile
+  changed.
+- Validation and rollback: build and scan the API image before release. If rollback is
+  required, restore only a previously scanned immutable Python image digest; do not
+  revert to the vulnerable digest.
+
 ## 2026-09-05 — Redis Python client compatibility correction
 
 - Owner: project owner, authorized during Phase 0 remediation.
