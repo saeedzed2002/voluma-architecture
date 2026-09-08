@@ -26,6 +26,7 @@ from app.models.content import (
 )
 from app.schemas.admin import (
     GalleryBlockPayload,
+    ImageTextBlockPayload,
     PairedImageBlockPayload,
     QuoteBlockPayload,
     SingleImageBlockPayload,
@@ -37,6 +38,7 @@ from app.schemas.public import (
     GalleryEditorialBlockResponse,
     HomeResponse,
     ImageResponse,
+    ImageTextEditorialBlockResponse,
     JournalArticleResponse,
     JournalCardResponse,
     JournalCategoryResponse,
@@ -170,7 +172,7 @@ def project_card(project: Project, locale: Locale) -> ProjectCardResponse:
     )
 
 
-def project_detail(project: Project, locale: Locale) -> ProjectDetailResponse:
+def project_detail(session: Session, project: Project, locale: Locale) -> ProjectDetailResponse:
     card = project_card(project, locale)
 
     def section(prefix: str) -> EditorialSectionResponse | None:
@@ -194,14 +196,41 @@ def project_detail(project: Project, locale: Locale) -> ProjectDetailResponse:
             for image in project.gallery_images
             if image.get("url") and image.get(f"alt_{locale}")
         ],
-        blocks=_project_blocks(project, locale),
+        blocks=_project_blocks(session, project, locale),
         seo_title=_locale_field(project, "seo_title", locale) or card.title,
         seo_description=_locale_field(project, "seo_description", locale) or card.summary,
     )
 
 
-def _project_blocks(project: Project, locale: Locale) -> list[ProjectEditorialBlockResponse]:
-    media_by_id = {link.media.id: link.media for link in project.media_links}
+def _project_blocks(
+    session: Session, project: Project, locale: Locale
+) -> list[ProjectEditorialBlockResponse]:
+    media_ids: set[UUID] = set()
+    for block in project.blocks:
+        for content in (block.content_en, block.content_fa):
+            if block.block_type in {"single_image", "full_width_image"}:
+                media_ids.add(SingleImageBlockPayload.model_validate(content).media_id)
+            elif block.block_type == "image_text":
+                media_ids.add(ImageTextBlockPayload.model_validate(content).media_id)
+            elif block.block_type == "paired_image":
+                paired_payload = PairedImageBlockPayload.model_validate(content)
+                media_ids.update((paired_payload.left_media_id, paired_payload.right_media_id))
+            elif block.block_type == "gallery":
+                media_ids.update(GalleryBlockPayload.model_validate(content).media_ids)
+    media_by_id = {
+        asset.id: asset
+        for asset in (
+            session.scalars(
+                select(MediaAsset).where(
+                    MediaAsset.id.in_(media_ids),
+                    MediaAsset.processing_state == MediaProcessingState.READY,
+                    MediaAsset.deleted_at.is_(None),
+                )
+            ).all()
+            if media_ids
+            else []
+        )
+    }
 
     def media_image(media_id: object) -> ImageResponse | None:
         asset = media_by_id.get(cast(UUID, media_id))
@@ -240,6 +269,18 @@ def _project_blocks(project: Project, locale: Locale) -> list[ProjectEditorialBl
                             block_type="full_width_image", image=image
                         )
                     )
+        elif block.block_type == "image_text":
+            image_text_payload = ImageTextBlockPayload.model_validate(content)
+            image = media_image(image_text_payload.media_id)
+            if image is not None:
+                blocks.append(
+                    ImageTextEditorialBlockResponse(
+                        block_type="image_text",
+                        heading=image_text_payload.heading,
+                        body=image_text_payload.body,
+                        image=image,
+                    )
+                )
         elif block.block_type == "paired_image":
             paired_payload = PairedImageBlockPayload.model_validate(content)
             left = media_image(paired_payload.left_media_id)
@@ -349,10 +390,18 @@ class PublicContentService:
             return None
         privacy = _locale_field(settings, "privacy", locale)
         assert privacy is not None
+        logo = (
+            _managed_image(settings.logo_media, locale) if settings.logo_media is not None else None
+        )
+        favicon = (
+            _managed_image(settings.favicon_media, locale)
+            if settings.favicon_media is not None
+            else None
+        )
         return SiteResponse(
             studio_name=settings.studio_name,
-            logo_url=settings.logo_url,
-            favicon_url=settings.favicon_url,
+            logo_url=logo.url if logo is not None else settings.logo_url,
+            favicon_url=favicon.url if favicon is not None else settings.favicon_url,
             contact_email=settings.contact_email,
             contact_phone=settings.contact_phone,
             contact_address=_locale_field(settings, "contact_address", locale),
@@ -397,13 +446,18 @@ class PublicContentService:
         hero_title = _locale_field(settings, "home_title", locale)
         hero_body = _locale_field(settings, "home_body", locale)
         assert hero_title is not None and hero_body is not None
+        hero = (
+            _managed_image(settings.home_hero_media, locale)
+            if settings.home_hero_media is not None
+            else None
+        )
         return HomeResponse(
             studio_name=settings.studio_name,
             hero_title=hero_title,
             hero_body=hero_body,
-            hero_image=_image(
-                settings.home_hero_image_url,
-                _locale_field(settings, "home_hero_alt", locale),
+            hero_image=hero
+            or _image(
+                settings.home_hero_image_url, _locale_field(settings, "home_hero_alt", locale)
             ),
             selected_projects=[project_card(project, locale) for project in selected],
             expertise=[self._expertise_response(item, locale) for item in expertise],
@@ -506,7 +560,7 @@ class PublicContentService:
         project = self.session.scalar(
             _published_projects(include_blocks=True).where(Project.slug == slug)
         )
-        return project_detail(project, locale) if project is not None else None
+        return project_detail(self.session, project, locale) if project is not None else None
 
     def expertise(self, locale: Locale) -> list[ExpertiseResponse]:
         records = self.session.scalars(
@@ -536,6 +590,7 @@ class PublicContentService:
         members = self.session.scalars(
             select(StudioMember)
             .where(StudioMember.publication_state == PublicationState.PUBLISHED)
+            .options(selectinload(StudioMember.portrait_media))
             .order_by(StudioMember.display_order, StudioMember.id)
         ).all()
         recognitions = self.session.scalars(
@@ -551,6 +606,11 @@ class PublicContentService:
                     name=member.name,
                     role=_locale_field(member, "role", locale) or "",
                     biography=_locale_field(member, "biography", locale),
+                    portrait=(
+                        _managed_image(member.portrait_media, locale)
+                        if member.portrait_media is not None
+                        else None
+                    ),
                 )
                 for member in members
             ],
@@ -664,7 +724,16 @@ class PublicContentService:
         return SearchResponse(query=normalized, items=items)
 
     def _settings(self) -> SiteSettings | None:
-        return self.session.scalar(select(SiteSettings).order_by(SiteSettings.created_at).limit(1))
+        return self.session.scalar(
+            select(SiteSettings)
+            .options(
+                selectinload(SiteSettings.logo_media),
+                selectinload(SiteSettings.favicon_media),
+                selectinload(SiteSettings.home_hero_media),
+            )
+            .order_by(SiteSettings.created_at)
+            .limit(1)
+        )
 
     def _expertise_response(self, record: Expertise, locale: Locale) -> ExpertiseResponse:
         title = _locale_field(record, "title", locale)

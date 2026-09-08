@@ -11,7 +11,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.admin import AdminUser
-from app.models.content import Discipline, Project, ProjectBlock, PublicationState, Typology
+from app.models.content import (
+    Discipline,
+    MediaAsset,
+    MediaProcessingState,
+    Project,
+    ProjectBlock,
+    PublicationState,
+    Typology,
+)
 from app.schemas.admin import (
     AdminProjectBlockResponse,
     AdminProjectFormOptionsResponse,
@@ -19,11 +27,16 @@ from app.schemas.admin import (
     AdminProjectListResponse,
     AdminProjectResponse,
     AdminTaxonomyResponse,
+    GalleryBlockPayload,
+    ImageTextBlockPayload,
+    PairedImageBlockPayload,
     ProjectBlocksReplaceRequest,
     ProjectBlockType,
+    ProjectBlockWriteRequest,
     ProjectCreateRequest,
     ProjectReorderRequest,
     ProjectUpdateRequest,
+    SingleImageBlockPayload,
 )
 from app.services.admin_auth import record_audit_event
 from app.services.public_cache import TaggedPublicCache
@@ -52,6 +65,10 @@ class ProjectPublishingValidationError(ProjectAdministrationError):
 
 
 class ProjectReorderError(ProjectAdministrationError):
+    pass
+
+
+class ProjectBlockMediaError(ProjectAdministrationError):
     pass
 
 
@@ -180,6 +197,7 @@ class ProjectAdministrationService:
     ) -> AdminProjectResponse:
         project = self._project_or_raise(project_id, lock=True)
         was_published = project.publication_state == PublicationState.PUBLISHED
+        self._validate_block_media(self._block_media_ids(payload.blocks))
         for existing_block in project.blocks:
             self.session.delete(existing_block)
         self.session.flush()
@@ -327,8 +345,54 @@ class ProjectAdministrationService:
         for index, image in enumerate(project.gallery_images):
             if not image.get("url") or not image.get("alt_en") or not image.get("alt_fa"):
                 missing.append(f"gallery_images[{index}]")
+        try:
+            self._validate_block_media(self._block_media_ids(project.blocks))
+        except ProjectBlockMediaError:
+            missing.append("blocks")
         if missing:
             raise ProjectPublishingValidationError(missing)
+
+    def _validate_block_media(self, media_ids: set[UUID]) -> None:
+        if not media_ids:
+            return
+        assets = self.session.scalars(
+            select(MediaAsset).where(MediaAsset.id.in_(media_ids)).with_for_update()
+        ).all()
+        if {asset.id for asset in assets} != media_ids:
+            raise ProjectBlockMediaError("one or more editorial block media assets were not found")
+        if any(
+            asset.processing_state != MediaProcessingState.READY
+            or asset.deleted_at is not None
+            or not asset.alt_en
+            or not asset.alt_fa
+            for asset in assets
+        ):
+            raise ProjectBlockMediaError(
+                "editorial block media must be ready and have alt text in both languages"
+            )
+
+    @staticmethod
+    def _block_media_ids(
+        blocks: Sequence[ProjectBlock | ProjectBlockWriteRequest],
+    ) -> set[UUID]:
+        media_ids: set[UUID] = set()
+        for block in blocks:
+            block_type = block.block_type
+            contents = (
+                block.content_en,
+                block.content_fa,
+            )
+            for content in contents:
+                if block_type in {"single_image", "full_width_image"}:
+                    media_ids.add(SingleImageBlockPayload.model_validate(content).media_id)
+                elif block_type == "image_text":
+                    media_ids.add(ImageTextBlockPayload.model_validate(content).media_id)
+                elif block_type == "paired_image":
+                    payload = PairedImageBlockPayload.model_validate(content)
+                    media_ids.update((payload.left_media_id, payload.right_media_id))
+                elif block_type == "gallery":
+                    media_ids.update(GalleryBlockPayload.model_validate(content).media_ids)
+        return media_ids
 
     def _commit_or_raise(self) -> None:
         try:

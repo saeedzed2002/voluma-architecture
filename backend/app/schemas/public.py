@@ -64,6 +64,13 @@ class SingleImageEditorialBlockResponse(PublicModel):
     image: ImageResponse
 
 
+class ImageTextEditorialBlockResponse(PublicModel):
+    block_type: Literal["image_text"]
+    heading: str | None = None
+    body: str
+    image: ImageResponse
+
+
 class PairedImageEditorialBlockResponse(PublicModel):
     block_type: Literal["paired_image"]
     left_image: ImageResponse
@@ -79,6 +86,7 @@ ProjectEditorialBlockResponse = (
     TextEditorialBlockResponse
     | QuoteEditorialBlockResponse
     | SingleImageEditorialBlockResponse
+    | ImageTextEditorialBlockResponse
     | PairedImageEditorialBlockResponse
     | GalleryEditorialBlockResponse
 )
@@ -156,6 +164,7 @@ class StudioMemberResponse(PublicModel):
     name: str
     role: str
     biography: str | None = None
+    portrait: ImageResponse | None = None
 
 
 class StudioResponse(PublicModel):

@@ -13,6 +13,7 @@ import {
 } from "@/lib/admin-api";
 
 import { useAdminSession } from "./admin-session-provider";
+import { AdminMediaPicker } from "./admin-media-picker";
 
 type StudioForm = Record<string, string | null>;
 
@@ -23,6 +24,7 @@ function blankForm(kind: AdminStudioContentKind): StudioForm {
         biography_fa: null,
         name: "",
         publication_state: "draft",
+        portrait_media_id: null,
         role_en: "",
         role_fa: "",
       }
@@ -96,6 +98,7 @@ export function AdminStudioContentManager({
             biography_fa: item.biography_fa,
             name: item.name,
             publication_state: item.publication_state,
+            portrait_media_id: item.portrait_media_id,
             role_en: item.role_en,
             role_fa: item.role_fa,
           }
@@ -141,7 +144,10 @@ export function AdminStudioContentManager({
       <div className="admin-dashboard__heading">
         <p className="admin-eyebrow">STUDIO CONTENT</p>
         <h1 id="studio-content-title">{title}</h1>
-        <p>Ordered bilingual content. Portraits and award imagery attach in the media phase.</p>
+        <p>
+          Ordered bilingual content. People use managed portraits; recognitions remain title-only
+          entries.
+        </p>
       </div>
       <form className="admin-editor__grid" onSubmit={save}>
         <label className="admin-editor__field">
@@ -185,6 +191,17 @@ export function AdminStudioContentManager({
                 value={form.biography_en ?? ""}
               />
             </label>
+            <AdminMediaPicker
+              disabled={false}
+              onSelect={(asset) => setValue("portrait_media_id", asset.id)}
+              selectedIds={form.portrait_media_id ? [form.portrait_media_id] : []}
+              title="Portrait"
+            />
+            {form.portrait_media_id ? (
+              <button onClick={() => setValue("portrait_media_id", null)} type="button">
+                Remove portrait
+              </button>
+            ) : null}
             <label className="admin-editor__field admin-editor__field--wide">
               <span>Biography / FA</span>
               <textarea
@@ -260,7 +277,11 @@ export function AdminStudioContentManager({
               <button onClick={() => edit(item)} type="button">
                 Edit
               </button>
-              <button className="admin-project-row__delete" onClick={() => void remove(item)} type="button">
+              <button
+                className="admin-project-row__delete"
+                onClick={() => void remove(item)}
+                type="button"
+              >
                 Delete
               </button>
             </div>

@@ -12,7 +12,7 @@ from app.api.public import get_public_cache
 from app.db.session import get_session
 from app.main import app
 from app.models.admin import AdminUser, AuditEvent
-from app.models.content import SiteSettings
+from app.models.content import MediaAsset, MediaProcessingState, SiteSettings
 from app.services.admin_auth import hash_password
 
 ORIGIN = "http://localhost:3000"
@@ -102,6 +102,21 @@ def test_settings_are_authenticated_csrf_protected_and_invalidate_public_content
     assert test_client.get("/api/v1/admin/settings").status_code == 401
     headers = _login(session, test_client)
     payload = _settings_payload(test_client)
+    hero = MediaAsset(
+        original_extension="png",
+        source_content_type="image/png",
+        source_size_bytes=100,
+        source_width=20,
+        source_height=20,
+        processing_state=MediaProcessingState.READY,
+        derivative_version="hero-v1",
+        derivative_width=20,
+        derivative_height=20,
+        alt_en="A managed hero image",
+        alt_fa="تصویر هروی مدیریت‌شده",
+    )
+    session.add(hero)
+    session.commit()
     payload.update(
         {
             "studio_name": "Measured Studio",
@@ -115,6 +130,7 @@ def test_settings_are_authenticated_csrf_protected_and_invalidate_public_content
             "default_seo_title_fa": "استودیوی سنجیده — معماری",
             "default_seo_description_en": "Owner-managed architecture metadata.",
             "default_seo_description_fa": "فرادادهٔ معماریِ مدیریت‌شده توسط مالک.",
+            "home_hero_media_id": str(hero.id),
         }
     )
 
@@ -129,6 +145,7 @@ def test_settings_are_authenticated_csrf_protected_and_invalidate_public_content
     assert updated.status_code == 200
     assert updated.json()["contact_email"] == "studio@example.com"
     assert updated.json()["default_theme"] == "dark"
+    assert updated.json()["home_hero_media_id"] == str(hero.id)
     assert cache.invalidated[-1] >= {"site", "site:en", "home", "studio:fa"}
 
     public = test_client.get("/api/v1/public/site?locale=fa")
@@ -150,6 +167,17 @@ def test_settings_are_authenticated_csrf_protected_and_invalidate_public_content
         select(AuditEvent.action).where(AuditEvent.target_type == "site_settings")
     ).all()
     assert actions == ["site_settings.updated"]
+
+    home = test_client.get("/api/v1/public/home?locale=en")
+    assert home.status_code == 200
+    assert home.json()["hero_image"]["url"] == f"/media/{hero.id}/hero-v1/w1024.webp"
+
+    protected = test_client.delete(f"/api/v1/admin/media/{hero.id}", headers=headers)
+    assert protected.status_code == 409
+    assert (
+        protected.json()["detail"]
+        == "remove the asset from site branding or the home hero before deletion"
+    )
 
 
 def test_settings_update_bootstraps_the_singleton_when_no_record_exists(

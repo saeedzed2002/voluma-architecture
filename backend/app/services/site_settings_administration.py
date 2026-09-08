@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.admin import AdminUser
-from app.models.content import SiteSettings
+from app.models.content import MediaAsset, MediaProcessingState, SiteSettings
 from app.schemas.admin import (
     AdminSiteSettingsResponse,
     SiteSettingsPrinciple,
@@ -23,13 +23,17 @@ class SiteSettingsConflictError(RuntimeError):
     """Raised when concurrent bootstraps violate the single-settings-row invariant."""
 
 
+class SiteSettingsMediaError(RuntimeError):
+    """Raised when branding or hero media is not a public-ready managed asset."""
+
+
 def _default_response() -> AdminSiteSettingsResponse:
     return AdminSiteSettingsResponse(
         id=None,
         updated_at=None,
         studio_name="VOLUMA",
-        logo_url=None,
-        favicon_url=None,
+        logo_media_id=None,
+        favicon_media_id=None,
         contact_email=None,
         contact_phone=None,
         contact_address_en=None,
@@ -44,9 +48,7 @@ def _default_response() -> AdminSiteSettingsResponse:
         home_title_fa="معماری برای زندگی میان دیوارها.",
         home_body_en="Configure this site before publishing production content.",
         home_body_fa="پیش از انتشار محتوای تولید، این سایت را پیکربندی کنید.",
-        home_hero_image_url=None,
-        home_hero_alt_en=None,
-        home_hero_alt_fa=None,
+        home_hero_media_id=None,
         studio_intro_en="Configure the bilingual studio introduction before publication.",
         studio_intro_fa="پیش از انتشار، معرفی دوزبانهٔ استودیو را پیکربندی کنید.",
         studio_principles=[],
@@ -81,6 +83,7 @@ class SiteSettingsAdministrationService:
         if record is None:
             record = SiteSettings(singleton=True)
             self.session.add(record)
+        self._validate_media(payload)
         self._apply(record, payload)
         self.session.flush()
         record_audit_event(
@@ -115,8 +118,8 @@ class SiteSettingsAdministrationService:
     def _apply(record: SiteSettings, payload: SiteSettingsWriteRequest) -> None:
         record.singleton = True
         record.studio_name = payload.studio_name
-        record.logo_url = payload.logo_url
-        record.favicon_url = payload.favicon_url
+        record.logo_media_id = payload.logo_media_id
+        record.favicon_media_id = payload.favicon_media_id
         record.contact_email = (
             str(payload.contact_email) if payload.contact_email is not None else None
         )
@@ -133,9 +136,7 @@ class SiteSettingsAdministrationService:
         record.home_title_fa = payload.home_title_fa
         record.home_body_en = payload.home_body_en
         record.home_body_fa = payload.home_body_fa
-        record.home_hero_image_url = payload.home_hero_image_url
-        record.home_hero_alt_en = payload.home_hero_alt_en
-        record.home_hero_alt_fa = payload.home_hero_alt_fa
+        record.home_hero_media_id = payload.home_hero_media_id
         record.studio_intro_en = payload.studio_intro_en
         record.studio_intro_fa = payload.studio_intro_fa
         record.studio_principles_en = [
@@ -148,6 +149,32 @@ class SiteSettingsAdministrationService:
         ]
         record.privacy_en = payload.privacy_en
         record.privacy_fa = payload.privacy_fa
+
+    def _validate_media(self, payload: SiteSettingsWriteRequest) -> None:
+        media_ids = {
+            media_id
+            for media_id in (
+                payload.logo_media_id,
+                payload.favicon_media_id,
+                payload.home_hero_media_id,
+            )
+            if media_id is not None
+        }
+        if not media_ids:
+            return
+        assets = self.session.scalars(
+            select(MediaAsset).where(MediaAsset.id.in_(media_ids)).with_for_update()
+        ).all()
+        if {asset.id for asset in assets} != media_ids or any(
+            asset.processing_state != MediaProcessingState.READY
+            or asset.deleted_at is not None
+            or not asset.alt_en
+            or not asset.alt_fa
+            for asset in assets
+        ):
+            raise SiteSettingsMediaError(
+                "site branding and hero media must be ready and have alt text in both languages"
+            )
 
 
 def _settings_response(record: SiteSettings) -> AdminSiteSettingsResponse:
@@ -166,8 +193,8 @@ def _settings_response(record: SiteSettings) -> AdminSiteSettingsResponse:
         id=record.id,
         updated_at=record.updated_at,
         studio_name=record.studio_name,
-        logo_url=record.logo_url,
-        favicon_url=record.favicon_url,
+        logo_media_id=record.logo_media_id,
+        favicon_media_id=record.favicon_media_id,
         contact_email=record.contact_email,
         contact_phone=record.contact_phone,
         contact_address_en=record.contact_address_en,
@@ -182,9 +209,7 @@ def _settings_response(record: SiteSettings) -> AdminSiteSettingsResponse:
         home_title_fa=record.home_title_fa,
         home_body_en=record.home_body_en,
         home_body_fa=record.home_body_fa,
-        home_hero_image_url=record.home_hero_image_url,
-        home_hero_alt_en=record.home_hero_alt_en,
-        home_hero_alt_fa=record.home_hero_alt_fa,
+        home_hero_media_id=record.home_hero_media_id,
         studio_intro_en=record.studio_intro_en,
         studio_intro_fa=record.studio_intro_fa,
         studio_principles=principles,

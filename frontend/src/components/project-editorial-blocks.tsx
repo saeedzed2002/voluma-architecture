@@ -23,9 +23,27 @@ export function ProjectEditorialBlocks({ blocks }: ProjectEditorialBlocksProps) 
 
         if (block.block_type === "text") {
           return (
-            <article className="project-editorial-blocks__text" key={`${block.heading ?? "text"}-${index}`}>
+            <article
+              className="project-editorial-blocks__text"
+              key={`${block.heading ?? "text"}-${index}`}
+            >
               {block.heading ? <h2>{block.heading}</h2> : null}
               <p>{block.body}</p>
+            </article>
+          );
+        }
+
+        if (block.block_type === "image_text") {
+          return (
+            <article
+              className="project-editorial-blocks__image-text"
+              key={`${block.heading ?? "image-text"}-${index}`}
+            >
+              <div className="project-editorial-blocks__image-text-copy">
+                {block.heading ? <h2>{block.heading}</h2> : null}
+                <p>{block.body}</p>
+              </div>
+              <ResponsiveImage image={block.image} sizes="(max-width: 767px) 100vw, 56vw" />
             </article>
           );
         }
@@ -42,14 +60,28 @@ export function ProjectEditorialBlocks({ blocks }: ProjectEditorialBlocksProps) 
         if (block.block_type === "gallery") {
           return (
             <div className="project-editorial-blocks__gallery" key={`gallery-${index}`}>
-              {block.images.map((image) => <ResponsiveImage image={image} key={image.url} sizes="(max-width: 767px) 100vw, 50vw" />)}
+              {block.images.map((image) => (
+                <ResponsiveImage
+                  image={image}
+                  key={image.url}
+                  sizes="(max-width: 767px) 100vw, 50vw"
+                />
+              ))}
             </div>
           );
         }
 
         return (
-          <div className={`project-editorial-blocks__image project-editorial-blocks__image--${block.block_type}`} key={`${block.block_type}-${index}`}>
-            <ResponsiveImage image={block.image} sizes={block.block_type === "full_width_image" ? "100vw" : "(max-width: 767px) 100vw, 70vw"} />
+          <div
+            className={`project-editorial-blocks__image project-editorial-blocks__image--${block.block_type}`}
+            key={`${block.block_type}-${index}`}
+          >
+            <ResponsiveImage
+              image={block.image}
+              sizes={
+                block.block_type === "full_width_image" ? "100vw" : "(max-width: 767px) 100vw, 70vw"
+              }
+            />
           </div>
         );
       })}

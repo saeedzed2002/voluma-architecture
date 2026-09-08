@@ -1346,6 +1346,33 @@ html[lang="fa"] .project-material h2 {
   max-width: 52ch;
 }
 
+.project-editorial-blocks__image-text {
+  align-items: start;
+  display: grid;
+  gap: clamp(1.5rem, 5vw, 5rem);
+  grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+}
+
+.project-editorial-blocks__image-text-copy {
+  display: grid;
+  gap: 1.5rem;
+  padding-block-start: clamp(1rem, 6vw, 7rem);
+}
+
+.project-editorial-blocks__image-text-copy h2 {
+  font-size: clamp(1.6rem, 3vw, 3.5rem);
+  font-weight: 430;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+.project-editorial-blocks__image-text-copy p {
+  color: var(--ink-muted);
+  font-size: clamp(1rem, 1.5vw, 1.35rem);
+  line-height: 1.7;
+  max-width: 38ch;
+}
+
 .project-editorial-blocks__quote {
   border-inline-start: 1px solid var(--accent);
   display: grid;
@@ -1372,6 +1399,14 @@ html[lang="fa"] .project-material h2 {
 @media (max-width: 47.99rem) {
   .project-editorial-blocks__text {
     grid-template-columns: 1fr;
+  }
+
+  .project-editorial-blocks__image-text {
+    grid-template-columns: 1fr;
+  }
+
+  .project-editorial-blocks__image-text-copy {
+    padding-block-start: 0;
   }
 }
 
@@ -1724,6 +1759,23 @@ html[lang="fa"] .privacy-page__header h1 {
 .studio-records__list > li {
   border-block-end: 1px solid var(--line);
   padding-block: 1.25rem;
+}
+
+.studio-records__list > li:has(picture) {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(8rem, 14rem) minmax(0, 1fr);
+}
+
+.studio-records__list > li > picture {
+  grid-row: span 3;
+}
+
+.studio-records__list > li > picture img {
+  aspect-ratio: 4 / 5;
+  block-size: 100%;
+  inline-size: 100%;
+  object-fit: cover;
 }
 
 .studio-records__list h4 {
@@ -2430,6 +2482,15 @@ html[lang="fa"] .journal-article__header h1 {
 
   .studio-records {
     gap: 1.25rem;
+  }
+
+  .studio-records__list > li:has(picture) {
+    grid-template-columns: 1fr;
+  }
+
+  .studio-records__list > li > picture {
+    grid-row: auto;
+    max-inline-size: 20rem;
   }
 
   .journal-archive__entry > article > a {
@@ -3157,6 +3218,19 @@ html[lang="fa"] .journal-article__header h1 {
   width: min(100%, 32rem);
 }
 
+.admin-block-editor__selected-media {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-block-editor__selected-media button {
+  border: 1px solid #4b504b;
+  color: #f4f1e7;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.85rem;
+}
+
 .admin-block-editor__block > button,
 .admin-editor__footer button,
 .admin-editor__grid > button {
@@ -3291,6 +3365,91 @@ html[lang="fa"] .journal-article__header h1 {
   display: grid;
   gap: 0.75rem;
   justify-items: start;
+}
+
+.admin-media-picker {
+  border-block-start: 1px solid var(--line);
+  display: grid;
+  gap: 1rem;
+  margin-block-start: 2rem;
+  padding-block-start: 1.5rem;
+}
+
+.admin-media-picker__heading {
+  align-items: start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.admin-media-picker__heading h3 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.admin-media-picker__heading p,
+.admin-media-picker__upload small {
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.admin-media-picker__upload {
+  align-items: center;
+  border: 1px dashed var(--line-strong);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.admin-media-picker__upload input {
+  inline-size: 1px;
+  opacity: 0;
+  position: absolute;
+}
+
+.admin-media-picker__upload label {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.admin-media-picker__grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+}
+
+.admin-media-picker__card {
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.admin-media-picker__preview {
+  aspect-ratio: 4 / 3;
+  background: var(--surface-muted);
+  display: grid;
+  overflow: hidden;
+  place-items: center;
+}
+
+.admin-media-picker__preview img {
+  block-size: 100%;
+  inline-size: 100%;
+  object-fit: cover;
+}
+
+.admin-media-picker__heading code {
+  color: var(--ink-muted);
+  font-size: 0.7rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-media-picker__metadata {
+  display: grid;
+  gap: 0.5rem;
 }
 
 .admin-project-media__save {

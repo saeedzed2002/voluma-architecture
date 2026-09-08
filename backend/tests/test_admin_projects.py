@@ -6,14 +6,21 @@ from uuid import UUID
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.admin import get_admin_redis
 from app.api.public import get_public_cache
 from app.db.session import get_session
 from app.main import app
 from app.models.admin import AdminUser, AuditEvent
-from app.models.content import Discipline, MediaAsset, MediaProcessingState, Project, Typology
+from app.models.content import (
+    Discipline,
+    MediaAsset,
+    MediaProcessingState,
+    Project,
+    StudioMember,
+    Typology,
+)
 from app.services.admin_auth import hash_password
 
 ORIGIN = "http://localhost:3000"
@@ -212,6 +219,126 @@ def test_project_workflow_keeps_drafts_private_and_invalidates_after_publish(
     ]
 
 
+def test_project_image_text_block_requires_ready_managed_media_and_renders_publicly(
+    session: Session, client: tuple[TestClient, RecordingCache]
+) -> None:
+    test_client, _cache = client
+    _administrator(session)
+    headers = _login(test_client)
+    created = test_client.post(
+        "/api/v1/admin/projects", headers=headers, json=_project_payload(session)
+    )
+    assert created.status_code == 201
+    project_id = UUID(created.json()["id"])
+
+    asset = MediaAsset(
+        original_extension="png",
+        source_content_type="image/png",
+        source_size_bytes=100,
+        source_width=20,
+        source_height=20,
+        processing_state=MediaProcessingState.READY,
+        derivative_version="image-text-v1",
+        derivative_width=20,
+        derivative_height=20,
+        alt_en="Courtyard threshold",
+        alt_fa="آستانهٔ حیاط",
+    )
+    session.add(asset)
+    session.commit()
+
+    blocks = test_client.put(
+        f"/api/v1/admin/projects/{project_id}/blocks",
+        headers=headers,
+        json={
+            "blocks": [
+                {
+                    "block_type": "image_text",
+                    "content_en": {
+                        "heading": "Light and threshold",
+                        "body": "A paired editorial composition.",
+                        "media_id": str(asset.id),
+                    },
+                    "content_fa": {
+                        "heading": "نور و آستانه",
+                        "body": "یک ترکیب تحریریِ جفت‌شده.",
+                        "media_id": str(asset.id),
+                    },
+                }
+            ]
+        },
+    )
+    assert blocks.status_code == 200
+    assert blocks.json()["blocks"][0]["block_type"] == "image_text"
+
+    published = test_client.put(
+        f"/api/v1/admin/projects/{project_id}",
+        headers=headers,
+        json=_without_slug(_project_payload(session, state="published")),
+    )
+    assert published.status_code == 200
+
+    public = test_client.get("/api/v1/public/projects/measured-courtyard?locale=en")
+    assert public.status_code == 200
+    block = public.json()["blocks"][0]
+    assert block == {
+        "block_type": "image_text",
+        "heading": "Light and threshold",
+        "body": "A paired editorial composition.",
+        "image": {
+            "url": f"/media/{asset.id}/image-text-v1/w1024.webp",
+            "alt": "Courtyard threshold",
+            "avif_srcset": ", ".join(
+                f"/media/{asset.id}/image-text-v1/w{width}.avif {width}w"
+                for width in (640, 1024, 1600, 2400)
+            ),
+            "webp_srcset": ", ".join(
+                f"/media/{asset.id}/image-text-v1/w{width}.webp {width}w"
+                for width in (640, 1024, 1600, 2400)
+            ),
+            "placeholder_url": f"/media/{asset.id}/image-text-v1/placeholder.webp",
+            "width": 20,
+            "height": 20,
+        },
+    }
+
+    protected = test_client.delete(f"/api/v1/admin/media/{asset.id}", headers=headers)
+    assert protected.status_code == 409
+    assert (
+        protected.json()["detail"]
+        == "remove the asset from every project editorial block before deletion"
+    )
+
+    unready = MediaAsset(
+        original_extension="png",
+        source_content_type="image/png",
+        source_size_bytes=100,
+        source_width=20,
+        source_height=20,
+        processing_state=MediaProcessingState.PROCESSING,
+    )
+    session.add(unready)
+    session.commit()
+    rejected = test_client.put(
+        f"/api/v1/admin/projects/{project_id}/blocks",
+        headers=headers,
+        json={
+            "blocks": [
+                {
+                    "block_type": "image_text",
+                    "content_en": {"body": "Not ready.", "media_id": str(unready.id)},
+                    "content_fa": {"body": "آماده نیست.", "media_id": str(unready.id)},
+                }
+            ]
+        },
+    )
+    assert rejected.status_code == 422
+    assert (
+        rejected.json()["detail"]
+        == "editorial block media must be ready and have alt text in both languages"
+    )
+
+
 def test_project_order_requires_the_complete_collection_and_uses_unique_positions(
     session: Session, client: tuple[TestClient, RecordingCache]
 ) -> None:
@@ -403,13 +530,34 @@ def test_studio_people_workflow_publishes_to_the_public_response_and_audits_muta
     assert draft.json()["publication_state"] == "draft"
     assert cache.invalidated == []
 
+    portrait = MediaAsset(
+        original_extension="png",
+        source_content_type="image/png",
+        source_size_bytes=100,
+        source_width=20,
+        source_height=20,
+        processing_state=MediaProcessingState.READY,
+        derivative_version="portrait-v1",
+        derivative_width=20,
+        derivative_height=20,
+        alt_en="Portrait of a studio member",
+        alt_fa="پرترهٔ عضو استودیو",
+    )
+    session.add(portrait)
+    session.commit()
+
     invalid_publish = test_client.put(
         f"/api/v1/admin/people/{person_id}",
         headers=headers,
         json={"publication_state": "published"},
     )
     assert invalid_publish.status_code == 422
-    assert set(invalid_publish.json()["detail"]["fields"]) == {"name", "role_en", "role_fa"}
+    assert set(invalid_publish.json()["detail"]["fields"]) == {
+        "name",
+        "role_en",
+        "role_fa",
+        "portrait_media_id",
+    }
 
     published = test_client.put(
         f"/api/v1/admin/people/{person_id}",
@@ -421,14 +569,34 @@ def test_studio_people_workflow_publishes_to_the_public_response_and_audits_muta
             "role_fa": "معمار",
             "biography_en": "A public bilingual biography.",
             "biography_fa": "یک زندگی‌نامهٔ عمومی دوزبانه.",
+            "portrait_media_id": str(portrait.id),
         },
     )
     assert published.status_code == 200
+    assert published.json()["portrait_media_id"] == str(portrait.id)
     assert cache.invalidated[-1] >= {"home", "studio", "studio:en", "studio:fa"}
+    persisted_member = session.scalar(
+        select(StudioMember)
+        .where(StudioMember.id == person_id)
+        .options(selectinload(StudioMember.portrait_media))
+    )
+    assert persisted_member is not None
+    assert persisted_member.portrait_media_id == portrait.id
+    assert session.get(MediaAsset, portrait.id) is not None
+    assert persisted_member.portrait_media is not None
 
     public = test_client.get("/api/v1/public/studio?locale=en")
     assert public.status_code == 200
-    assert any(member["name"] == "Test Studio Member" for member in public.json()["members"])
+    member = next(
+        member for member in public.json()["members"] if member["name"] == "Test Studio Member"
+    )
+    assert member["portrait"]["url"] == f"/media/{portrait.id}/portrait-v1/w1024.webp"
+
+    protected = test_client.delete(f"/api/v1/admin/media/{portrait.id}", headers=headers)
+    assert protected.status_code == 409
+    assert (
+        protected.json()["detail"] == "remove the asset from every studio portrait before deletion"
+    )
 
     second = test_client.post(
         "/api/v1/admin/people",
@@ -438,6 +606,7 @@ def test_studio_people_workflow_publishes_to_the_public_response_and_audits_muta
             "name": "Second Studio Member",
             "role_en": "Designer",
             "role_fa": "طراح",
+            "portrait_media_id": str(portrait.id),
         },
     )
     assert second.status_code == 201

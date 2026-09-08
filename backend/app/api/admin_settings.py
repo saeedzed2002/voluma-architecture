@@ -13,6 +13,7 @@ from app.schemas.admin import AdminSiteSettingsResponse, SiteSettingsWriteReques
 from app.services.site_settings_administration import (
     SiteSettingsAdministrationService,
     SiteSettingsConflictError,
+    SiteSettingsMediaError,
 )
 
 router = APIRouter(tags=["admin settings"])
@@ -43,6 +44,11 @@ def update_settings(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="site settings changed concurrently; refresh and retry",
+        ) from error
+    except SiteSettingsMediaError as error:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
         ) from error
     except RedisError as error:
         raise HTTPException(

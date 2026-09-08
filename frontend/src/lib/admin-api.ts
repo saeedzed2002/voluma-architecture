@@ -52,16 +52,14 @@ export type AdminSiteSettings = {
   default_seo_title_en: string | null;
   default_seo_title_fa: string | null;
   default_theme: "system" | "light" | "dark";
-  favicon_url: string | null;
+  favicon_media_id: string | null;
   home_body_en: string;
   home_body_fa: string;
-  home_hero_alt_en: string | null;
-  home_hero_alt_fa: string | null;
-  home_hero_image_url: string | null;
+  home_hero_media_id: string | null;
   home_title_en: string;
   home_title_fa: string;
   id: string | null;
-  logo_url: string | null;
+  logo_media_id: string | null;
   privacy_en: string;
   privacy_fa: string;
   social_links: AdminSiteSettingsSocialLink[];
@@ -144,6 +142,7 @@ export type AdminStudioMember = {
   id: string;
   name: string;
   publication_state: "draft" | "published";
+  portrait_media_id: string | null;
   role_en: string;
   role_fa: string;
   updated_at: string;
@@ -255,11 +254,48 @@ export type JournalArticleWrite = {
 };
 
 export type AdminProjectBlock =
-  | { block_type: "quote"; content_en: { attribution?: string; quote: string }; content_fa: { attribution?: string; quote: string }; display_order: number; id: string }
-  | { block_type: "text"; content_en: { body: string; heading?: string }; content_fa: { body: string; heading?: string }; display_order: number; id: string }
-  | { block_type: "single_image" | "full_width_image"; content_en: { media_id: string }; content_fa: { media_id: string }; display_order: number; id: string }
-  | { block_type: "paired_image"; content_en: { left_media_id: string; right_media_id: string }; content_fa: { left_media_id: string; right_media_id: string }; display_order: number; id: string }
-  | { block_type: "gallery"; content_en: { media_ids: string[] }; content_fa: { media_ids: string[] }; display_order: number; id: string };
+  | {
+      block_type: "quote";
+      content_en: { attribution?: string; quote: string };
+      content_fa: { attribution?: string; quote: string };
+      display_order: number;
+      id: string;
+    }
+  | {
+      block_type: "text";
+      content_en: { body: string; heading?: string };
+      content_fa: { body: string; heading?: string };
+      display_order: number;
+      id: string;
+    }
+  | {
+      block_type: "single_image" | "full_width_image";
+      content_en: { media_id: string };
+      content_fa: { media_id: string };
+      display_order: number;
+      id: string;
+    }
+  | {
+      block_type: "image_text";
+      content_en: { body: string; heading?: string; media_id: string };
+      content_fa: { body: string; heading?: string; media_id: string };
+      display_order: number;
+      id: string;
+    }
+  | {
+      block_type: "paired_image";
+      content_en: { left_media_id: string; right_media_id: string };
+      content_fa: { left_media_id: string; right_media_id: string };
+      display_order: number;
+      id: string;
+    }
+  | {
+      block_type: "gallery";
+      content_en: { media_ids: string[] };
+      content_fa: { media_ids: string[] };
+      display_order: number;
+      id: string;
+    };
 
 export type AdminProjectListItem = {
   display_order: number;
@@ -325,11 +361,36 @@ export type AdminProjectFormOptions = {
 };
 
 export type ProjectBlockWrite =
-  | { block_type: "quote"; content_en: { attribution?: string; quote: string }; content_fa: { attribution?: string; quote: string } }
-  | { block_type: "text"; content_en: { body: string; heading?: string }; content_fa: { body: string; heading?: string } }
-  | { block_type: "single_image" | "full_width_image"; content_en: { media_id: string }; content_fa: { media_id: string } }
-  | { block_type: "paired_image"; content_en: { left_media_id: string; right_media_id: string }; content_fa: { left_media_id: string; right_media_id: string } }
-  | { block_type: "gallery"; content_en: { media_ids: string[] }; content_fa: { media_ids: string[] } };
+  | {
+      block_type: "quote";
+      content_en: { attribution?: string; quote: string };
+      content_fa: { attribution?: string; quote: string };
+    }
+  | {
+      block_type: "text";
+      content_en: { body: string; heading?: string };
+      content_fa: { body: string; heading?: string };
+    }
+  | {
+      block_type: "single_image" | "full_width_image";
+      content_en: { media_id: string };
+      content_fa: { media_id: string };
+    }
+  | {
+      block_type: "image_text";
+      content_en: { body: string; heading?: string; media_id: string };
+      content_fa: { body: string; heading?: string; media_id: string };
+    }
+  | {
+      block_type: "paired_image";
+      content_en: { left_media_id: string; right_media_id: string };
+      content_fa: { left_media_id: string; right_media_id: string };
+    }
+  | {
+      block_type: "gallery";
+      content_en: { media_ids: string[] };
+      content_fa: { media_ids: string[] };
+    };
 
 export type ProjectWrite = Omit<
   AdminProject,

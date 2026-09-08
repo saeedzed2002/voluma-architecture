@@ -5,10 +5,16 @@ from uuid import UUID
 
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.admin import AdminUser
-from app.models.content import PublicationState, Recognition, StudioMember
+from app.models.content import (
+    MediaAsset,
+    MediaProcessingState,
+    PublicationState,
+    Recognition,
+    StudioMember,
+)
 from app.schemas.admin import (
     AdminRecognitionListResponse,
     AdminRecognitionResponse,
@@ -48,7 +54,7 @@ class StudioContentPublishingValidationError(StudioAdministrationError):
 
 
 class StudioAdministrationService:
-    """Administrator workflows for people and recognition; media is deferred to Phase 5."""
+    """Administrator workflows for people and recognition with managed portraits."""
 
     def __init__(self, session: Session, cache: TaggedPublicCache) -> None:
         self.session = session
@@ -191,6 +197,8 @@ class StudioAdministrationService:
         record.role_fa = payload.role_fa
         record.biography_en = payload.biography_en
         record.biography_fa = payload.biography_fa
+        record.portrait_media = None
+        record.portrait_media_id = payload.portrait_media_id
 
     @staticmethod
     def _apply_recognition(record: Recognition, payload: AdminRecognitionWriteRequest) -> None:
@@ -198,8 +206,7 @@ class StudioAdministrationService:
         record.title_en = payload.title_en
         record.title_fa = payload.title_fa
 
-    @staticmethod
-    def _validate_person_publishable(record: StudioMember) -> None:
+    def _validate_person_publishable(self, record: StudioMember) -> None:
         if record.publication_state != PublicationState.PUBLISHED:
             return
         fields = [
@@ -210,6 +217,24 @@ class StudioAdministrationService:
             value.strip() for value in biography_values
         ):
             fields.extend(("biography_en", "biography_fa"))
+        if record.portrait_media_id is None:
+            fields.append("portrait_media_id")
+        else:
+            portrait = self.session.scalar(
+                select(MediaAsset)
+                .where(MediaAsset.id == record.portrait_media_id)
+                .with_for_update()
+            )
+            if (
+                portrait is None
+                or portrait.processing_state != MediaProcessingState.READY
+                or portrait.deleted_at is not None
+                or not portrait.alt_en
+                or not portrait.alt_fa
+            ):
+                fields.append("portrait_media_id")
+            else:
+                record.portrait_media = portrait
         if fields:
             raise StudioContentPublishingValidationError(fields)
 
@@ -226,6 +251,8 @@ class StudioAdministrationService:
     ) -> StudioContentRecord:
         record_type = self._record_type(kind)
         statement = select(record_type).where(record_type.id == record_id)
+        if kind == "people":
+            statement = statement.options(selectinload(StudioMember.portrait_media))
         if lock:
             statement = statement.with_for_update()
         record = cast(StudioContentRecord | None, self.session.scalar(statement))
@@ -275,6 +302,7 @@ def _person_response(record: StudioMember) -> AdminStudioMemberResponse:
         role_fa=record.role_fa,
         biography_en=record.biography_en,
         biography_fa=record.biography_fa,
+        portrait_media_id=record.portrait_media_id,
         updated_at=record.updated_at,
     )
 

@@ -115,6 +115,7 @@ class AdminStudioMemberResponse(AdminModel):
     role_fa: str
     biography_en: str | None
     biography_fa: str | None
+    portrait_media_id: UUID | None
     updated_at: datetime
 
 
@@ -125,6 +126,7 @@ class AdminStudioMemberWriteRequest(AdminModel):
     role_fa: str = Field(default="", max_length=180)
     biography_en: str | None = Field(default=None, max_length=12_000)
     biography_fa: str | None = Field(default=None, max_length=12_000)
+    portrait_media_id: UUID | None = None
 
 
 class AdminStudioMemberListResponse(AdminModel):
@@ -175,6 +177,10 @@ class SingleImageBlockPayload(AdminModel):
     media_id: UUID
 
 
+class ImageTextBlockPayload(TextBlockPayload):
+    media_id: UUID
+
+
 class PairedImageBlockPayload(AdminModel):
     left_media_id: UUID
     right_media_id: UUID
@@ -198,7 +204,13 @@ class GalleryBlockPayload(AdminModel):
 
 
 ProjectBlockType = Literal[
-    "text", "quote", "single_image", "full_width_image", "paired_image", "gallery"
+    "text",
+    "quote",
+    "single_image",
+    "full_width_image",
+    "paired_image",
+    "gallery",
+    "image_text",
 ]
 
 _BLOCK_PAYLOADS: dict[str, type[AdminModel]] = {
@@ -206,6 +218,7 @@ _BLOCK_PAYLOADS: dict[str, type[AdminModel]] = {
     "quote": QuoteBlockPayload,
     "single_image": SingleImageBlockPayload,
     "full_width_image": SingleImageBlockPayload,
+    "image_text": ImageTextBlockPayload,
     "paired_image": PairedImageBlockPayload,
     "gallery": GalleryBlockPayload,
 }
@@ -632,8 +645,8 @@ class SiteSettingsPrinciple(AdminModel):
 
 class SiteSettingsWriteRequest(AdminModel):
     studio_name: str = Field(min_length=1, max_length=120)
-    logo_url: str | None = Field(default=None, max_length=500)
-    favicon_url: str | None = Field(default=None, max_length=500)
+    logo_media_id: UUID | None = None
+    favicon_media_id: UUID | None = None
     contact_email: EmailStr | None = None
     contact_phone: str | None = Field(default=None, max_length=64)
     contact_address_en: str | None = Field(default=None, max_length=1_000)
@@ -648,9 +661,7 @@ class SiteSettingsWriteRequest(AdminModel):
     home_title_fa: str = Field(min_length=1, max_length=4_000)
     home_body_en: str = Field(min_length=1, max_length=12_000)
     home_body_fa: str = Field(min_length=1, max_length=12_000)
-    home_hero_image_url: str | None = Field(default=None, max_length=500)
-    home_hero_alt_en: str | None = Field(default=None, max_length=500)
-    home_hero_alt_fa: str | None = Field(default=None, max_length=500)
+    home_hero_media_id: UUID | None = None
     studio_intro_en: str = Field(min_length=1, max_length=12_000)
     studio_intro_fa: str = Field(min_length=1, max_length=12_000)
     studio_principles: list[SiteSettingsPrinciple] = Field(default_factory=list, max_length=12)
@@ -683,8 +694,6 @@ class SiteSettingsWriteRequest(AdminModel):
         "default_seo_title_fa",
         "default_seo_description_en",
         "default_seo_description_fa",
-        "home_hero_alt_en",
-        "home_hero_alt_fa",
     )
     @classmethod
     def normalize_optional_text(cls, value: str | None) -> str | None:
@@ -693,35 +702,16 @@ class SiteSettingsWriteRequest(AdminModel):
         normalized = value.strip()
         return normalized or None
 
-    @field_validator("logo_url", "favicon_url", "home_hero_image_url")
-    @classmethod
-    def require_public_media_path(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        normalized = value.strip()
-        if not normalized:
-            return None
-        if not normalized.startswith("/media/") or ".." in normalized:
-            raise ValueError("public media must use an approved /media/ path")
-        return normalized
-
     @model_validator(mode="after")
     def related_localized_settings_must_be_complete(self) -> SiteSettingsWriteRequest:
         paired_fields = (
             ("contact_address_en", "contact_address_fa"),
             ("default_seo_title_en", "default_seo_title_fa"),
             ("default_seo_description_en", "default_seo_description_fa"),
-            ("home_hero_alt_en", "home_hero_alt_fa"),
         )
         for english, persian in paired_fields:
             if bool(getattr(self, english)) != bool(getattr(self, persian)):
                 raise ValueError(f"{english} and {persian} must be provided together")
-        if self.home_hero_image_url is None and any((self.home_hero_alt_en, self.home_hero_alt_fa)):
-            raise ValueError("hero alt text requires a hero image")
-        if self.home_hero_image_url is not None and not all(
-            (self.home_hero_alt_en, self.home_hero_alt_fa)
-        ):
-            raise ValueError("hero image requires localized alt text")
         return self
 
 

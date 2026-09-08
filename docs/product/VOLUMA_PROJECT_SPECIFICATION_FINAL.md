@@ -102,7 +102,7 @@ The project slug is an immutable ASCII identifier. It is shared between language
 The home page includes:
 
 1. Accessible global navigation, locale control, and theme control.
-2. A cinematic hero selected in site settings. It may use one image, a restrained image sequence, or an optional muted video with poster image. Video is optional and must have a mobile image fallback.
+2. A cinematic hero selected as a ready managed-media asset in site settings. It may use one image, a restrained image sequence, or an optional muted video with poster image. Video is optional and must have a mobile image fallback.
 3. A concise studio statement.
 4. Selected projects in an editorial arrangement.
 5. Expertise or disciplines teaser.
@@ -134,7 +134,7 @@ Every project detail page contains, where data exists:
 - Project number or archive marker, title, subtitle, discipline, typology, location, completion year, and status.
 - Large hero image.
 - Short introduction and structured facts: client, location, year, status, area, discipline, typology, architect, collaborators, and completion date.
-- Ordered editorial blocks, including text, quote, single image, full-width image, two-image pair, and gallery reference.
+- Ordered editorial blocks, including text, quote, single image, full-width image, two-image pair, gallery reference, and a typed image-and-text composition.
 - Image caption and credit when supplied.
 - Fullscreen gallery with keyboard navigation, visible counter, captions, previous/next controls, Escape to close, focus management, and mobile swipe.
 - Related projects based on shared discipline or typology.
@@ -212,7 +212,7 @@ The project editor has these explicit tabs:
 - SEO: bilingual SEO title, meta description, and selected Open Graph image.
 - Publishing: draft/published state and publication date.
 
-The editorial block system is deliberate scope control. It supports validated text, quote, single-image, full-width image, paired-image, and gallery blocks. It does not accept arbitrary HTML, raw scriptable content, or a generic page-builder schema. Render blocks as React components; do not use dangerouslySetInnerHTML.
+The editorial block system is deliberate scope control. It supports validated text, quote, single-image, full-width image, paired-image, gallery, and image-and-text blocks. The image-and-text block has one managed media reference plus a localized heading and body; it is the only combined composition in this release, allowing the approved editorial project-detail pattern without becoming a generic page builder. It does not accept arbitrary HTML, raw scriptable content, or a generic page-builder schema. Render blocks as React components; do not use dangerouslySetInnerHTML.
 
 ### 4.3 Data entities
 
@@ -221,7 +221,7 @@ Use PostgreSQL migrations to create at least these entities:
 | Entity | Essential responsibility |
 | --- | --- |
 | admin_users | Administrator email, Argon2id password hash, active state, timestamps |
-| site_settings | Single site record with bilingual studio/home/privacy content, contacts, social links, defaults, logo/favicons |
+| site_settings | Single site record with bilingual studio/home/privacy content, contacts, social links, defaults, and managed logo/favicon/home-hero media references |
 | projects | Bilingual core project data, slug, publication, selected/featured state, facts, SEO |
 | disciplines and typologies | Ordered bilingual taxonomy |
 | project_disciplines and project_typologies | Project taxonomy join tables |

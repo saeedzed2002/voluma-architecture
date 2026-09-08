@@ -78,21 +78,20 @@ test("administrator can use a processed image as a bilingual journal cover", asy
     .fill("A measured journal paragraph.");
   await articleSection.getByLabel("Body / FA", { exact: true }).fill("یک بند سنجیده برای یادداشت.");
   await articleSection.getByRole("button", { name: "Add image block" }).click();
-  const imageBlock = articleSection.locator(".admin-journal-image-block").last();
-  await imageBlock.locator('input[type="file"]').setInputFiles({
-    buffer: Buffer.from(
-      "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR4nGOUUDFgYGBgYgADAAUiAHD7661kAAAAAElFTkSuQmCC",
-      "base64",
-    ),
-    mimeType: "image/png",
-    name: "article-inline-image.png",
-  });
-  await expect(imageBlock.locator("strong")).toHaveText("ready", { timeout: 15_000 });
-  await imageBlock.getByLabel("Image description / EN").fill("An image inside a journal article");
-  await imageBlock.getByLabel("Image description / FA").fill("تصویری درون یک یادداشت");
-  await imageBlock.getByRole("button", { name: "Save image descriptions now" }).click();
-  await expect(page.locator(".admin-form__message")).toHaveText("Image descriptions saved.");
-  await articleSection.getByLabel("Cover image", { exact: true }).selectOption(mediaId ?? "");
+  const articleImagePicker = articleSection.getByLabel("Article image");
+  await articleImagePicker.getByRole("button", { name: "Choose or upload image" }).click();
+  await articleImagePicker
+    .locator(".admin-media-picker__card")
+    .filter({ has: articleImagePicker.locator("code", { hasText: mediaId ?? "" }) })
+    .getByRole("button", { name: "Select image" })
+    .click();
+  const coverPicker = articleSection.getByLabel("Article cover image");
+  await coverPicker.getByRole("button", { name: "Choose or upload image" }).click();
+  await coverPicker
+    .locator(".admin-media-picker__card")
+    .filter({ has: coverPicker.locator("code", { hasText: mediaId ?? "" }) })
+    .getByRole("button", { name: "Select image" })
+    .click();
   await articleSection
     .getByRole("combobox", { name: "Publication state" })
     .selectOption("published");

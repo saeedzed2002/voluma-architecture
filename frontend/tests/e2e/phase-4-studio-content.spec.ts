@@ -8,7 +8,9 @@ test.skip(
   "requires isolated runtime administrator credentials",
 );
 
-test("administrator publishes people and recognition that render on the public studio page", async ({ page }, testInfo) => {
+test("administrator publishes people and recognition that render on the public studio page", async ({
+  page,
+}, testInfo) => {
   const suffix = `${testInfo.project.name} ${Date.now()}`;
   const personName = `Studio member ${suffix}`;
   const recognitionTitle = `Recognition ${suffix}`;
@@ -19,6 +21,32 @@ test("administrator publishes people and recognition that render on the public s
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/admin$/);
 
+  await page.getByRole("link", { name: "Media" }).click();
+  const [uploadResponse] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/v1/admin/media") &&
+        response.request().method() === "POST" &&
+        response.status() === 202,
+    ),
+    page.getByLabel("Upload media source image").setInputFiles({
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR4nGOUUDFgYGBgYgADAAUiAHD7661kAAAAAElFTkSuQmCC",
+        "base64",
+      ),
+      mimeType: "image/png",
+      name: "studio-portrait.png",
+    }),
+  ]);
+  const portraitId = String((await uploadResponse.json()).id);
+  const portraitCard = page
+    .locator(".admin-media-card")
+    .filter({ has: page.locator("code", { hasText: portraitId }) });
+  await expect(portraitCard.getByText("ready", { exact: true })).toBeVisible({ timeout: 15_000 });
+  await portraitCard.getByLabel("Alt text / EN").fill("Portrait of a studio member");
+  await portraitCard.getByLabel("Alt text / FA").fill("پرترهٔ عضو استودیو");
+  await portraitCard.getByRole("button", { name: "Save metadata" }).click();
+
   await page.getByRole("link", { name: "People" }).click();
   await page.getByRole("button", { name: "Create draft" }).click();
   await expect(page.locator(".admin-form__message")).toHaveText("Draft created.");
@@ -26,6 +54,13 @@ test("administrator publishes people and recognition that render on the public s
   await page.getByLabel("Name").fill(personName);
   await page.getByLabel("Role / EN").fill("Architect");
   await page.getByLabel("Role / FA").fill("معمار");
+  const portraitPicker = page.getByLabel("Portrait");
+  await portraitPicker.getByRole("button", { name: "Choose or upload image" }).click();
+  await portraitPicker
+    .locator(".admin-media-picker__card")
+    .filter({ has: portraitPicker.locator("code", { hasText: portraitId }) })
+    .getByRole("button", { name: "Select image" })
+    .click();
   await page.getByLabel("Publication state").selectOption("published");
   await page.getByRole("button", { name: "Save entry" }).click();
   await expect(page.getByRole("heading", { name: personName })).toBeVisible();
@@ -45,5 +80,8 @@ test("administrator publishes people and recognition that render on the public s
   await expect(page.getByRole("heading", { name: personName })).toBeVisible();
   await expect(page.getByText(recognitionTitle, { exact: true })).toBeVisible();
   await expect(page.locator("nextjs-portal [data-nextjs-dialog]")).toHaveCount(0);
-  await page.screenshot({ path: testInfo.outputPath("studio-content-published.png"), fullPage: false });
+  await page.screenshot({
+    path: testInfo.outputPath("studio-content-published.png"),
+    fullPage: false,
+  });
 });

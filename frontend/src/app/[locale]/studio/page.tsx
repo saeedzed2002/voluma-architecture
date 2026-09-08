@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { EditorialHeader } from "@/components/editorial-header";
 import { FixtureNotice } from "@/components/fixture-notice";
 import { Reveal } from "@/components/reveal";
+import { ResponsiveImage } from "@/components/responsive-image";
 import { siteCopy } from "@/content/site";
 import { routing, type Locale } from "@/i18n/routing";
 import { getStudio } from "@/lib/public-api";
@@ -41,7 +42,9 @@ export default async function StudioPage({ params }: StudioPageProps) {
         eyebrow={locale === "fa" ? "استودیو" : "Studio"}
         intro={studio.intro}
         title={
-          locale === "fa" ? "ممارستی بر پایهٔ نگاه دقیق." : "A practice built around attentive looking."
+          locale === "fa"
+            ? "ممارستی بر پایهٔ نگاه دقیق."
+            : "A practice built around attentive looking."
         }
       />
       <FixtureNotice>{copy.fixture}</FixtureNotice>
@@ -72,7 +75,9 @@ export default async function StudioPage({ params }: StudioPageProps) {
       <section className="studio-records" aria-labelledby="studio-records-title">
         <div className="studio-records__intro">
           <h2 id="studio-records-title">
-            {locale === "fa" ? "اطلاعاتی که با تأیید منتشر می‌شوند." : "Records published with approval."}
+            {locale === "fa"
+              ? "اطلاعاتی که با تأیید منتشر می‌شوند."
+              : "Records published with approval."}
           </h2>
           <p>
             {studio.members.length || studio.recognitions.length
@@ -92,6 +97,12 @@ export default async function StudioPage({ params }: StudioPageProps) {
                 <ol className="studio-records__list">
                   {studio.members.map((member) => (
                     <li key={member.name}>
+                      {member.portrait ? (
+                        <ResponsiveImage
+                          image={member.portrait}
+                          sizes="(max-width: 767px) 100vw, 22vw"
+                        />
+                      ) : null}
                       <h4>{member.name}</h4>
                       <p className="studio-records__role">{member.role}</p>
                       {member.biography ? <p>{member.biography}</p> : null}

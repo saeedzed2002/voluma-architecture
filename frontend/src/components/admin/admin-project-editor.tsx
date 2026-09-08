@@ -17,6 +17,7 @@ import {
 } from "@/lib/admin-api";
 
 import { useAdminSession } from "./admin-session-provider";
+import { AdminMediaPicker } from "./admin-media-picker";
 import { AdminProjectMediaManager } from "./admin-project-media-manager";
 
 type ProjectFormState = {
@@ -212,9 +213,18 @@ function TextField({
     <label className="admin-editor__field">
       <span>{label}</span>
       {multiline ? (
-        <textarea onChange={(event) => onChange(event.target.value)} required={required} rows={5} value={value} />
+        <textarea
+          onChange={(event) => onChange(event.target.value)}
+          required={required}
+          rows={5}
+          value={value}
+        />
       ) : (
-        <input onChange={(event) => onChange(event.target.value)} required={required} value={value} />
+        <input
+          onChange={(event) => onChange(event.target.value)}
+          required={required}
+          value={value}
+        />
       )}
     </label>
   );
@@ -267,109 +277,232 @@ function ProjectBlocksEditor({
     onChange(blocks.map((block, current) => (current === index ? nextBlock : block)));
   };
 
-  const splitMediaIds = (value: string) =>
-    value
-      .split(",")
-      .map((mediaId) => mediaId.trim())
-      .filter(Boolean);
-
   return (
     <div className="admin-block-editor">
-      <p>All editorial block types are public-ready. Use media IDs from the managed media library; the same ready asset must be selected for both locales.</p>
+      <p>
+        All editorial block types are public-ready. Select a managed image here; processing state
+        and bilingual alt text are enforced before it can be saved.
+      </p>
       {blocks.map((block, index) => (
         <article className="admin-block-editor__block" key={`${block.block_type}-${index}`}>
-          {block.block_type === "text" ? (
+          {block.block_type === "text" || block.block_type === "image_text" ? (
             <>
               <TextField
                 label="Text heading / EN"
-                onChange={(heading) => update(index, { ...block, content_en: { ...block.content_en, heading } })}
+                onChange={(heading) =>
+                  update(index, { ...block, content_en: { ...block.content_en, heading } })
+                }
                 value={block.content_en.heading ?? ""}
               />
               <TextField
                 label="Text body / EN"
                 multiline
-                onChange={(body) => update(index, { ...block, content_en: { ...block.content_en, body } })}
+                onChange={(body) =>
+                  update(index, { ...block, content_en: { ...block.content_en, body } })
+                }
                 value={block.content_en.body}
               />
               <TextField
                 label="Text heading / FA"
-                onChange={(heading) => update(index, { ...block, content_fa: { ...block.content_fa, heading } })}
+                onChange={(heading) =>
+                  update(index, { ...block, content_fa: { ...block.content_fa, heading } })
+                }
                 value={block.content_fa.heading ?? ""}
               />
               <TextField
                 label="Text body / FA"
                 multiline
-                onChange={(body) => update(index, { ...block, content_fa: { ...block.content_fa, body } })}
+                onChange={(body) =>
+                  update(index, { ...block, content_fa: { ...block.content_fa, body } })
+                }
                 value={block.content_fa.body}
               />
+              {block.block_type === "image_text" ? (
+                <>
+                  <AdminMediaPicker
+                    disabled={disabled}
+                    onSelect={(asset) =>
+                      update(index, {
+                        ...block,
+                        content_en: { ...block.content_en, media_id: asset.id },
+                        content_fa: { ...block.content_fa, media_id: asset.id },
+                      })
+                    }
+                    selectedIds={block.content_en.media_id ? [block.content_en.media_id] : []}
+                    title="Image beside this text"
+                  />
+                  {block.content_en.media_id ? (
+                    <button
+                      disabled={disabled}
+                      onClick={() =>
+                        update(index, {
+                          ...block,
+                          content_en: { ...block.content_en, media_id: "" },
+                          content_fa: { ...block.content_fa, media_id: "" },
+                        })
+                      }
+                      type="button"
+                    >
+                      Remove selected image
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
             </>
           ) : block.block_type === "quote" ? (
             <>
               <TextField
                 label="Quote / EN"
                 multiline
-                onChange={(quote) => update(index, { ...block, content_en: { ...block.content_en, quote } })}
+                onChange={(quote) =>
+                  update(index, { ...block, content_en: { ...block.content_en, quote } })
+                }
                 value={block.content_en.quote}
               />
               <TextField
                 label="Quote / FA"
                 multiline
-                onChange={(quote) => update(index, { ...block, content_fa: { ...block.content_fa, quote } })}
+                onChange={(quote) =>
+                  update(index, { ...block, content_fa: { ...block.content_fa, quote } })
+                }
                 value={block.content_fa.quote}
               />
             </>
           ) : block.block_type === "single_image" || block.block_type === "full_width_image" ? (
-            <TextField
-              label="Managed media ID"
-              onChange={(media_id) =>
-                update(index, {
-                  ...block,
-                  content_en: { media_id },
-                  content_fa: { media_id },
-                })
-              }
-              value={block.content_en.media_id}
-            />
+            <>
+              <AdminMediaPicker
+                disabled={disabled}
+                onSelect={(asset) =>
+                  update(index, {
+                    ...block,
+                    content_en: { media_id: asset.id },
+                    content_fa: { media_id: asset.id },
+                  })
+                }
+                selectedIds={block.content_en.media_id ? [block.content_en.media_id] : []}
+                title={block.block_type === "full_width_image" ? "Full-width image" : "Image"}
+              />
+              {block.content_en.media_id ? (
+                <button
+                  disabled={disabled}
+                  onClick={() =>
+                    update(index, {
+                      ...block,
+                      content_en: { media_id: "" },
+                      content_fa: { media_id: "" },
+                    })
+                  }
+                  type="button"
+                >
+                  Remove selected image
+                </button>
+              ) : null}
+            </>
           ) : block.block_type === "paired_image" ? (
             <>
-              <TextField
-                label="Left managed media ID"
-                onChange={(left_media_id) =>
+              <AdminMediaPicker
+                disabled={disabled}
+                onSelect={(asset) =>
                   update(index, {
                     ...block,
-                    content_en: { ...block.content_en, left_media_id },
-                    content_fa: { ...block.content_fa, left_media_id },
+                    content_en: { ...block.content_en, left_media_id: asset.id },
+                    content_fa: { ...block.content_fa, left_media_id: asset.id },
                   })
                 }
-                value={block.content_en.left_media_id}
+                selectedIds={block.content_en.left_media_id ? [block.content_en.left_media_id] : []}
+                title="Left paired image"
               />
-              <TextField
-                label="Right managed media ID"
-                onChange={(right_media_id) =>
+              {block.content_en.left_media_id ? (
+                <button
+                  disabled={disabled}
+                  onClick={() =>
+                    update(index, {
+                      ...block,
+                      content_en: { ...block.content_en, left_media_id: "" },
+                      content_fa: { ...block.content_fa, left_media_id: "" },
+                    })
+                  }
+                  type="button"
+                >
+                  Remove left image
+                </button>
+              ) : null}
+              <AdminMediaPicker
+                disabled={disabled}
+                onSelect={(asset) =>
                   update(index, {
                     ...block,
-                    content_en: { ...block.content_en, right_media_id },
-                    content_fa: { ...block.content_fa, right_media_id },
+                    content_en: { ...block.content_en, right_media_id: asset.id },
+                    content_fa: { ...block.content_fa, right_media_id: asset.id },
                   })
                 }
-                value={block.content_en.right_media_id}
+                selectedIds={
+                  block.content_en.right_media_id ? [block.content_en.right_media_id] : []
+                }
+                title="Right paired image"
               />
+              {block.content_en.right_media_id ? (
+                <button
+                  disabled={disabled}
+                  onClick={() =>
+                    update(index, {
+                      ...block,
+                      content_en: { ...block.content_en, right_media_id: "" },
+                      content_fa: { ...block.content_fa, right_media_id: "" },
+                    })
+                  }
+                  type="button"
+                >
+                  Remove right image
+                </button>
+              ) : null}
             </>
           ) : block.block_type === "gallery" ? (
-            <TextField
-              label="Managed media IDs (comma-separated)"
-              onChange={(value) => {
-                const media_ids = splitMediaIds(value);
-                update(index, {
-                  ...block,
-                  content_en: { media_ids },
-                  content_fa: { media_ids },
-                });
-              }}
-              value={block.content_en.media_ids.join(", ")}
-            />
+            <>
+              <AdminMediaPicker
+                disabled={disabled}
+                onSelect={(asset) => {
+                  if (block.content_en.media_ids.includes(asset.id)) return;
+                  const media_ids = [...block.content_en.media_ids, asset.id];
+                  update(index, {
+                    ...block,
+                    content_en: { media_ids },
+                    content_fa: { media_ids },
+                  });
+                }}
+                selectedIds={block.content_en.media_ids}
+                title="Gallery images"
+              />
+              {block.content_en.media_ids.length ? (
+                <div className="admin-block-editor__selected-media">
+                  {block.content_en.media_ids.map((mediaId) => (
+                    <button
+                      disabled={disabled}
+                      key={mediaId}
+                      onClick={() => {
+                        const media_ids = block.content_en.media_ids.filter(
+                          (current) => current !== mediaId,
+                        );
+                        update(index, {
+                          ...block,
+                          content_en: { media_ids },
+                          content_fa: { media_ids },
+                        });
+                      }}
+                      type="button"
+                    >
+                      Remove gallery image {mediaId.slice(0, 8)}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </>
           ) : null}
-          <button disabled={disabled} onClick={() => onChange(blocks.filter((_, current) => current !== index))} type="button">
+          <button
+            disabled={disabled}
+            onClick={() => onChange(blocks.filter((_, current) => current !== index))}
+            type="button"
+          >
             Remove block
           </button>
         </article>
@@ -404,7 +537,11 @@ function ProjectBlocksEditor({
           onClick={() =>
             onChange([
               ...blocks,
-              { block_type: "single_image", content_en: { media_id: "" }, content_fa: { media_id: "" } },
+              {
+                block_type: "single_image",
+                content_en: { media_id: "" },
+                content_fa: { media_id: "" },
+              },
             ])
           }
           type="button"
@@ -416,12 +553,32 @@ function ProjectBlocksEditor({
           onClick={() =>
             onChange([
               ...blocks,
-              { block_type: "full_width_image", content_en: { media_id: "" }, content_fa: { media_id: "" } },
+              {
+                block_type: "full_width_image",
+                content_en: { media_id: "" },
+                content_fa: { media_id: "" },
+              },
             ])
           }
           type="button"
         >
           Add full-width image
+        </button>
+        <button
+          disabled={disabled}
+          onClick={() =>
+            onChange([
+              ...blocks,
+              {
+                block_type: "image_text",
+                content_en: { body: "", media_id: "" },
+                content_fa: { body: "", media_id: "" },
+              },
+            ])
+          }
+          type="button"
+        >
+          Add image + text block
         </button>
         <button
           disabled={disabled}
@@ -444,7 +601,11 @@ function ProjectBlocksEditor({
           onClick={() =>
             onChange([
               ...blocks,
-              { block_type: "gallery", content_en: { media_ids: [] }, content_fa: { media_ids: [] } },
+              {
+                block_type: "gallery",
+                content_en: { media_ids: [] },
+                content_fa: { media_ids: [] },
+              },
             ])
           }
           type="button"
@@ -541,105 +702,385 @@ export function AdminProjectEditor({ projectId }: { projectId?: string }) {
   };
 
   if (isLoading) return <p className="admin-status">Loading project editor…</p>;
-  if (options === null) return <p className="admin-status" role="alert">Project editor data is unavailable.</p>;
+  if (options === null)
+    return (
+      <p className="admin-status" role="alert">
+        Project editor data is unavailable.
+      </p>
+    );
 
   return (
     <section className="admin-editor" aria-labelledby="admin-project-editor-title">
       <div className="admin-editor__heading">
         <div>
           <p className="admin-eyebrow">PROJECT EDITOR</p>
-          <h1 id="admin-project-editor-title">{project === null ? "Create project" : project.title_en}</h1>
-          {project !== null ? <p><code>/{project.slug}</code> is immutable after creation.</p> : null}
+          <h1 id="admin-project-editor-title">
+            {project === null ? "Create project" : project.title_en}
+          </h1>
+          {project !== null ? (
+            <p>
+              <code>/{project.slug}</code> is immutable after creation.
+            </p>
+          ) : null}
         </div>
         <Link href="/admin/projects">Back to projects</Link>
       </div>
       <div className="admin-editor__tabs" role="tablist" aria-label="Project editor sections">
         {tabs.map((tab) => (
-          <button aria-selected={activeTab === tab} key={tab} onClick={() => setActiveTab(tab)} role="tab" type="button">
+          <button
+            aria-selected={activeTab === tab}
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            role="tab"
+            type="button"
+          >
             {tab}
           </button>
         ))}
       </div>
-      {message !== null ? <p className="admin-form__message" role="alert">{message}</p> : null}
+      {message !== null ? (
+        <p className="admin-form__message" role="alert">
+          {message}
+        </p>
+      ) : null}
       <form className="admin-editor__form" onSubmit={saveProject}>
         {activeTab === "General" ? (
           <div className="admin-editor__grid">
-            {project === null ? <TextField label="Immutable slug" onChange={(value) => setText("slug", value)} required value={form.slug} /> : null}
-            <TextField label="Title / EN" onChange={(value) => setText("title_en", value)} required value={form.title_en} />
-            <TextField label="Title / FA" onChange={(value) => setText("title_fa", value)} required value={form.title_fa} />
-            <TextField label="Subtitle / EN" onChange={(value) => setText("subtitle_en", value)} value={form.subtitle_en} />
-            <TextField label="Subtitle / FA" onChange={(value) => setText("subtitle_fa", value)} value={form.subtitle_fa} />
-            <TextField label="Summary / EN" multiline onChange={(value) => setText("summary_en", value)} required value={form.summary_en} />
-            <TextField label="Summary / FA" multiline onChange={(value) => setText("summary_fa", value)} required value={form.summary_fa} />
-            <TextField label="Location / EN" onChange={(value) => setText("location_en", value)} required value={form.location_en} />
-            <TextField label="Location / FA" onChange={(value) => setText("location_fa", value)} required value={form.location_fa} />
-            <label className="admin-editor__field"><span>Completion year</span><input max="9999" min="1000" onChange={(event) => setText("completion_year", event.target.value)} type="number" value={form.completion_year} /></label>
-            <TextField label="Status / EN" onChange={(value) => setText("status_en", value)} value={form.status_en} />
-            <TextField label="Status / FA" onChange={(value) => setText("status_fa", value)} value={form.status_fa} />
-            <label className="admin-editor__toggle"><input checked={form.featured} onChange={(event) => setForm((current) => ({ ...current, featured: event.target.checked }))} type="checkbox" />Featured on home</label>
-            <TaxonomyChecklist label="Disciplines" onChange={(discipline_ids) => setForm((current) => ({ ...current, discipline_ids }))} options={options.disciplines} selected={form.discipline_ids} />
-            <TaxonomyChecklist label="Typologies" onChange={(typology_ids) => setForm((current) => ({ ...current, typology_ids }))} options={options.typologies} selected={form.typology_ids} />
+            {project === null ? (
+              <TextField
+                label="Immutable slug"
+                onChange={(value) => setText("slug", value)}
+                required
+                value={form.slug}
+              />
+            ) : null}
+            <TextField
+              label="Title / EN"
+              onChange={(value) => setText("title_en", value)}
+              required
+              value={form.title_en}
+            />
+            <TextField
+              label="Title / FA"
+              onChange={(value) => setText("title_fa", value)}
+              required
+              value={form.title_fa}
+            />
+            <TextField
+              label="Subtitle / EN"
+              onChange={(value) => setText("subtitle_en", value)}
+              value={form.subtitle_en}
+            />
+            <TextField
+              label="Subtitle / FA"
+              onChange={(value) => setText("subtitle_fa", value)}
+              value={form.subtitle_fa}
+            />
+            <TextField
+              label="Summary / EN"
+              multiline
+              onChange={(value) => setText("summary_en", value)}
+              required
+              value={form.summary_en}
+            />
+            <TextField
+              label="Summary / FA"
+              multiline
+              onChange={(value) => setText("summary_fa", value)}
+              required
+              value={form.summary_fa}
+            />
+            <TextField
+              label="Location / EN"
+              onChange={(value) => setText("location_en", value)}
+              required
+              value={form.location_en}
+            />
+            <TextField
+              label="Location / FA"
+              onChange={(value) => setText("location_fa", value)}
+              required
+              value={form.location_fa}
+            />
+            <label className="admin-editor__field">
+              <span>Completion year</span>
+              <input
+                max="9999"
+                min="1000"
+                onChange={(event) => setText("completion_year", event.target.value)}
+                type="number"
+                value={form.completion_year}
+              />
+            </label>
+            <TextField
+              label="Status / EN"
+              onChange={(value) => setText("status_en", value)}
+              value={form.status_en}
+            />
+            <TextField
+              label="Status / FA"
+              onChange={(value) => setText("status_fa", value)}
+              value={form.status_fa}
+            />
+            <label className="admin-editor__toggle">
+              <input
+                checked={form.featured}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, featured: event.target.checked }))
+                }
+                type="checkbox"
+              />
+              Featured on home
+            </label>
+            <TaxonomyChecklist
+              label="Disciplines"
+              onChange={(discipline_ids) => setForm((current) => ({ ...current, discipline_ids }))}
+              options={options.disciplines}
+              selected={form.discipline_ids}
+            />
+            <TaxonomyChecklist
+              label="Typologies"
+              onChange={(typology_ids) => setForm((current) => ({ ...current, typology_ids }))}
+              options={options.typologies}
+              selected={form.typology_ids}
+            />
           </div>
         ) : null}
         {activeTab === "Content" ? (
           <div className="admin-editor__grid">
-            <TextField label="Introduction title / EN" onChange={(value) => setText("intro_title_en", value)} value={form.intro_title_en} />
-            <TextField label="Introduction title / FA" onChange={(value) => setText("intro_title_fa", value)} value={form.intro_title_fa} />
-            <TextField label="Introduction / EN" multiline onChange={(value) => setText("intro_en", value)} value={form.intro_en} />
-            <TextField label="Introduction / FA" multiline onChange={(value) => setText("intro_fa", value)} value={form.intro_fa} />
-            <TextField label="Narrative title / EN" onChange={(value) => setText("narrative_title_en", value)} value={form.narrative_title_en} />
-            <TextField label="Narrative title / FA" onChange={(value) => setText("narrative_title_fa", value)} value={form.narrative_title_fa} />
-            <TextField label="Narrative / EN" multiline onChange={(value) => setText("narrative_en", value)} value={form.narrative_en} />
-            <TextField label="Narrative / FA" multiline onChange={(value) => setText("narrative_fa", value)} value={form.narrative_fa} />
-            <TextField label="Quote / EN" multiline onChange={(value) => setText("quote_en", value)} value={form.quote_en} />
-            <TextField label="Quote / FA" multiline onChange={(value) => setText("quote_fa", value)} value={form.quote_fa} />
-            <TextField label="Material title / EN" onChange={(value) => setText("material_title_en", value)} value={form.material_title_en} />
-            <TextField label="Material title / FA" onChange={(value) => setText("material_title_fa", value)} value={form.material_title_fa} />
-            <TextField label="Material / EN" multiline onChange={(value) => setText("material_en", value)} value={form.material_en} />
-            <TextField label="Material / FA" multiline onChange={(value) => setText("material_fa", value)} value={form.material_fa} />
-            {project !== null ? <ProjectBlocksEditor blocks={blocks} disabled={isSaving} onChange={setBlocks} /> : <p>Save the project first to manage its structured editorial blocks.</p>}
-            {project !== null ? <button disabled={isSaving} onClick={() => void saveBlocks()} type="button">Save editorial blocks</button> : null}
+            <TextField
+              label="Introduction title / EN"
+              onChange={(value) => setText("intro_title_en", value)}
+              value={form.intro_title_en}
+            />
+            <TextField
+              label="Introduction title / FA"
+              onChange={(value) => setText("intro_title_fa", value)}
+              value={form.intro_title_fa}
+            />
+            <TextField
+              label="Introduction / EN"
+              multiline
+              onChange={(value) => setText("intro_en", value)}
+              value={form.intro_en}
+            />
+            <TextField
+              label="Introduction / FA"
+              multiline
+              onChange={(value) => setText("intro_fa", value)}
+              value={form.intro_fa}
+            />
+            <TextField
+              label="Narrative title / EN"
+              onChange={(value) => setText("narrative_title_en", value)}
+              value={form.narrative_title_en}
+            />
+            <TextField
+              label="Narrative title / FA"
+              onChange={(value) => setText("narrative_title_fa", value)}
+              value={form.narrative_title_fa}
+            />
+            <TextField
+              label="Narrative / EN"
+              multiline
+              onChange={(value) => setText("narrative_en", value)}
+              value={form.narrative_en}
+            />
+            <TextField
+              label="Narrative / FA"
+              multiline
+              onChange={(value) => setText("narrative_fa", value)}
+              value={form.narrative_fa}
+            />
+            <TextField
+              label="Quote / EN"
+              multiline
+              onChange={(value) => setText("quote_en", value)}
+              value={form.quote_en}
+            />
+            <TextField
+              label="Quote / FA"
+              multiline
+              onChange={(value) => setText("quote_fa", value)}
+              value={form.quote_fa}
+            />
+            <TextField
+              label="Material title / EN"
+              onChange={(value) => setText("material_title_en", value)}
+              value={form.material_title_en}
+            />
+            <TextField
+              label="Material title / FA"
+              onChange={(value) => setText("material_title_fa", value)}
+              value={form.material_title_fa}
+            />
+            <TextField
+              label="Material / EN"
+              multiline
+              onChange={(value) => setText("material_en", value)}
+              value={form.material_en}
+            />
+            <TextField
+              label="Material / FA"
+              multiline
+              onChange={(value) => setText("material_fa", value)}
+              value={form.material_fa}
+            />
+            {project !== null ? (
+              <ProjectBlocksEditor blocks={blocks} disabled={isSaving} onChange={setBlocks} />
+            ) : (
+              <p>Save the project first to manage its structured editorial blocks.</p>
+            )}
+            {project !== null ? (
+              <button disabled={isSaving} onClick={() => void saveBlocks()} type="button">
+                Save editorial blocks
+              </button>
+            ) : null}
           </div>
         ) : null}
         {activeTab === "Details" ? (
           <div className="admin-editor__grid">
-            <TextField label="Client / EN" onChange={(value) => setText("client_en", value)} value={form.client_en} />
-            <TextField label="Client / FA" onChange={(value) => setText("client_fa", value)} value={form.client_fa} />
-            <TextField label="Architect / EN" onChange={(value) => setText("architect_en", value)} value={form.architect_en} />
-            <TextField label="Architect / FA" onChange={(value) => setText("architect_fa", value)} value={form.architect_fa} />
-            <TextField label="Collaborators / EN" multiline onChange={(value) => setText("collaborators_en", value)} value={form.collaborators_en} />
-            <TextField label="Collaborators / FA" multiline onChange={(value) => setText("collaborators_fa", value)} value={form.collaborators_fa} />
-            <TextField label="Area / EN" onChange={(value) => setText("area_en", value)} value={form.area_en} />
-            <TextField label="Area / FA" onChange={(value) => setText("area_fa", value)} value={form.area_fa} />
-            <TextField label="Scope / EN" onChange={(value) => setText("scope_en", value)} value={form.scope_en} />
-            <TextField label="Scope / FA" onChange={(value) => setText("scope_fa", value)} value={form.scope_fa} />
-            <label className="admin-editor__field"><span>Completion date</span><input onChange={(event) => setText("completion_date", event.target.value)} type="date" value={form.completion_date} /></label>
+            <TextField
+              label="Client / EN"
+              onChange={(value) => setText("client_en", value)}
+              value={form.client_en}
+            />
+            <TextField
+              label="Client / FA"
+              onChange={(value) => setText("client_fa", value)}
+              value={form.client_fa}
+            />
+            <TextField
+              label="Architect / EN"
+              onChange={(value) => setText("architect_en", value)}
+              value={form.architect_en}
+            />
+            <TextField
+              label="Architect / FA"
+              onChange={(value) => setText("architect_fa", value)}
+              value={form.architect_fa}
+            />
+            <TextField
+              label="Collaborators / EN"
+              multiline
+              onChange={(value) => setText("collaborators_en", value)}
+              value={form.collaborators_en}
+            />
+            <TextField
+              label="Collaborators / FA"
+              multiline
+              onChange={(value) => setText("collaborators_fa", value)}
+              value={form.collaborators_fa}
+            />
+            <TextField
+              label="Area / EN"
+              onChange={(value) => setText("area_en", value)}
+              value={form.area_en}
+            />
+            <TextField
+              label="Area / FA"
+              onChange={(value) => setText("area_fa", value)}
+              value={form.area_fa}
+            />
+            <TextField
+              label="Scope / EN"
+              onChange={(value) => setText("scope_en", value)}
+              value={form.scope_en}
+            />
+            <TextField
+              label="Scope / FA"
+              onChange={(value) => setText("scope_fa", value)}
+              value={form.scope_fa}
+            />
+            <label className="admin-editor__field">
+              <span>Completion date</span>
+              <input
+                onChange={(event) => setText("completion_date", event.target.value)}
+                type="date"
+                value={form.completion_date}
+              />
+            </label>
           </div>
         ) : null}
         {activeTab === "Gallery" ? (
-          project === null ? <p className="admin-editor__notice">Save the project before managing its media gallery.</p> : <AdminProjectMediaManager projectId={project.id} />
+          project === null ? (
+            <p className="admin-editor__notice">
+              Save the project before managing its media gallery.
+            </p>
+          ) : (
+            <AdminProjectMediaManager projectId={project.id} />
+          )
         ) : null}
         {activeTab === "SEO" ? (
           <div className="admin-editor__grid">
-            <TextField label="SEO title / EN" onChange={(value) => setText("seo_title_en", value)} value={form.seo_title_en} />
-            <TextField label="SEO title / FA" onChange={(value) => setText("seo_title_fa", value)} value={form.seo_title_fa} />
-            <TextField label="Meta description / EN" multiline onChange={(value) => setText("seo_description_en", value)} value={form.seo_description_en} />
-            <TextField label="Meta description / FA" multiline onChange={(value) => setText("seo_description_fa", value)} value={form.seo_description_fa} />
-            <p className="admin-editor__notice">Empty SEO fields safely fall back to the localized title and summary.</p>
+            <TextField
+              label="SEO title / EN"
+              onChange={(value) => setText("seo_title_en", value)}
+              value={form.seo_title_en}
+            />
+            <TextField
+              label="SEO title / FA"
+              onChange={(value) => setText("seo_title_fa", value)}
+              value={form.seo_title_fa}
+            />
+            <TextField
+              label="Meta description / EN"
+              multiline
+              onChange={(value) => setText("seo_description_en", value)}
+              value={form.seo_description_en}
+            />
+            <TextField
+              label="Meta description / FA"
+              multiline
+              onChange={(value) => setText("seo_description_fa", value)}
+              value={form.seo_description_fa}
+            />
+            <p className="admin-editor__notice">
+              Empty SEO fields safely fall back to the localized title and summary.
+            </p>
           </div>
         ) : null}
         {activeTab === "Publishing" ? (
           <div className="admin-editor__grid">
-            <label className="admin-editor__field"><span>State</span><select onChange={(event) => setForm((current) => ({ ...current, publication_state: event.target.value as ProjectFormState["publication_state"] }))} value={form.publication_state}><option value="draft">Draft</option><option value="published">Published</option></select></label>
-            <label className="admin-editor__field"><span>Publication date</span><input onChange={(event) => setText("published_at", event.target.value)} type="datetime-local" value={form.published_at} /></label>
-            <p className="admin-editor__notice">Publishing verifies required content in both languages. Saving a draft never exposes it publicly.</p>
+            <label className="admin-editor__field">
+              <span>State</span>
+              <select
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    publication_state: event.target.value as ProjectFormState["publication_state"],
+                  }))
+                }
+                value={form.publication_state}
+              >
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+              </select>
+            </label>
+            <label className="admin-editor__field">
+              <span>Publication date</span>
+              <input
+                onChange={(event) => setText("published_at", event.target.value)}
+                type="datetime-local"
+                value={form.published_at}
+              />
+            </label>
+            <p className="admin-editor__notice">
+              Publishing verifies required content in both languages. Saving a draft never exposes
+              it publicly.
+            </p>
           </div>
         ) : null}
         <div className="admin-editor__footer">
           {activeTab === "Gallery" && project !== null ? (
-            <p className="admin-editor__hint">Gallery selections are saved separately. Use “Save gallery and set public cover” above; “Save project” does not save selected images.</p>
+            <p className="admin-editor__hint">
+              Gallery selections are saved separately. Use “Save gallery and set public cover”
+              above; “Save project” does not save selected images.
+            </p>
           ) : (
-            <button disabled={isSaving} type="submit">{isSaving ? "Saving…" : project === null ? "Create project" : "Save project"}</button>
+            <button disabled={isSaving} type="submit">
+              {isSaving ? "Saving…" : project === null ? "Create project" : "Save project"}
+            </button>
           )}
         </div>
       </form>

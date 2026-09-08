@@ -95,6 +95,12 @@ class SiteSettings(TimestampedUUIDModel):
     studio_name: Mapped[str] = mapped_column(String(120), default="VOLUMA", nullable=False)
     logo_url: Mapped[str | None] = mapped_column(String(500))
     favicon_url: Mapped[str | None] = mapped_column(String(500))
+    logo_media_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("media_assets.id", ondelete="RESTRICT"), index=True
+    )
+    favicon_media_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("media_assets.id", ondelete="RESTRICT"), index=True
+    )
     contact_email: Mapped[str | None] = mapped_column(String(320))
     contact_phone: Mapped[str | None] = mapped_column(String(64))
     contact_address_en: Mapped[str | None] = mapped_column(Text)
@@ -112,6 +118,9 @@ class SiteSettings(TimestampedUUIDModel):
     home_hero_image_url: Mapped[str | None] = mapped_column(String(500))
     home_hero_alt_en: Mapped[str | None] = mapped_column(String(500))
     home_hero_alt_fa: Mapped[str | None] = mapped_column(String(500))
+    home_hero_media_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("media_assets.id", ondelete="RESTRICT"), index=True
+    )
     studio_intro_en: Mapped[str] = mapped_column(Text, nullable=False)
     studio_intro_fa: Mapped[str] = mapped_column(Text, nullable=False)
     studio_principles_en: Mapped[list[dict[str, str]]] = mapped_column(
@@ -122,6 +131,9 @@ class SiteSettings(TimestampedUUIDModel):
     )
     privacy_en: Mapped[str] = mapped_column(Text, nullable=False)
     privacy_fa: Mapped[str] = mapped_column(Text, nullable=False)
+    logo_media: Mapped[MediaAsset | None] = relationship(foreign_keys=[logo_media_id])
+    favicon_media: Mapped[MediaAsset | None] = relationship(foreign_keys=[favicon_media_id])
+    home_hero_media: Mapped[MediaAsset | None] = relationship(foreign_keys=[home_hero_media_id])
 
 
 class ContactMessage(TimestampedUUIDModel):
@@ -323,7 +335,7 @@ class ProjectBlock(TimestampedUUIDModel):
     __table_args__ = (
         CheckConstraint(
             "block_type IN ('text', 'quote', 'single_image', 'full_width_image', "
-            "'paired_image', 'gallery')",
+            "'paired_image', 'gallery', 'image_text')",
             name="ck_project_blocks_type",
         ),
         UniqueConstraint(
@@ -398,6 +410,10 @@ class StudioMember(TimestampedUUIDModel):
     role_fa: Mapped[str] = mapped_column(String(180), nullable=False)
     biography_en: Mapped[str | None] = mapped_column(Text)
     biography_fa: Mapped[str | None] = mapped_column(Text)
+    portrait_media_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("media_assets.id", ondelete="RESTRICT"), index=True
+    )
+    portrait_media: Mapped[MediaAsset | None] = relationship()
 
 
 class Recognition(TimestampedUUIDModel):

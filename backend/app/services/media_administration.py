@@ -11,19 +11,27 @@ from sqlalchemy.orm import Session, selectinload
 from app.models.admin import AdminUser
 from app.models.content import (
     JournalArticle,
+    JournalArticleBlock,
     MediaAsset,
     MediaProcessingState,
     Project,
+    ProjectBlock,
     ProjectMedia,
     PublicationState,
+    SiteSettings,
+    StudioMember,
 )
 from app.schemas.admin import (
+    GalleryBlockPayload,
+    ImageTextBlockPayload,
     MediaAssetListResponse,
     MediaAssetMetadataWriteRequest,
     MediaAssetResponse,
+    PairedImageBlockPayload,
     ProjectMediaListResponse,
     ProjectMediaReplaceRequest,
     ProjectMediaResponse,
+    SingleImageBlockPayload,
 )
 from app.services.admin_auth import record_audit_event
 from app.services.media_storage import MediaStorage, StagedUpload
@@ -199,6 +207,46 @@ class MediaAdministrationService:
             is not None
         ):
             raise MediaInUseError("remove the asset from every journal article before deletion")
+        if self._projects_using_block_media(asset.id):
+            raise MediaInUseError(
+                "remove the asset from every project editorial block before deletion"
+            )
+        if (
+            self.session.scalar(
+                select(StudioMember.id).where(StudioMember.portrait_media_id == asset.id).limit(1)
+            )
+            is not None
+        ):
+            raise MediaInUseError("remove the asset from every studio portrait before deletion")
+        if (
+            self.session.scalar(
+                select(SiteSettings.id)
+                .where(
+                    SiteSettings.logo_media_id == asset.id,
+                )
+                .limit(1)
+            )
+            is not None
+            or self.session.scalar(
+                select(SiteSettings.id)
+                .where(
+                    SiteSettings.favicon_media_id == asset.id,
+                )
+                .limit(1)
+            )
+            is not None
+            or self.session.scalar(
+                select(SiteSettings.id)
+                .where(
+                    SiteSettings.home_hero_media_id == asset.id,
+                )
+                .limit(1)
+            )
+            is not None
+        ):
+            raise MediaInUseError(
+                "remove the asset from site branding or the home hero before deletion"
+            )
         if self._journal_articles_using_block_media(asset.id):
             raise MediaInUseError(
                 "remove the asset from every journal article block before deletion"
@@ -342,6 +390,18 @@ class MediaAdministrationService:
                         f"project:{link.project.slug}:fa",
                     }
                 )
+        block_projects = self._projects_using_block_media(media_id, published_only=True)
+        for project in block_projects:
+            tags.update(
+                {
+                    "project-list",
+                    "project-list:en",
+                    "project-list:fa",
+                    f"project:{project.slug}",
+                    f"project:{project.slug}:en",
+                    f"project:{project.slug}:fa",
+                }
+            )
         articles = list(
             self.session.scalars(
                 select(JournalArticle).where(JournalArticle.cover_media_id == media_id)
@@ -378,13 +438,41 @@ class MediaAdministrationService:
         return [
             article
             for article in articles
-            if any(
-                block.block_type == "single_image"
-                and str(media_id)
-                in {content.get("media_id") for content in (block.content_en, block.content_fa)}
-                for block in article.blocks
-            )
+            if any(_block_references_media(block, media_id) for block in article.blocks)
         ]
+
+    def _projects_using_block_media(
+        self, media_id: UUID, *, published_only: bool = False
+    ) -> list[Project]:
+        statement = select(Project).options(selectinload(Project.blocks))
+        if published_only:
+            statement = statement.where(Project.publication_state == PublicationState.PUBLISHED)
+        projects = self.session.scalars(statement).all()
+        return [
+            project
+            for project in projects
+            if any(_block_references_media(block, media_id) for block in project.blocks)
+        ]
+
+
+def _block_references_media(block: JournalArticleBlock | ProjectBlock, media_id: UUID) -> bool:
+    block_type = block.block_type
+    contents = (block.content_en, block.content_fa)
+    for content in contents:
+        if block_type in {"single_image", "full_width_image"}:
+            if SingleImageBlockPayload.model_validate(content).media_id == media_id:
+                return True
+        elif block_type == "image_text":
+            if ImageTextBlockPayload.model_validate(content).media_id == media_id:
+                return True
+        elif block_type == "paired_image":
+            payload = PairedImageBlockPayload.model_validate(content)
+            if media_id in {payload.left_media_id, payload.right_media_id}:
+                return True
+        elif block_type == "gallery":
+            if media_id in GalleryBlockPayload.model_validate(content).media_ids:
+                return True
+    return False
 
 
 def media_asset_response(asset: MediaAsset, storage: MediaStorage) -> MediaAssetResponse:

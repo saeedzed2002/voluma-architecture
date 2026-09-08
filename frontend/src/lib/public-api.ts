@@ -1,7 +1,9 @@
 import type { Locale } from "@/i18n/routing";
 
 const apiBaseUrl =
-  process.env.VOLUMA_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+  process.env.VOLUMA_API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  "http://localhost:8000";
 
 export type PublicImage = {
   alt: string;
@@ -49,6 +51,7 @@ export type PublicProjectEditorialBlock =
   | { block_type: "paired_image"; left_image: PublicImage; right_image: PublicImage }
   | { attribution: string | null; block_type: "quote"; quote: string }
   | { block_type: "single_image" | "full_width_image"; image: PublicImage }
+  | { block_type: "image_text"; body: string; heading: string | null; image: PublicImage }
   | { block_type: "text"; body: string; heading: string | null };
 
 export type PublicEditorialSection = {
@@ -93,7 +96,7 @@ export type PublicHome = {
 
 export type PublicStudio = {
   intro: string;
-  members: { biography: string | null; name: string; role: string }[];
+  members: { biography: string | null; name: string; portrait: PublicImage | null; role: string }[];
   principles: { body: string; title: string }[];
   recognitions: string[];
 };
@@ -178,10 +181,7 @@ export function getProjects(locale: Locale, query: PublicProjectQuery = {}) {
   if (query.typology) parameters.set("typology", query.typology);
   if (query.year) parameters.set("year", String(query.year));
   const suffix = parameters.toString();
-  return publicFetch<PublicPage<PublicProject>>(
-    `/projects${suffix ? `?${suffix}` : ""}`,
-    locale,
-  );
+  return publicFetch<PublicPage<PublicProject>>(`/projects${suffix ? `?${suffix}` : ""}`, locale);
 }
 
 export function getProjectFilters(locale: Locale) {

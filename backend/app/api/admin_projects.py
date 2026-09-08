@@ -29,6 +29,7 @@ from app.services.media_administration import (
 from app.services.media_storage import MediaStorage
 from app.services.project_administration import (
     ProjectAdministrationService,
+    ProjectBlockMediaError,
     ProjectNotFoundError,
     ProjectPublishingValidationError,
     ProjectReorderError,
@@ -99,6 +100,11 @@ def create_project(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={"message": "project cannot be published", "fields": error.fields},
+        ) from error
+    except ProjectBlockMediaError as error:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
         ) from error
     except RedisError as error:
         raise _cache_unavailable() from error
@@ -174,6 +180,11 @@ def update_project(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={"message": "project cannot be published", "fields": error.fields},
         ) from error
+    except ProjectBlockMediaError as error:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
+        ) from error
     except RedisError as error:
         raise _cache_unavailable() from error
 
@@ -199,6 +210,11 @@ def replace_project_blocks(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={"message": "project cannot be published", "fields": error.fields},
+        ) from error
+    except ProjectBlockMediaError as error:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
         ) from error
     except RedisError as error:
         raise _cache_unavailable() from error
