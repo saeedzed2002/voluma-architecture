@@ -201,7 +201,13 @@ jobs:
 
       - name: Print Compose logs after a failure
         if: failure()
-        run: docker compose logs --no-color
+        run: |
+          docker compose ps || true
+          redis_container="$(docker compose ps -q redis || true)"
+          if [ -n "$redis_container" ]; then
+            docker inspect --format '{{range .State.Health.Log}}{{.Output}}{{end}}' "$redis_container" || true
+          fi
+          docker compose logs --no-color
 
       - name: Stop the isolated stack
         if: always()
