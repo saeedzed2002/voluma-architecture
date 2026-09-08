@@ -24,6 +24,12 @@ test("administrator can use a processed image as a bilingual journal cover", asy
   await page.getByRole("link", { name: "Media" }).click();
 
   await expect(page.getByRole("heading", { name: "Managed media", exact: true })).toBeVisible();
+  const uploadResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/v1/admin/media" &&
+      response.status() === 202,
+  );
   await page.getByLabel("Upload media source image").setInputFiles({
     buffer: Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR4nGOUUDFgYGBgYgADAAUiAHD7661kAAAAAElFTkSuQmCC",
@@ -38,17 +44,17 @@ test("administrator can use a processed image as a bilingual journal cover", asy
       "Upload accepted. Browser transfer is complete; image processing is now queued.",
     ),
   ).toBeVisible();
-  await expect(page.getByText("ready", { exact: true })).toBeVisible({ timeout: 15_000 });
+  const mediaId = String((await (await uploadResponse).json()).id);
+  expect(mediaId).not.toBe("");
   const uploadedCard = page
     .locator(".admin-media-card")
-    .filter({ has: page.getByText("ready", { exact: true }) })
-    .first();
+    .filter({ hasText: mediaId });
+  await expect(uploadedCard).toHaveCount(1, { timeout: 15_000 });
+  await expect(uploadedCard.getByText("ready", { exact: true })).toBeVisible({ timeout: 15_000 });
   await uploadedCard.getByLabel("Alt text / EN").fill("A managed journal cover image");
   await uploadedCard.getByLabel("Alt text / FA").fill("تصویر روی جلد مدیریت‌شدهٔ یادداشت");
   await uploadedCard.getByRole("button", { name: "Save metadata" }).click();
   await expect(page.locator(".admin-form__message")).toHaveText("Media metadata saved.");
-  const mediaId = await uploadedCard.locator("code").textContent();
-  expect(mediaId).not.toBeNull();
 
   await page.getByRole("link", { name: "Journal" }).click();
   const categorySection = page.locator('section[aria-labelledby="journal-categories-title"]');
@@ -80,18 +86,20 @@ test("administrator can use a processed image as a bilingual journal cover", asy
   await articleSection.getByRole("button", { name: "Add image block" }).click();
   const articleImagePicker = articleSection.getByLabel("Article image");
   await articleImagePicker.getByRole("button", { name: "Choose or upload image" }).click();
-  await articleImagePicker
+  const articleImageCard = articleImagePicker
     .locator(".admin-media-picker__card")
-    .filter({ has: articleImagePicker.locator("code", { hasText: mediaId ?? "" }) })
-    .getByRole("button", { name: "Select image" })
-    .click();
+    .filter({ hasText: mediaId });
+  await expect(articleImageCard).toHaveCount(1, { timeout: 15_000 });
+  await expect(articleImageCard.getByText("ready", { exact: true })).toBeVisible();
+  await articleImageCard.getByRole("button", { name: "Select image" }).click();
   const coverPicker = articleSection.getByLabel("Article cover image");
   await coverPicker.getByRole("button", { name: "Choose or upload image" }).click();
-  await coverPicker
+  const coverImageCard = coverPicker
     .locator(".admin-media-picker__card")
-    .filter({ has: coverPicker.locator("code", { hasText: mediaId ?? "" }) })
-    .getByRole("button", { name: "Select image" })
-    .click();
+    .filter({ hasText: mediaId });
+  await expect(coverImageCard).toHaveCount(1, { timeout: 15_000 });
+  await expect(coverImageCard.getByText("ready", { exact: true })).toBeVisible();
+  await coverImageCard.getByRole("button", { name: "Select image" }).click();
   await articleSection
     .getByRole("combobox", { name: "Publication state" })
     .selectOption("published");
