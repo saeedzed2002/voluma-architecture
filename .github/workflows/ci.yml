@@ -143,18 +143,18 @@ jobs:
       VOLUMA_INITIAL_ADMIN_EMAIL: e2e-administrator@example.com
       VOLUMA_INITIAL_ADMIN_PASSWORD: ci-only-administrator-password
       VOLUMA_PUBLIC_ORIGIN: https://localhost
-      VOLUMA_TLS_CERT_PATH: ${{ runner.temp }}/voluma-tls/fullchain.pem
-      VOLUMA_TLS_KEY_PATH: ${{ runner.temp }}/voluma-tls/privkey.pem
+      VOLUMA_TLS_CERT_PATH: /tmp/voluma-tls/fullchain.pem
+      VOLUMA_TLS_KEY_PATH: /tmp/voluma-tls/privkey.pem
     steps:
       - name: Check out source
         uses: actions/checkout@v6
 
       - name: Generate CI-only TLS material
         run: |
-          mkdir --parents "$RUNNER_TEMP/voluma-tls"
+          mkdir --parents /tmp/voluma-tls
           openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
-            -keyout "$RUNNER_TEMP/voluma-tls/privkey.pem" \
-            -out "$RUNNER_TEMP/voluma-tls/fullchain.pem" \
+            -keyout /tmp/voluma-tls/privkey.pem \
+            -out /tmp/voluma-tls/fullchain.pem \
             -subj "/CN=localhost"
 
       - name: Build, migrate, and start the isolated stack
