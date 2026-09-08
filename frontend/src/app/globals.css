@@ -937,6 +937,49 @@ html[lang="fa"] .archive-page__header h1 {
   transform: scaleX(1);
 }
 
+.project-filter-controls {
+  border-block-end: 1px solid var(--line);
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-block-start: 1px;
+}
+
+.project-filter-controls label {
+  align-items: baseline;
+  border-inline-end: 1px solid var(--line);
+  display: flex;
+  gap: 0.75rem;
+  min-height: 3.25rem;
+  padding-inline: 1rem;
+}
+
+.project-filter-controls label:last-child {
+  border-inline-end: 0;
+}
+
+.project-filter-controls span {
+  color: var(--ink-muted);
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+}
+
+.project-filter-controls select {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  font: inherit;
+  min-width: 0;
+  outline: 0;
+  padding-block: 0.5rem;
+  width: 100%;
+}
+
+.project-filter-controls label:focus-within {
+  box-shadow: inset 0 -2px var(--focus);
+}
+
 .project-count {
   color: var(--ink-muted);
   font-size: 0.78rem;
@@ -1071,6 +1114,40 @@ html[lang="fa"] .archive-page__header h1 {
   border-block-end: 1px solid var(--accent);
   color: var(--accent);
   min-height: 2.75rem;
+}
+
+.archive-pagination {
+  align-items: center;
+  border-block-start: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  margin-block-start: clamp(3rem, 5vw, 5rem);
+  padding-block: 1rem;
+}
+
+.archive-pagination a,
+.archive-pagination button,
+.archive-pagination span {
+  color: var(--ink);
+  font: inherit;
+  min-height: 2.75rem;
+  padding-inline: 0.35rem;
+}
+
+.archive-pagination button:disabled,
+.archive-pagination span[aria-disabled="true"] {
+  color: var(--ink-muted);
+  cursor: not-allowed;
+}
+
+.archive-pagination span[aria-disabled="true"] {
+  align-content: center;
+}
+
+.archive-pagination p {
+  color: var(--ink-muted);
+  font-size: 0.75rem;
+  margin: 0;
 }
 
 /* Project detail */
@@ -2064,6 +2141,18 @@ html[lang="fa"] .journal-article__header h1 {
     grid-row: 2;
   }
 
+  .project-filter-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .project-filter-controls label:nth-child(2) {
+    border-inline-end: 0;
+  }
+
+  .project-filter-controls label:nth-child(-n + 2) {
+    border-block-end: 1px solid var(--line);
+  }
+
   .project-count {
     grid-column: 1;
     grid-row: 3;
@@ -2415,6 +2504,20 @@ html[lang="fa"] .journal-article__header h1 {
     grid-row: 2;
     margin-inline: calc(var(--gutter) * -1);
     padding-inline: var(--gutter);
+  }
+
+  .project-filter-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .project-filter-controls label,
+  .project-filter-controls label:nth-child(2) {
+    border-block-end: 1px solid var(--line);
+    border-inline-end: 0;
+  }
+
+  .project-filter-controls label:last-child {
+    border-block-end: 0;
   }
 
   .project-count {

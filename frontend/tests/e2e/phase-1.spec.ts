@@ -86,6 +86,10 @@ test("serializes project filters and view mode in the URL", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Northline Atelier" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Courtyard House" })).toHaveCount(0);
 
+  await page.getByLabel("Location").selectOption("Karaj");
+  await expect(page).toHaveURL(/category=workspace.*location=Karaj/);
+  await expect(page.getByRole("heading", { name: "Northline Atelier" })).toBeVisible();
+
   await page.getByRole("button", { name: "List" }).click();
   await expect(page).toHaveURL(/view=list/);
 });

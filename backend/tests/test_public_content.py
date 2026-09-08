@@ -11,7 +11,14 @@ from app.api.public import get_public_cache
 from app.db.session import get_session
 from app.fixtures.development import seed_development_content
 from app.main import app
-from app.models.content import JournalArticle, Project, ProjectBlock, PublicationState
+from app.models.content import (
+    Discipline,
+    JournalArticle,
+    Project,
+    ProjectBlock,
+    PublicationState,
+    Typology,
+)
 from app.services.public_cache import TaggedPublicCache
 from app.services.public_content import PublicContentService
 
@@ -81,7 +88,24 @@ def _draft_project() -> Project:
 
 
 def test_public_queries_exclude_drafts_and_internal_state(session: Session) -> None:
-    session.add(_draft_project())
+    draft = _draft_project()
+    draft.disciplines = [
+        Discipline(
+            slug="private-discipline",
+            title_en="Private discipline",
+            title_fa="تخصص خصوصی",
+            display_order=99,
+        )
+    ]
+    draft.typologies = [
+        Typology(
+            slug="private-typology",
+            title_en="Private typology",
+            title_fa="گونهٔ خصوصی",
+            display_order=99,
+        )
+    ]
+    session.add(draft)
     category = session.scalar(select(JournalArticle.category_id).limit(1))
     assert category is not None
     session.add(
@@ -117,6 +141,46 @@ def test_public_queries_exclude_drafts_and_internal_state(session: Session) -> N
     assert len(project_detail.gallery) == 2
     assert project_detail.seo_title == project_detail.title
     assert project_detail.seo_description == project_detail.summary
+
+    filters = service.project_filter_options("en")
+    assert [item.slug for item in filters.disciplines] == [
+        "architecture",
+        "interior",
+        "adaptive-reuse",
+        "spatial-strategy",
+    ]
+    assert [item.slug for item in filters.typologies] == [
+        "residential",
+        "workspace",
+        "cultural",
+        "adaptive-reuse",
+    ]
+    assert filters.statuses == ["Competition", "Completed", "Study"]
+    assert filters.locations == ["Karaj", "Rasht", "Shiraz", "Tehran"]
+    assert filters.years == [2026, 2025, 2024]
+    assert "private-discipline" not in {item.slug for item in filters.disciplines}
+    assert "private-typology" not in {item.slug for item in filters.typologies}
+
+    filtered_page = service.projects(
+        "en",
+        limit=1,
+        offset=1,
+        discipline="architecture",
+        typology="residential",
+        status="Study",
+        location="Tehran",
+        year=2025,
+    )
+    assert filtered_page.items == []
+    assert filtered_page.pagination.limit == 1
+    assert filtered_page.pagination.offset == 1
+    assert filtered_page.pagination.total == 1
+
+    paged_projects = service.projects("en", limit=2, offset=2)
+    assert len(paged_projects.items) == 2
+    assert paged_projects.pagination.limit == 2
+    assert paged_projects.pagination.offset == 2
+    assert paged_projects.pagination.total == 6
 
 
 def test_project_editorial_blocks_expose_validated_text_and_quotes_only(session: Session) -> None:
@@ -198,6 +262,11 @@ def test_public_route_excludes_draft_and_uses_response_schema(session: Session) 
         payload = list_response.json()
         assert all(item["slug"] != "internal-draft" for item in payload["items"])
         assert "publication_state" not in payload["items"][0]
+
+        filters_response = client.get("/api/v1/public/projects/filters?locale=fa")
+        assert filters_response.status_code == 200
+        assert filters_response.json()["disciplines"][0]["title"] == "معماری"
+        assert filters_response.json()["locations"] == ["تهران", "رشت", "شیراز", "کرج"]
 
         detail_response = client.get("/api/v1/public/projects/courtyard-house?locale=en")
         assert detail_response.status_code == 200

@@ -19,6 +19,7 @@ from app.schemas.public import (
     Locale,
     ProcessStepResponse,
     ProjectDetailResponse,
+    ProjectFilterOptionsResponse,
     ProjectListResponse,
     SearchResponse,
     SiteResponse,
@@ -172,6 +173,22 @@ def projects(
             year=year,
         ),
         parser=ProjectListResponse.model_validate,
+    )
+
+
+@router.get("/projects/filters", response_model=ProjectFilterOptionsResponse)
+def project_filter_options(
+    session: SessionDep,
+    cache: PublicCacheDep,
+    locale: LocaleQuery = "en",
+) -> ProjectFilterOptionsResponse:
+    service = PublicContentService(session)
+    return _cached(
+        cache,
+        key=f"{_cache_namespace('project-filters')}:{locale}",
+        tags=_locale_tags("project-list", locale=locale),
+        factory=lambda: service.project_filter_options(locale),
+        parser=ProjectFilterOptionsResponse.model_validate,
     )
 
 

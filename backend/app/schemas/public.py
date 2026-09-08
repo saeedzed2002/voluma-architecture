@@ -108,6 +108,14 @@ class ProjectListResponse(PublicModel):
     pagination: PaginationResponse
 
 
+class ProjectFilterOptionsResponse(PublicModel):
+    disciplines: list[TaxonomyResponse]
+    typologies: list[TaxonomyResponse]
+    statuses: list[str]
+    locations: list[str]
+    years: list[int]
+
+
 class ExpertiseResponse(PublicModel):
     title: str
     summary: str

@@ -15,6 +15,7 @@ import { publicMetadata } from "@/lib/seo";
 
 type JournalPageProps = {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ offset?: string }>;
 };
 
 export async function generateMetadata({ params }: JournalPageProps): Promise<Metadata> {
@@ -30,12 +31,20 @@ export async function generateMetadata({ params }: JournalPageProps): Promise<Me
   return publicMetadata({ description, locale: currentLocale, path: "/journal", title });
 }
 
-export default async function JournalPage({ params }: JournalPageProps) {
+export default async function JournalPage({ params, searchParams }: JournalPageProps) {
   const { locale: localeParam } = await params;
   if (!hasLocale(routing.locales, localeParam)) notFound();
   const locale = localeParam as Locale;
   const copy = siteCopy[locale];
-  const journal = await getJournal(locale);
+  const query = await searchParams;
+  const requestedOffset = Number.parseInt(query.offset ?? "0", 10);
+  const offset = Number.isSafeInteger(requestedOffset) && requestedOffset > 0 ? requestedOffset : 0;
+  const journal = await getJournal(locale, { offset });
+  const previousOffset = Math.max(journal.pagination.offset - journal.pagination.limit, 0);
+  const nextOffset = journal.pagination.offset + journal.pagination.limit;
+  const hasNextPage = nextOffset < journal.pagination.total;
+  const journalHref = (pageOffset: number) =>
+    pageOffset > 0 ? `/journal?offset=${pageOffset}` : "/journal";
 
   return (
     <main className="editorial-page section-shell">
@@ -82,6 +91,32 @@ export default async function JournalPage({ params }: JournalPageProps) {
           </Reveal>
         ))}
       </section>
+      {journal.pagination.total > journal.pagination.limit ? (
+        <nav
+          aria-label={locale === "fa" ? "صفحه‌بندی یادداشت‌ها" : "Journal pagination"}
+          className="archive-pagination"
+        >
+          {journal.pagination.offset > 0 ? (
+            <Link href={journalHref(previousOffset)}>
+              {locale === "fa" ? "یادداشت‌های جدیدتر" : "Newer notes"}
+            </Link>
+          ) : (
+            <span aria-disabled="true">{locale === "fa" ? "یادداشت‌های جدیدتر" : "Newer notes"}</span>
+          )}
+          <p aria-live="polite">
+            {new Intl.NumberFormat(locale === "fa" ? "fa-IR" : "en").format(
+              Math.floor(journal.pagination.offset / journal.pagination.limit) + 1,
+            )}
+          </p>
+          {hasNextPage ? (
+            <Link href={journalHref(nextOffset)}>
+              {locale === "fa" ? "یادداشت‌های قدیمی‌تر" : "Older notes"}
+            </Link>
+          ) : (
+            <span aria-disabled="true">{locale === "fa" ? "یادداشت‌های قدیمی‌تر" : "Older notes"}</span>
+          )}
+        </nav>
+      ) : null}
     </main>
   );
 }

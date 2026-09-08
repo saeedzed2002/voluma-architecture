@@ -1,56 +1,21 @@
-import type { Locale } from "@/i18n/routing";
-import type { PublicProject } from "@/lib/public-api";
-
-export type ProjectCategory = "residential" | "workspace" | "cultural" | "adaptive-reuse";
-
 export type ProjectView = "grid" | "list";
-export type CategoryFilter = "all" | ProjectCategory;
-
-const categories = new Set<CategoryFilter>([
-  "all",
-  "residential",
-  "workspace",
-  "cultural",
-  "adaptive-reuse",
-]);
-
-export function parseCategory(value: string | null): CategoryFilter {
-  return value && categories.has(value as CategoryFilter) ? (value as CategoryFilter) : "all";
-}
 
 export function parseView(value: string | null): ProjectView {
   return value === "list" ? "list" : "grid";
 }
 
-export function filterProjects(
-  projects: PublicProject[],
-  locale: Locale,
-  query: string,
-  category: CategoryFilter,
-): PublicProject[] {
-  const normalized = query.trim().toLocaleLowerCase(locale);
-
-  return projects.filter((project) => {
-    const inCategory =
-      category === "all" || project.typologies.some((typology) => typology.slug === category);
-    if (!normalized) return inCategory;
-
-    const searchable = [
-      project.title,
-      project.summary,
-      project.location,
-      project.completion_year,
-    ]
-      .join(" ")
-      .toLocaleLowerCase(locale);
-
-    return inCategory && searchable.includes(normalized);
-  });
-}
-
 export function updateProjectSearch(
   current: URLSearchParams,
-  changes: { query?: string; category?: CategoryFilter; view?: ProjectView },
+  changes: {
+    category?: string;
+    discipline?: string;
+    location?: string;
+    offset?: number;
+    query?: string;
+    status?: string;
+    view?: ProjectView;
+    year?: number;
+  },
 ): string {
   const next = new URLSearchParams(current);
 
@@ -65,9 +30,29 @@ export function updateProjectSearch(
     else next.set("category", changes.category);
   }
 
+  for (const [key, value] of Object.entries({
+    discipline: changes.discipline,
+    location: changes.location,
+    status: changes.status,
+  })) {
+    if (value === undefined) continue;
+    if (value) next.set(key, value);
+    else next.delete(key);
+  }
+
   if (changes.view !== undefined) {
     if (changes.view === "grid") next.delete("view");
     else next.set("view", changes.view);
+  }
+
+  if (changes.offset !== undefined) {
+    if (changes.offset > 0) next.set("offset", String(changes.offset));
+    else next.delete("offset");
+  }
+
+  if (changes.year !== undefined) {
+    if (changes.year > 0) next.set("year", String(changes.year));
+    else next.delete("year");
   }
 
   return next.toString();

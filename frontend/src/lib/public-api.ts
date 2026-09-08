@@ -122,6 +122,29 @@ export type PublicPage<T> = {
   pagination: { limit: number; offset: number; total: number };
 };
 
+export type PublicProjectFilters = {
+  disciplines: PublicTaxonomy[];
+  locations: string[];
+  statuses: string[];
+  typologies: PublicTaxonomy[];
+  years: number[];
+};
+
+export type PublicProjectQuery = {
+  discipline?: string;
+  location?: string;
+  offset?: number;
+  q?: string;
+  status?: string;
+  typology?: string;
+  year?: number;
+};
+
+export type PublicJournalQuery = {
+  category?: string;
+  offset?: number;
+};
+
 export class PublicApiError extends Error {
   constructor(
     public readonly status: number,
@@ -145,8 +168,24 @@ export function getHome(locale: Locale) {
   return publicFetch<PublicHome>("/home", locale);
 }
 
-export function getProjects(locale: Locale) {
-  return publicFetch<PublicPage<PublicProject>>("/projects", locale);
+export function getProjects(locale: Locale, query: PublicProjectQuery = {}) {
+  const parameters = new URLSearchParams();
+  if (query.discipline) parameters.set("discipline", query.discipline);
+  if (query.location) parameters.set("location", query.location);
+  if (query.offset) parameters.set("offset", String(query.offset));
+  if (query.q) parameters.set("q", query.q);
+  if (query.status) parameters.set("status", query.status);
+  if (query.typology) parameters.set("typology", query.typology);
+  if (query.year) parameters.set("year", String(query.year));
+  const suffix = parameters.toString();
+  return publicFetch<PublicPage<PublicProject>>(
+    `/projects${suffix ? `?${suffix}` : ""}`,
+    locale,
+  );
+}
+
+export function getProjectFilters(locale: Locale) {
+  return publicFetch<PublicProjectFilters>("/projects/filters", locale);
 }
 
 export function getProject(locale: Locale, slug: string) {
@@ -165,8 +204,15 @@ export function getStudio(locale: Locale) {
   return publicFetch<PublicStudio>("/studio", locale);
 }
 
-export function getJournal(locale: Locale) {
-  return publicFetch<PublicPage<PublicJournalCard>>("/journal", locale);
+export function getJournal(locale: Locale, query: PublicJournalQuery = {}) {
+  const parameters = new URLSearchParams();
+  if (query.category) parameters.set("category", query.category);
+  if (query.offset) parameters.set("offset", String(query.offset));
+  const suffix = parameters.toString();
+  return publicFetch<PublicPage<PublicJournalCard>>(
+    `/journal${suffix ? `?${suffix}` : ""}`,
+    locale,
+  );
 }
 
 export function getArticle(locale: Locale, slug: string) {

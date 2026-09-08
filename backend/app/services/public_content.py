@@ -21,6 +21,8 @@ from app.models.content import (
     SiteSettings,
     StudioMember,
     Typology,
+    project_disciplines,
+    project_typologies,
 )
 from app.schemas.admin import (
     GalleryBlockPayload,
@@ -46,6 +48,7 @@ from app.schemas.public import (
     ProjectCardResponse,
     ProjectDetailResponse,
     ProjectEditorialBlockResponse,
+    ProjectFilterOptionsResponse,
     ProjectListResponse,
     QuoteEditorialBlockResponse,
     SearchResponse,
@@ -408,6 +411,60 @@ class PublicContentService:
         return ProjectListResponse(
             items=[project_card(project, locale) for project in projects],
             pagination=PaginationResponse(limit=limit, offset=offset, total=total or 0),
+        )
+
+    def project_filter_options(self, locale: Locale) -> ProjectFilterOptionsResponse:
+        published = (
+            Project.publication_state == PublicationState.PUBLISHED,
+            Project.published_at.is_not(None),
+        )
+        discipline_records = self.session.scalars(
+            select(Discipline)
+            .join(
+                project_disciplines,
+                Discipline.id == project_disciplines.c.discipline_id,
+            )
+            .join(Project, Project.id == project_disciplines.c.project_id)
+            .where(*published)
+            .distinct()
+            .order_by(Discipline.display_order, Discipline.slug)
+        ).all()
+        typology_records = self.session.scalars(
+            select(Typology)
+            .join(
+                project_typologies,
+                Typology.id == project_typologies.c.typology_id,
+            )
+            .join(Project, Project.id == project_typologies.c.project_id)
+            .where(*published)
+            .distinct()
+            .order_by(Typology.display_order, Typology.slug)
+        ).all()
+        status_field = Project.status_fa if locale == "fa" else Project.status_en
+        location_field = Project.location_fa if locale == "fa" else Project.location_en
+        statuses = self.session.scalars(
+            select(status_field)
+            .where(*published, status_field.is_not(None))
+            .distinct()
+            .order_by(status_field)
+        ).all()
+        locations = self.session.scalars(
+            select(location_field).where(*published).distinct().order_by(location_field)
+        ).all()
+        years = self.session.scalars(
+            select(Project.completion_year)
+            .where(*published, Project.completion_year.is_not(None))
+            .distinct()
+            .order_by(Project.completion_year.desc())
+        ).all()
+        return ProjectFilterOptionsResponse(
+            disciplines=[
+                _taxonomy_response(discipline, locale) for discipline in discipline_records
+            ],
+            typologies=[_taxonomy_response(typology, locale) for typology in typology_records],
+            statuses=[status for status in statuses if status is not None],
+            locations=[location for location in locations if location],
+            years=[year for year in years if year is not None],
         )
 
     def project(self, slug: str, locale: Locale) -> ProjectDetailResponse | None:
