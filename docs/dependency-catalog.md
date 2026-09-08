@@ -33,6 +33,25 @@ The initial locked frontend and backend direct dependencies use the specificatio
   required, restore only a previously scanned immutable Python image digest; do not
   revert to the vulnerable digest.
 
+## 2026-09-09 — Nginx runtime image security refresh
+
+- Owner: project owner, authorized during CI remediation.
+- Change: replaced the exact-pinned `nginx:1.30.4-alpine` image digest
+  `sha256:dc5069ad14f19660b141b21236140b91656bf89bbc3e2417c70ae650cd66104c` with
+  the official, multi-platform `nginx:1.30.4-alpine-slim` digest
+  `sha256:77da26c31397bf6694b4bf93275f5b40b0b120ba1b8f114264b603e592c561d6`.
+- Reason: CI Trivy found seven fixed high-severity `util-linux` CVEs in `libuuid`
+  inherited by the full Alpine runtime. The gateway runs only Nginx and its
+  POSIX-shell entrypoint; the official slim variant removes unused distribution
+  packages while retaining the required runtime.
+- Evidence: the failed CI image scan and Docker Hub's official Nginx tag metadata
+  were reviewed on 2026-09-09. No application dependency manifest or lockfile
+  applies to this base-image-only change.
+- Files: `infra/nginx/Dockerfile` and this catalog.
+- Validation and rollback: the Compose HTTPS smoke test and all three image scans
+  must pass in CI. If rollback is required, use only a previously scanned immutable
+  Nginx image digest; do not restore the vulnerable full-Alpine digest.
+
 ## 2026-09-05 — Redis Python client compatibility correction
 
 - Owner: project owner, authorized during Phase 0 remediation.
