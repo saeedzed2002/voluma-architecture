@@ -170,6 +170,9 @@ services:
       api:
         condition: service_healthy
     environment:
+      # Next standalone otherwise inherits Docker's container hostname and does
+      # not listen on the loopback interface used by its health check.
+      HOSTNAME: 0.0.0.0
       NODE_ENV: production
       VOLUMA_API_BASE_URL: http://api:8000
       VOLUMA_PUBLIC_ORIGIN: ${VOLUMA_PUBLIC_ORIGIN:?Set the canonical HTTPS origin in protected deployment configuration.}

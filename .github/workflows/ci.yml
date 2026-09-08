@@ -203,10 +203,13 @@ jobs:
         if: failure()
         run: |
           docker compose ps || true
-          redis_container="$(docker compose ps -q redis || true)"
-          if [ -n "$redis_container" ]; then
-            docker inspect --format '{{range .State.Health.Log}}{{.Output}}{{end}}' "$redis_container" || true
-          fi
+          for service in redis api frontend; do
+            container_id="$(docker compose ps -q "$service" || true)"
+            if [ -n "$container_id" ]; then
+              printf '\n%s healthcheck:\n' "$service"
+              docker inspect --format '{{range .State.Health.Log}}{{.Output}}{{end}}' "$container_id" || true
+            fi
+          done
           docker compose logs --no-color
 
       - name: Stop the isolated stack
