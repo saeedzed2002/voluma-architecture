@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models.admin import AdminUser
 from app.models.content import (
+    JournalArticle,
     MediaAsset,
     MediaProcessingState,
     Project,
@@ -191,6 +192,17 @@ class MediaAdministrationService:
             is not None
         ):
             raise MediaInUseError("remove the asset from every project before deletion")
+        if (
+            self.session.scalar(
+                select(JournalArticle.id).where(JournalArticle.cover_media_id == asset.id).limit(1)
+            )
+            is not None
+        ):
+            raise MediaInUseError("remove the asset from every journal article before deletion")
+        if self._journal_articles_using_block_media(asset.id):
+            raise MediaInUseError(
+                "remove the asset from every journal article block before deletion"
+            )
         asset.processing_state = MediaProcessingState.DELETED
         asset.deleted_at = datetime.now(UTC)
         asset.processing_error = None
@@ -330,10 +342,49 @@ class MediaAdministrationService:
                         f"project:{link.project.slug}:fa",
                     }
                 )
+        articles = list(
+            self.session.scalars(
+                select(JournalArticle).where(JournalArticle.cover_media_id == media_id)
+            ).all()
+        )
+        articles.extend(self._journal_articles_using_block_media(media_id, published_only=True))
+        articles_by_id = {article.id: article for article in articles}
+        for article in articles_by_id.values():
+            if article.publication_state == PublicationState.PUBLISHED:
+                tags.update(
+                    {
+                        "journal-list",
+                        "journal-list:en",
+                        "journal-list:fa",
+                        f"article:{article.slug}",
+                        f"article:{article.slug}:en",
+                        f"article:{article.slug}:fa",
+                    }
+                )
         try:
             self.cache.invalidate(tags)
         except RedisError:
             raise
+
+    def _journal_articles_using_block_media(
+        self, media_id: UUID, *, published_only: bool = False
+    ) -> list[JournalArticle]:
+        statement = select(JournalArticle).options(selectinload(JournalArticle.blocks))
+        if published_only:
+            statement = statement.where(
+                JournalArticle.publication_state == PublicationState.PUBLISHED
+            )
+        articles = self.session.scalars(statement).all()
+        return [
+            article
+            for article in articles
+            if any(
+                block.block_type == "single_image"
+                and str(media_id)
+                in {content.get("media_id") for content in (block.content_en, block.content_fa)}
+                for block in article.blocks
+            )
+        ]
 
 
 def media_asset_response(asset: MediaAsset, storage: MediaStorage) -> MediaAssetResponse:

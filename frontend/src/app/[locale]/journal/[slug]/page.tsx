@@ -88,6 +88,12 @@ export default async function JournalArticlePage({ params }: JournalArticlePageP
                     {block.attribution ? <footer>{block.attribution}</footer> : null}
                   </blockquote>
                 </Reveal>
+              ) : block.block_type === "single_image" ? (
+                <Reveal className="journal-article__image" delay={index * 0.05} key={`${block.image.url}-${index}`}>
+                  <figure>
+                    <ResponsiveImage image={block.image} sizes="(max-width: 767px) 100vw, 70vw" />
+                  </figure>
+                </Reveal>
               ) : null,
             )
           : article.body.map((paragraph, index) => (

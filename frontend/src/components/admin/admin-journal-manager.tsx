@@ -1,11 +1,13 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import { type DragEvent, type FormEvent, useEffect, useState } from "react";
 
 import {
   type AdminJournalArticle,
   type AdminJournalArticleListItem,
   type AdminJournalCategory,
+  type AdminMediaAsset,
+  AdminApiError,
   type JournalArticleBlockWrite,
   type JournalArticleWrite,
   createAdminJournalArticle,
@@ -15,10 +17,14 @@ import {
   getAdminJournalArticle,
   getAdminJournalArticles,
   getAdminJournalCategories,
+  getAdminMedia,
   reorderAdminJournalCategories,
+  updateAdminMedia,
   updateAdminJournalArticle,
   updateAdminJournalCategory,
+  uploadAdminMedia,
 } from "@/lib/admin-api";
+import { ResponsiveImage } from "@/components/responsive-image";
 
 import { useAdminSession } from "./admin-session-provider";
 
@@ -26,12 +32,91 @@ type ArticleForm = JournalArticleWrite & { slug: string };
 type CategoryForm = Pick<AdminJournalCategory, "slug" | "title_en" | "title_fa">;
 
 const emptyCategory: CategoryForm = { slug: "", title_en: "", title_fa: "" };
+const journalSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+function categoryValidationMessage(form: CategoryForm): string | null {
+  if (!journalSlugPattern.test(form.slug)) {
+    return "Use lowercase English letters, numbers, and hyphens for the category slug.";
+  }
+  if (!form.title_en.trim() || !form.title_fa.trim()) {
+    return "Enter both the English and Persian category titles.";
+  }
+  return null;
+}
+
+function articleValidationMessage(form: ArticleForm, media: AdminMediaAsset[]): string | null {
+  if (!form.category_id) return "Choose a journal category before saving the article.";
+  if (!journalSlugPattern.test(form.slug)) {
+    return "Use lowercase English letters, numbers, and hyphens for the article slug.";
+  }
+
+  const emptyImageBlock = form.blocks.some(
+    (block) => block.block_type === "single_image" && !block.content_en.media_id,
+  );
+  if (emptyImageBlock) return "Choose or upload an image for every image block, or remove the empty block.";
+
+  if (form.publication_state === "draft") return null;
+
+  if (!form.title_en.trim() || !form.title_fa.trim() || !form.excerpt_en.trim() || !form.excerpt_fa.trim()) {
+    return "Publishing requires English and Persian titles and excerpts.";
+  }
+  if (form.blocks.length === 0) return "Publishing requires at least one article block.";
+
+  for (const block of form.blocks) {
+    if (block.block_type === "text" && (!block.content_en.body.trim() || !block.content_fa.body.trim())) {
+      return "Every text block needs English and Persian body text before publication.";
+    }
+    if (block.block_type === "quote" && (!block.content_en.quote.trim() || !block.content_fa.quote.trim())) {
+      return "Every quote block needs English and Persian text before publication.";
+    }
+    if (block.block_type === "single_image") {
+      const asset = media.find((item) => item.id === block.content_en.media_id);
+      if (
+        asset === undefined ||
+        asset.processing_state !== "ready" ||
+        !asset.alt_en?.trim() ||
+        !asset.alt_fa?.trim()
+      ) {
+        return "Every article image must finish processing and have English and Persian descriptions before publication.";
+      }
+    }
+  }
+  return null;
+}
+
+function journalArticleSaveErrorMessage(error: unknown): string {
+  if (!(error instanceof AdminApiError)) {
+    return "The journal article could not be saved. Check the required fields and try again.";
+  }
+  if (typeof error.detail === "string") return error.detail;
+  if (typeof error.detail !== "object" || error.detail === null || !("fields" in error.detail)) {
+    return "The journal article could not be saved. Check the required fields and try again.";
+  }
+  const fields = (error.detail as { fields?: unknown }).fields;
+  if (!Array.isArray(fields)) return "The journal article could not be saved. Check the required fields and try again.";
+  if (fields.includes("ready_bilingual_article_images")) {
+    return "Save English and Persian descriptions for every image, then wait until each image is ready before publishing.";
+  }
+  if (fields.some((field) => ["title_en", "title_fa", "excerpt_en", "excerpt_fa"].includes(field))) {
+    return "Publishing requires English and Persian titles and excerpts.";
+  }
+  if (fields.includes("blocks")) return "Publishing requires at least one complete article block.";
+  return "The journal article could not be published because one or more required fields are incomplete.";
+}
 
 function textBlock(): JournalArticleBlockWrite {
   return {
     block_type: "text",
     content_en: { body: "" },
     content_fa: { body: "" },
+  };
+}
+
+function imageBlock(mediaId = ""): JournalArticleBlockWrite {
+  return {
+    block_type: "single_image",
+    content_en: { media_id: mediaId },
+    content_fa: { media_id: mediaId },
   };
 }
 
@@ -42,6 +127,7 @@ function emptyArticle(categoryId = ""): ArticleForm {
     cover_alt_en: null,
     cover_alt_fa: null,
     cover_image_url: null,
+    cover_media_id: null,
     excerpt_en: "",
     excerpt_fa: "",
     publication_state: "draft",
@@ -68,6 +154,7 @@ function toArticleForm(article: AdminJournalArticle): ArticleForm {
     cover_alt_en: article.cover_alt_en,
     cover_alt_fa: article.cover_alt_fa,
     cover_image_url: article.cover_image_url,
+    cover_media_id: article.cover_media_id,
     excerpt_en: article.excerpt_en,
     excerpt_fa: article.excerpt_fa,
     publication_state: article.publication_state,
@@ -104,15 +191,18 @@ export function AdminJournalManager() {
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(emptyCategory);
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [media, setMedia] = useState<AdminMediaAsset[]>([]);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    void Promise.all([getAdminJournalCategories(), getAdminJournalArticles()])
-      .then(([categoryResponse, articleResponse]) => {
+    void Promise.all([getAdminJournalCategories(), getAdminJournalArticles(), getAdminMedia()])
+      .then(([categoryResponse, articleResponse, mediaResponse]) => {
         if (!active) return;
         setCategories(categoryResponse.items);
         setArticles(articleResponse.items);
+        setMedia(mediaResponse.items);
         setArticleForm((current) =>
           current.category_id || categoryResponse.items.length === 0
             ? current
@@ -127,6 +217,14 @@ export function AdminJournalManager() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!media.some((asset) => asset.processing_state === "processing")) return;
+    const interval = window.setInterval(() => {
+      void getAdminMedia().then((response) => setMedia(response.items)).catch(() => undefined);
+    }, 2_000);
+    return () => window.clearInterval(interval);
+  }, [media]);
+
   const resetArticle = () => {
     setEditingArticleId(null);
     setArticleForm(emptyArticle(categories[0]?.id ?? ""));
@@ -140,6 +238,11 @@ export function AdminJournalManager() {
   const saveCategory = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (session === null) return;
+    const validationMessage = categoryValidationMessage(categoryForm);
+    if (validationMessage !== null) {
+      setMessage(validationMessage);
+      return;
+    }
     try {
       const saved =
         editingCategoryId === null
@@ -197,11 +300,104 @@ export function AdminJournalManager() {
     }));
   };
 
+  const uploadArticleImage = async (index: number, file: File) => {
+    if (session === null) return;
+    setIsUploadingImage(true);
+    try {
+      const asset = await uploadAdminMedia(file, session.csrf_token);
+      setMedia((current) => [asset, ...current]);
+      replaceBlock(index, imageBlock(asset.id));
+      setMessage("Image uploaded. Add English and Persian descriptions while it is processing.");
+    } catch {
+      setMessage("The image could not be uploaded. Choose a JPEG, PNG, or WebP image no larger than 50 MiB.");
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const updateImageField = (
+    mediaId: string,
+    field: "alt_en" | "alt_fa",
+    value: string,
+  ) => {
+    setMedia((current) =>
+      current.map((asset) => (asset.id === mediaId ? { ...asset, [field]: value || null } : asset)),
+    );
+  };
+
+  const saveImageDescriptions = async (mediaId: string) => {
+    if (session === null) return;
+    const asset = media.find((item) => item.id === mediaId);
+    if (asset === undefined) return;
+    try {
+      const saved = await updateAdminMedia(
+        asset.id,
+        {
+          alt_en: asset.alt_en,
+          alt_fa: asset.alt_fa,
+          caption_en: asset.caption_en,
+          caption_fa: asset.caption_fa,
+          credit: asset.credit,
+        },
+        session.csrf_token,
+      );
+      setMedia((current) => current.map((item) => (item.id === saved.id ? saved : item)));
+      setMessage("Image descriptions saved.");
+    } catch {
+      setMessage("Image descriptions could not be saved. Both English and Persian descriptions are required.");
+    }
+  };
+
+  const readyMedia = media.filter(
+    (asset) => asset.processing_state === "ready" && asset.alt_en && asset.alt_fa,
+  );
+  const selectedCover = readyMedia.find((asset) => asset.id === articleForm.cover_media_id);
+  const articleSubmitLabel =
+    articleForm.publication_state === "published"
+      ? articles.find((article) => article.id === editingArticleId)?.publication_state === "published"
+        ? "Save published article"
+        : "Publish journal article"
+      : "Save journal draft";
+
+  const saveArticleImageDescriptions = async () => {
+    if (session === null) return;
+    const mediaIds = new Set(
+      articleForm.blocks.flatMap((block) =>
+        block.block_type === "single_image" ? [block.content_en.media_id] : [],
+      ),
+    );
+    const selectedAssets = media.filter((asset) => mediaIds.has(asset.id));
+    const savedAssets = await Promise.all(
+      selectedAssets.map((asset) =>
+        updateAdminMedia(
+          asset.id,
+          {
+            alt_en: asset.alt_en,
+            alt_fa: asset.alt_fa,
+            caption_en: asset.caption_en,
+            caption_fa: asset.caption_fa,
+            credit: asset.credit,
+          },
+          session.csrf_token,
+        ),
+      ),
+    );
+    if (savedAssets.length === 0) return;
+    const savedById = new Map(savedAssets.map((asset) => [asset.id, asset]));
+    setMedia((current) => current.map((asset) => savedById.get(asset.id) ?? asset));
+  };
+
   const saveArticle = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (session === null) return;
+    const validationMessage = articleValidationMessage(articleForm, media);
+    if (validationMessage !== null) {
+      setMessage(validationMessage);
+      return;
+    }
     const { slug, ...payload } = articleForm;
     try {
+      await saveArticleImageDescriptions();
       const saved =
         editingArticleId === null
           ? await createAdminJournalArticle({ ...payload, slug }, session.csrf_token)
@@ -220,10 +416,8 @@ export function AdminJournalManager() {
           : "Journal article saved.",
       );
       resetArticle();
-    } catch {
-      setMessage(
-        "Published articles need a category, bilingual title/excerpt, and at least one complete bilingual text or quote block.",
-      );
+    } catch (error) {
+      setMessage(journalArticleSaveErrorMessage(error));
     }
   };
 
@@ -256,17 +450,22 @@ export function AdminJournalManager() {
         <p className="admin-eyebrow">EDITORIAL PUBLISHING</p>
         <h1 id="journal-admin-title">Journal</h1>
         <p>Manage ordered categories and bilingual articles. A published article is immediately public.</p>
+        {message ? <p className="admin-form__message" role="status">{message}</p> : null}
       </div>
 
       <section className="admin-editor" aria-labelledby="journal-categories-title">
         <div className="admin-editor__heading">
           <p className="admin-eyebrow">CATEGORIES</p>
           <h2 id="journal-categories-title">Journal categories</h2>
+          <p>Use lowercase letters, numbers, and hyphens for the slug, for example “architecture-notes”.</p>
         </div>
-        <form className="admin-editor__grid" onSubmit={saveCategory}>
+        <form className="admin-editor__grid" noValidate onSubmit={saveCategory}>
           <label className="admin-editor__field">
             <span>Slug</span>
             <input
+              pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+              placeholder="architecture-notes"
+              required
               onChange={(event) => setCategoryForm((current) => ({ ...current, slug: event.target.value }))}
               value={categoryForm.slug}
             />
@@ -274,6 +473,7 @@ export function AdminJournalManager() {
           <label className="admin-editor__field">
             <span>Title / EN</span>
             <input
+              required
               onChange={(event) =>
                 setCategoryForm((current) => ({ ...current, title_en: event.target.value }))
               }
@@ -284,6 +484,7 @@ export function AdminJournalManager() {
             <span>Title / FA</span>
             <input
               dir="rtl"
+              required
               onChange={(event) =>
                 setCategoryForm((current) => ({ ...current, title_fa: event.target.value }))
               }
@@ -338,9 +539,9 @@ export function AdminJournalManager() {
         <div className="admin-editor__heading">
           <p className="admin-eyebrow">ARTICLES</p>
           <h2 id="journal-articles-title">Bilingual articles</h2>
-          <p>Text and quote blocks are available now. Cover images will be selected from the media library in `Phase 5`.</p>
+          <p>Add text, quotes, and validated images in the article itself. The cover image remains optional.</p>
         </div>
-        <form className="admin-editor__form" onSubmit={saveArticle}>
+        <form className="admin-editor__form" noValidate onSubmit={saveArticle}>
           <div className="admin-editor__grid">
             <label className="admin-editor__field">
               <span>Publication state</span>
@@ -375,6 +576,8 @@ export function AdminJournalManager() {
               <span>Slug</span>
               <input
                 disabled={editingArticleId !== null}
+                pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+                required
                 onChange={(event) => setArticleForm((current) => ({ ...current, slug: event.target.value }))}
                 value={articleForm.slug}
               />
@@ -392,6 +595,35 @@ export function AdminJournalManager() {
                 type="number"
                 value={articleForm.reading_minutes}
               />
+            </label>
+            <label className="admin-editor__field admin-editor__field--wide">
+              <span>Cover image</span>
+              <select
+                onChange={(event) =>
+                  setArticleForm((current) => ({
+                    ...current,
+                    cover_alt_en: event.target.value ? null : current.cover_alt_en,
+                    cover_alt_fa: event.target.value ? null : current.cover_alt_fa,
+                    cover_image_url: event.target.value ? null : current.cover_image_url,
+                    cover_media_id: event.target.value || null,
+                  }))
+                }
+                value={articleForm.cover_media_id ?? ""}
+              >
+                <option value="">No managed cover image</option>
+                {readyMedia.map((asset) => (
+                  <option key={asset.id} value={asset.id}>
+                    {asset.alt_en}
+                  </option>
+                ))}
+              </select>
+              {selectedCover ? (
+                <small>Selected asset: {selectedCover.alt_en} / {selectedCover.alt_fa}</small>
+              ) : articleForm.cover_image_url ? (
+                <small>Legacy cover retained. Select a managed asset to replace it.</small>
+              ) : (
+                <small>Upload, process, and annotate images in the media library before selecting them here.</small>
+              )}
             </label>
             <label className="admin-editor__field admin-editor__field--wide">
               <span>Title / EN</span>
@@ -441,13 +673,16 @@ export function AdminJournalManager() {
                               content_en: { quote: "" },
                               content_fa: { quote: "" },
                             }
-                          : textBlock(),
+                          : event.target.value === "single_image"
+                            ? imageBlock()
+                            : textBlock(),
                       )
                     }
                     value={block.block_type}
                   >
                     <option value="text">Text</option>
                     <option value="quote">Quote</option>
+                    <option value="single_image">Image</option>
                   </select>
                 </label>
                 {block.block_type === "text" ? (
@@ -503,7 +738,7 @@ export function AdminJournalManager() {
                       />
                     </label>
                   </>
-                ) : (
+                ) : block.block_type === "quote" ? (
                   <>
                     <label className="admin-editor__field admin-editor__field--wide">
                       <span>Quote / EN</span>
@@ -531,6 +766,92 @@ export function AdminJournalManager() {
                       />
                     </label>
                   </>
+                ) : (
+                  <div className="admin-journal-image-block">
+                    <div
+                      className="admin-journal-image-block__dropzone"
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event: DragEvent<HTMLDivElement>) => {
+                        event.preventDefault();
+                        const file = event.dataTransfer.files.item(0);
+                        if (file) void uploadArticleImage(index, file);
+                      }}
+                    >
+                      <input
+                        accept="image/jpeg,image/png,image/webp"
+                        disabled={isUploadingImage}
+                        id={`journal-image-upload-${index}`}
+                        onChange={(event) => {
+                          const file = event.target.files?.item(0);
+                          if (file) void uploadArticleImage(index, file);
+                          event.currentTarget.value = "";
+                        }}
+                        type="file"
+                      />
+                      <label htmlFor={`journal-image-upload-${index}`}>
+                        {isUploadingImage ? "Uploading image…" : "Drop an image here or choose a file"}
+                      </label>
+                      <small>JPEG, PNG, or WebP — maximum 50 MiB.</small>
+                    </div>
+                    <label className="admin-editor__field">
+                      <span>Use an existing image</span>
+                      <select
+                        onChange={(event) => replaceBlock(index, imageBlock(event.target.value))}
+                        value={block.content_en.media_id}
+                      >
+                        <option value="">Choose an uploaded image</option>
+                        {media.map((asset) => (
+                          <option key={asset.id} value={asset.id}>
+                            {asset.alt_en || asset.id} · {asset.processing_state}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {(() => {
+                      const asset = media.find((item) => item.id === block.content_en.media_id);
+                      if (asset === undefined) return <p>Select or upload an image for this block.</p>;
+                      return (
+                        <div className="admin-journal-image-block__selected">
+                          {asset.preview_url ? (
+                            <ResponsiveImage
+                              image={{
+                                alt: asset.alt_en ?? "Article image preview",
+                                avif_srcset: null,
+                                height: asset.derivative_height,
+                                placeholder_url: asset.placeholder_url,
+                                url: asset.preview_url,
+                                webp_srcset: null,
+                                width: asset.derivative_width,
+                              }}
+                              sizes="(max-width: 767px) 100vw, 32rem"
+                            />
+                          ) : null}
+                          <p>Image status: <strong>{asset.processing_state}</strong></p>
+                          <label className="admin-editor__field">
+                            <span>Image description / EN</span>
+                            <input
+                              onChange={(event) => updateImageField(asset.id, "alt_en", event.target.value)}
+                              value={asset.alt_en ?? ""}
+                            />
+                          </label>
+                          <label className="admin-editor__field">
+                            <span>Image description / FA</span>
+                            <input
+                              dir="rtl"
+                              onChange={(event) => updateImageField(asset.id, "alt_fa", event.target.value)}
+                              value={asset.alt_fa ?? ""}
+                            />
+                          </label>
+                          <button disabled={isUploadingImage} onClick={() => void saveImageDescriptions(asset.id)} type="button">
+                            Save image descriptions now
+                          </button>
+                          <small>
+                            Image descriptions are also saved automatically when you save or publish the article.
+                          </small>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 )}
                 <button
                   onClick={() =>
@@ -552,6 +873,14 @@ export function AdminJournalManager() {
               type="button"
             >
               Add text block
+            </button>
+            <button
+              onClick={() =>
+                setArticleForm((current) => ({ ...current, blocks: [...current.blocks, imageBlock()] }))
+              }
+              type="button"
+            >
+              Add image block
             </button>
           </fieldset>
 
@@ -612,9 +941,17 @@ export function AdminJournalManager() {
           </fieldset>
 
           <footer className="admin-editor__footer">
+            {message ? (
+              <p aria-live="polite" className="admin-editor__feedback" role="status">
+                {message}
+              </p>
+            ) : null}
             <button className="admin-primary-link" disabled={categories.length === 0} type="submit">
-              {editingArticleId === null ? "Create journal draft" : "Save journal article"}
+              {articleSubmitLabel}
             </button>
+            <p className="admin-editor__hint">
+              To publish a saved draft, select Published above, then select Publish journal article.
+            </p>
             {editingArticleId !== null ? (
               <button onClick={resetArticle} type="button">
                 Cancel editing
@@ -644,11 +981,6 @@ export function AdminJournalManager() {
           ))}
         </ol>
       </section>
-      {message ? (
-        <p className="admin-form__message" role="alert">
-          {message}
-        </p>
-      ) : null}
     </section>
   );
 }

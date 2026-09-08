@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.admin import auth_router as admin_auth_router
 from app.api.admin import router as admin_router
@@ -33,6 +34,12 @@ if not settings.is_production:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_origins=[settings.public_origin],
     )
+    public_media_root = settings.media_root / "public"
+    # Production Nginx serves immutable derivatives directly. This local-only
+    # mount exposes the same public directory for the split dev-server workflow;
+    # originals and staging files remain outside the mounted path.
+    if public_media_root.is_dir():
+        app.mount("/media", StaticFiles(directory=public_media_root), name="public-media")
 app.include_router(health_router, prefix="/api")
 app.include_router(public_router, prefix="/api/v1/public")
 app.include_router(contact_router, prefix="/api/v1/contact")

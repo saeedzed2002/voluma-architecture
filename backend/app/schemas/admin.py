@@ -471,7 +471,7 @@ class JournalCategoryReorderRequest(AdminModel):
         return value
 
 
-JournalArticleBlockType = Literal["text", "quote"]
+JournalArticleBlockType = Literal["text", "quote", "single_image"]
 
 
 class JournalArticleBlockWriteRequest(AdminModel):
@@ -507,6 +507,7 @@ class JournalArticleEditableFields(AdminModel):
     excerpt_en: str = Field(default="", max_length=12_000)
     excerpt_fa: str = Field(default="", max_length=12_000)
     reading_minutes: int = Field(default=1, ge=1, le=1_440)
+    cover_media_id: UUID | None = None
     cover_image_url: str | None = Field(default=None, max_length=500)
     cover_alt_en: str | None = Field(default=None, max_length=500)
     cover_alt_fa: str | None = Field(default=None, max_length=500)
@@ -542,6 +543,12 @@ class JournalArticleEditableFields(AdminModel):
         for english, persian in fields:
             if bool(getattr(self, english)) != bool(getattr(self, persian)):
                 raise ValueError(f"{english} and {persian} must be provided together")
+        if self.cover_media_id is not None and any(
+            (self.cover_image_url, self.cover_alt_en, self.cover_alt_fa)
+        ):
+            raise ValueError(
+                "a managed cover cannot be combined with a legacy image URL or alt text"
+            )
         return self
 
 
@@ -572,6 +579,7 @@ class AdminJournalArticleResponse(AdminJournalArticleListItemResponse):
     excerpt_en: str
     excerpt_fa: str
     reading_minutes: int
+    cover_media_id: UUID | None
     cover_image_url: str | None
     cover_alt_en: str | None
     cover_alt_fa: str | None

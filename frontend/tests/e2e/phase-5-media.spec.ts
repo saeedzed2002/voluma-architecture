@@ -8,7 +8,15 @@ test.skip(
   "requires isolated runtime administrator credentials",
 );
 
-test("administrator can upload an image and observe asynchronous media processing", async ({ page }) => {
+test("administrator can use a processed image as a bilingual journal cover", async ({
+  page,
+}, testInfo) => {
+  const suffix = `${testInfo.project.name}-${Date.now()}`.toLowerCase().replace(/[^a-z0-9-]/g, "-");
+  const categorySlug = `media-notes-${suffix}`;
+  const categoryTitle = `Media notes ${suffix}`;
+  const articleSlug = `managed-cover-${suffix}`;
+  const articleTitle = `Managed cover ${testInfo.project.name}`;
+
   await page.goto("/admin/login");
   await page.getByLabel("Email").fill(administratorEmail ?? "");
   await page.getByLabel("Password").fill(administratorPassword ?? "");
@@ -25,7 +33,78 @@ test("administrator can upload an image and observe asynchronous media processin
     name: "worker-proof.png",
   });
 
-  await expect(page.getByText("Upload accepted. Browser transfer is complete; image processing is now queued.")).toBeVisible();
+  await expect(
+    page.getByText(
+      "Upload accepted. Browser transfer is complete; image processing is now queued.",
+    ),
+  ).toBeVisible();
   await expect(page.getByText("ready", { exact: true })).toBeVisible({ timeout: 15_000 });
+  const uploadedCard = page
+    .locator(".admin-media-card")
+    .filter({ has: page.getByText("ready", { exact: true }) })
+    .first();
+  await uploadedCard.getByLabel("Alt text / EN").fill("A managed journal cover image");
+  await uploadedCard.getByLabel("Alt text / FA").fill("تصویر روی جلد مدیریت‌شدهٔ یادداشت");
+  await uploadedCard.getByRole("button", { name: "Save metadata" }).click();
+  await expect(page.locator(".admin-form__message")).toHaveText("Media metadata saved.");
+  const mediaId = await uploadedCard.locator("code").textContent();
+  expect(mediaId).not.toBeNull();
+
+  await page.getByRole("link", { name: "Journal" }).click();
+  const categorySection = page.locator('section[aria-labelledby="journal-categories-title"]');
+  await categorySection.getByLabel("Slug", { exact: true }).fill(categorySlug);
+  await categorySection.getByLabel("Title / EN", { exact: true }).fill(categoryTitle);
+  await categorySection.getByLabel("Title / FA", { exact: true }).fill("یادداشت‌های رسانه");
+  await categorySection.getByRole("button", { name: "Create category" }).click();
+
+  const articleSection = page.locator('section[aria-labelledby="journal-articles-title"]');
+  const categorySelect = articleSection.getByRole("combobox", { name: "Category" });
+  const categoryId = await categorySelect
+    .getByRole("option", { name: categoryTitle, exact: true })
+    .getAttribute("value");
+  expect(categoryId).not.toBeNull();
+  await categorySelect.selectOption(categoryId ?? "");
+  await articleSection.getByLabel("Slug", { exact: true }).fill(articleSlug);
+  await articleSection.getByLabel("Title / EN", { exact: true }).fill(articleTitle);
+  await articleSection.getByLabel("Title / FA", { exact: true }).fill("روی جلد مدیریت‌شده");
+  await articleSection
+    .getByLabel("Excerpt / EN", { exact: true })
+    .fill("A bilingual journal article with a managed media cover.");
+  await articleSection
+    .getByLabel("Excerpt / FA", { exact: true })
+    .fill("یک یادداشت دوزبانه با تصویر روی جلد مدیریت‌شده.");
+  await articleSection
+    .getByLabel("Body / EN", { exact: true })
+    .fill("A measured journal paragraph.");
+  await articleSection.getByLabel("Body / FA", { exact: true }).fill("یک بند سنجیده برای یادداشت.");
+  await articleSection.getByRole("button", { name: "Add image block" }).click();
+  const imageBlock = articleSection.locator(".admin-journal-image-block").last();
+  await imageBlock.locator('input[type="file"]').setInputFiles({
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR4nGOUUDFgYGBgYgADAAUiAHD7661kAAAAAElFTkSuQmCC",
+      "base64",
+    ),
+    mimeType: "image/png",
+    name: "article-inline-image.png",
+  });
+  await expect(imageBlock.locator("strong")).toHaveText("ready", { timeout: 15_000 });
+  await imageBlock.getByLabel("Image description / EN").fill("An image inside a journal article");
+  await imageBlock.getByLabel("Image description / FA").fill("تصویری درون یک یادداشت");
+  await imageBlock.getByRole("button", { name: "Save image descriptions now" }).click();
+  await expect(page.locator(".admin-form__message")).toHaveText("Image descriptions saved.");
+  await articleSection.getByLabel("Cover image", { exact: true }).selectOption(mediaId ?? "");
+  await articleSection
+    .getByRole("combobox", { name: "Publication state" })
+    .selectOption("published");
+  await articleSection.getByRole("button", { name: "Publish journal article" }).click();
+  await expect(page.locator(".admin-form__message")).toHaveText("Journal article published.");
+
+  await page.goto(`/en/journal/${articleSlug}`);
+  await expect(page.getByRole("heading", { name: articleTitle })).toBeVisible();
+  await expect(page.locator(".journal-article__cover img")).toHaveAttribute(
+    "src",
+    new RegExp(`/media/${mediaId}/`),
+  );
+  await expect(page.locator(".journal-article__image img")).toBeVisible();
   await expect(page.locator("nextjs-portal [data-nextjs-dialog]")).toHaveCount(0);
 });

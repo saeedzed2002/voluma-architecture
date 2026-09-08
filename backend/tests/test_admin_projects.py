@@ -13,7 +13,7 @@ from app.api.public import get_public_cache
 from app.db.session import get_session
 from app.main import app
 from app.models.admin import AdminUser, AuditEvent
-from app.models.content import Discipline, Project, Typology
+from app.models.content import Discipline, MediaAsset, MediaProcessingState, Project, Typology
 from app.services.admin_auth import hash_password
 
 ORIGIN = "http://localhost:3000"
@@ -552,6 +552,44 @@ def test_journal_categories_and_articles_publish_bilingual_editorial_blocks(
     assert category.status_code == 201
     category_id = category.json()["id"]
 
+    cover = MediaAsset(
+        original_extension="png",
+        source_content_type="image/png",
+        source_size_bytes=100,
+        source_width=20,
+        source_height=10,
+        processing_state=MediaProcessingState.READY,
+        derivative_version="journal-cover-version",
+        derivative_width=20,
+        derivative_height=10,
+        alt_en="Journal cover image",
+        alt_fa="تصویر روی جلد یادداشت",
+    )
+    session.add(cover)
+    session.commit()
+
+    unready_cover = MediaAsset(
+        original_extension="png",
+        source_content_type="image/png",
+        source_size_bytes=100,
+        source_width=20,
+        source_height=10,
+        processing_state=MediaProcessingState.PROCESSING,
+    )
+    session.add(unready_cover)
+    session.commit()
+    rejected_cover = test_client.post(
+        "/api/v1/admin/journal/articles",
+        headers=headers,
+        json={
+            "slug": "unready-managed-cover",
+            "category_id": category_id,
+            "cover_media_id": str(unready_cover.id),
+        },
+    )
+    assert rejected_cover.status_code == 422
+    assert rejected_cover.json()["detail"] == "journal cover media must be ready"
+
     second_category = test_client.post(
         "/api/v1/admin/journal/categories",
         headers=headers,
@@ -608,6 +646,7 @@ def test_journal_categories_and_articles_publish_bilingual_editorial_blocks(
             "excerpt_en": "An editorial test article with bilingual structured blocks.",
             "excerpt_fa": "یک یادداشت آزمایشی با بلوک‌های ساخت‌یافتهٔ دوزبانه.",
             "reading_minutes": 4,
+            "cover_media_id": str(cover.id),
             "blocks": [
                 {
                     "block_type": "text",
@@ -619,12 +658,17 @@ def test_journal_categories_and_articles_publish_bilingual_editorial_blocks(
                     "content_en": {"quote": "Material records time.", "attribution": "VOLUMA"},
                     "content_fa": {"quote": "مصالح زمان را ثبت می‌کند.", "attribution": "ولوما"},
                 },
+                {
+                    "block_type": "single_image",
+                    "content_en": {"media_id": str(cover.id)},
+                    "content_fa": {"media_id": str(cover.id)},
+                },
             ],
         },
     )
     assert published.status_code == 200
     assert published.json()["published_at"] is not None
-    assert len(published.json()["blocks"]) == 2
+    assert len(published.json()["blocks"]) == 3
     assert cache.invalidated[-1] >= {
         "home",
         "journal-list",
@@ -638,6 +682,12 @@ def test_journal_categories_and_articles_publish_bilingual_editorial_blocks(
     assert public.json()["seo_title"] == "مصالح سنجیده"
     assert public.json()["blocks"][0]["body"] == "یک بند فارسی سنجیده."
     assert public.json()["blocks"][1]["quote"] == "مصالح زمان را ثبت می‌کند."
+    assert public.json()["blocks"][2]["image"]["url"].endswith(
+        f"/{cover.id}/journal-cover-version/w1024.webp"
+    )
+    assert public.json()["cover_image"]["url"].endswith(
+        f"/{cover.id}/journal-cover-version/w1024.webp"
+    )
 
     category_in_use = test_client.delete(
         f"/api/v1/admin/journal/categories/{category_id}", headers=headers

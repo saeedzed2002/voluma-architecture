@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -10,6 +10,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { isLoading, logout, session } = useAdminSession();
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && session === null) router.replace("/admin/login");
@@ -18,6 +19,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
   if (isLoading || session === null) {
     return <main className="admin-status">Checking administrator session…</main>;
   }
+
+  const handleLogout = async () => {
+    setLogoutError(null);
+    if (!(await logout())) {
+      setLogoutError("Sign out could not reach the API. Your session is still active; try again once the API is available.");
+    }
+  };
 
   return (
     <div className="admin-shell">
@@ -65,7 +73,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="admin-sidebar__account">
           <span>{session.administrator.email}</span>
-          <button onClick={() => void logout()}>Sign out</button>
+          <button onClick={() => void handleLogout()}>Sign out</button>
+          {logoutError ? <p className="admin-sidebar__error" role="status">{logoutError}</p> : null}
         </div>
       </aside>
       <main className="admin-main" id="main-content">

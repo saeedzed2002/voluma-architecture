@@ -170,6 +170,13 @@ export type AdminJournalCategory = {
 
 export type AdminJournalArticleBlock =
   | {
+      block_type: "single_image";
+      content_en: { media_id: string };
+      content_fa: { media_id: string };
+      display_order: number;
+      id: string;
+    }
+  | {
       block_type: "quote";
       content_en: { attribution?: string; quote: string };
       content_fa: { attribution?: string; quote: string };
@@ -185,6 +192,11 @@ export type AdminJournalArticleBlock =
     };
 
 export type JournalArticleBlockWrite =
+  | {
+      block_type: "single_image";
+      content_en: { media_id: string };
+      content_fa: { media_id: string };
+    }
   | {
       block_type: "quote";
       content_en: { attribution?: string; quote: string };
@@ -212,6 +224,7 @@ export type AdminJournalArticle = AdminJournalArticleListItem & {
   cover_alt_en: string | null;
   cover_alt_fa: string | null;
   cover_image_url: string | null;
+  cover_media_id: string | null;
   excerpt_en: string;
   excerpt_fa: string;
   reading_minutes: number;
@@ -227,6 +240,7 @@ export type JournalArticleWrite = {
   cover_alt_en: string | null;
   cover_alt_fa: string | null;
   cover_image_url: string | null;
+  cover_media_id: string | null;
   excerpt_en: string;
   excerpt_fa: string;
   publication_state: "draft" | "published";
@@ -334,7 +348,10 @@ export type ProjectWrite = Omit<
 };
 
 export class AdminApiError extends Error {
-  constructor(public readonly status: number) {
+  constructor(
+    public readonly status: number,
+    public readonly detail: unknown = null,
+  ) {
     super(`VOLUMA administrator API request failed (${status})`);
   }
 }
@@ -344,6 +361,15 @@ type RequestOptions = {
   csrfToken?: string;
   method?: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
 };
+
+async function readErrorDetail(response: Response): Promise<unknown> {
+  try {
+    const body = (await response.json()) as { detail?: unknown };
+    return body.detail ?? body;
+  } catch {
+    return null;
+  }
+}
 
 async function adminFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers = new Headers({ Accept: "application/json" });
@@ -357,7 +383,7 @@ async function adminFetch<T>(path: string, options: RequestOptions = {}): Promis
     headers,
     method: options.method ?? "GET",
   });
-  if (!response.ok) throw new AdminApiError(response.status);
+  if (!response.ok) throw new AdminApiError(response.status, await readErrorDetail(response));
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
@@ -373,7 +399,7 @@ async function adminUpload<T>(path: string, file: File, csrfToken: string): Prom
     headers,
     method: "POST",
   });
-  if (!response.ok) throw new AdminApiError(response.status);
+  if (!response.ok) throw new AdminApiError(response.status, await readErrorDetail(response));
   return (await response.json()) as T;
 }
 

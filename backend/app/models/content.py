@@ -293,6 +293,9 @@ class MediaAsset(TimestampedUUIDModel):
     credit: Mapped[str | None] = mapped_column(String(500))
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     project_links: Mapped[list[ProjectMedia]] = relationship(back_populates="media")
+    journal_cover_articles: Mapped[list[JournalArticle]] = relationship(
+        back_populates="cover_media"
+    )
 
 
 class ProjectMedia(TimestampedUUIDModel):
@@ -432,6 +435,7 @@ class JournalArticle(TimestampedUUIDModel):
         Index("ix_journal_public_archive", "publication_state", "published_at"),
         Index("ix_journal_public_search_en", "publication_state", func.lower("title_en")),
         Index("ix_journal_public_search_fa", "publication_state", func.lower("title_fa")),
+        Index("ix_journal_articles_cover_media_id", "cover_media_id"),
     )
 
     slug: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
@@ -452,6 +456,10 @@ class JournalArticle(TimestampedUUIDModel):
     body_en: Mapped[str] = mapped_column(Text, nullable=False)
     body_fa: Mapped[str] = mapped_column(Text, nullable=False)
     reading_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    cover_media_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("media_assets.id", ondelete="RESTRICT")
+    )
+    cover_media: Mapped[MediaAsset | None] = relationship(back_populates="journal_cover_articles")
     cover_image_url: Mapped[str | None] = mapped_column(String(500))
     cover_alt_en: Mapped[str | None] = mapped_column(String(500))
     cover_alt_fa: Mapped[str | None] = mapped_column(String(500))
@@ -470,7 +478,7 @@ class JournalArticleBlock(TimestampedUUIDModel):
     __tablename__ = "article_blocks"
     __table_args__ = (
         CheckConstraint(
-            "block_type IN ('text', 'quote')",
+            "block_type IN ('text', 'quote', 'single_image')",
             name="ck_article_blocks_type",
         ),
         UniqueConstraint(

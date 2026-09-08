@@ -18,10 +18,9 @@ function createContentSecurityPolicy(nonce: string, isDevelopment: boolean) {
     "img-src 'self' data: blob:",
     "object-src 'none'",
     "script-src " + scriptSource.join(" "),
-    // Next.js and Motion update element style attributes at runtime. Keep
-    // stylesheet elements restricted to same-origin resources, while allowing
-    // only those runtime attributes; script execution remains nonce-bound.
-    "style-src 'self'",
+    // Next.js injects stylesheet elements for Fast Refresh in development.
+    // Production stays nonce-based and does not allow inline stylesheet content.
+    "style-src 'self'" + (isDevelopment ? " 'unsafe-inline'" : ""),
     "style-src-attr 'unsafe-inline'",
     "connect-src 'self'" + (isDevelopment ? " ws: wss:" : ""),
     "worker-src 'self' blob:",

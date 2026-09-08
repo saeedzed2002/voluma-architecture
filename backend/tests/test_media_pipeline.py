@@ -3,18 +3,33 @@ from __future__ import annotations
 import asyncio
 from io import BytesIO
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 from fastapi import UploadFile
 from PIL import Image
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.models.admin import AdminUser
-from app.models.content import MediaAsset, MediaProcessingState, Project
-from app.schemas.admin import ProjectMediaReplaceRequest, ProjectMediaWriteItem
+from app.models.content import (
+    JournalArticle,
+    JournalArticleBlock,
+    JournalCategory,
+    MediaAsset,
+    MediaProcessingState,
+    Project,
+    PublicationState,
+)
+from app.schemas.admin import (
+    MediaAssetMetadataWriteRequest,
+    ProjectMediaReplaceRequest,
+    ProjectMediaWriteItem,
+)
 from app.services.media_administration import (
     MediaAdministrationService,
+    MediaInUseError,
     MediaQueueError,
 )
 from app.services.media_storage import (
@@ -174,6 +189,18 @@ def test_ready_media_can_be_ordered_and_selected_as_project_cover(
     assert public_project.cover_image.avif_srcset is not None
 
 
+def test_project_media_rejects_duplicate_assets_before_replacing_the_gallery() -> None:
+    asset_id = uuid4()
+
+    with pytest.raises(ValidationError, match="assets must be unique"):
+        ProjectMediaReplaceRequest(
+            items=[
+                ProjectMediaWriteItem(media_id=asset_id, is_cover=True),
+                ProjectMediaWriteItem(media_id=asset_id, is_cover=False),
+            ]
+        )
+
+
 def test_retry_requeues_failed_asset_with_retained_source(session: Session, tmp_path: Path) -> None:
     storage = MediaStorage(tmp_path / "media")
     administrator = _administrator(session)
@@ -205,6 +232,156 @@ def test_retry_requeues_failed_asset_with_retained_source(session: Session, tmp_
     assert response.processing_state == MediaProcessingState.PROCESSING
     assert response.processing_error is None
     assert queued == [asset.id]
+
+
+def test_journal_cover_media_invalidates_public_content_and_cannot_be_deleted(
+    session: Session, tmp_path: Path
+) -> None:
+    administrator = _administrator(session)
+    asset = MediaAsset(
+        original_extension="png",
+        source_content_type="image/png",
+        source_size_bytes=100,
+        source_width=20,
+        source_height=10,
+        processing_state=MediaProcessingState.READY,
+        derivative_version="journal-cover-version",
+        derivative_width=20,
+        derivative_height=10,
+        alt_en="Initial journal cover",
+        alt_fa="تصویر روی جلد اولیه",
+    )
+    category = JournalCategory(
+        slug="journal-cover-tests",
+        title_en="Journal cover tests",
+        title_fa="آزمون‌های روی جلد یادداشت",
+        display_order=99,
+    )
+    article = JournalArticle(
+        slug="journal-managed-cover",
+        publication_state=PublicationState.PUBLISHED,
+        category=category,
+        title_en="Managed journal cover",
+        title_fa="روی جلد مدیریت‌شدهٔ یادداشت",
+        excerpt_en="An article with a managed cover image.",
+        excerpt_fa="یادداشتی با تصویر روی جلد مدیریت‌شده.",
+        body_en="A complete body.",
+        body_fa="بدنه‌ای کامل.",
+        reading_minutes=1,
+        cover_media=asset,
+    )
+    session.add(article)
+    session.commit()
+    cache = RecordingCache()
+    service = MediaAdministrationService(
+        session,
+        MediaStorage(tmp_path / "media"),
+        cache,  # type: ignore[arg-type]
+        enqueue_cleanup=lambda _: None,
+    )
+
+    service.update_metadata(
+        asset.id,
+        MediaAssetMetadataWriteRequest(
+            alt_en="Updated journal cover",
+            alt_fa="تصویر روی جلد به‌روزشده",
+            caption_en=None,
+            caption_fa=None,
+            credit=None,
+        ),
+        administrator,
+    )
+
+    assert cache.invalidated[-1] >= {
+        "home",
+        "journal-list",
+        "journal-list:en",
+        "journal-list:fa",
+        "article:journal-managed-cover",
+        "article:journal-managed-cover:en",
+        "article:journal-managed-cover:fa",
+    }
+    with pytest.raises(MediaInUseError, match="journal article"):
+        service.delete(asset.id, administrator)
+
+
+def test_journal_block_media_invalidates_public_content_and_cannot_be_deleted(
+    session: Session, tmp_path: Path
+) -> None:
+    administrator = _administrator(session)
+    asset = MediaAsset(
+        original_extension="png",
+        source_content_type="image/png",
+        source_size_bytes=100,
+        source_width=20,
+        source_height=10,
+        processing_state=MediaProcessingState.READY,
+        derivative_version="journal-block-version",
+        derivative_width=20,
+        derivative_height=10,
+        alt_en="Initial journal image",
+        alt_fa="تصویر اولیهٔ یادداشت",
+    )
+    session.add(asset)
+    session.flush()
+    category = JournalCategory(
+        slug="journal-block-tests",
+        title_en="Journal block tests",
+        title_fa="آزمون‌های بلوک یادداشت",
+        display_order=100,
+    )
+    article = JournalArticle(
+        slug="journal-managed-block",
+        publication_state=PublicationState.PUBLISHED,
+        category=category,
+        title_en="Managed journal block",
+        title_fa="بلوک مدیریت‌شدهٔ یادداشت",
+        excerpt_en="An article with an in-body managed image.",
+        excerpt_fa="یادداشتی با تصویر مدیریت‌شده در متن.",
+        body_en="A complete body.",
+        body_fa="بدنه‌ای کامل.",
+        reading_minutes=1,
+        blocks=[
+            JournalArticleBlock(
+                block_type="single_image",
+                content_en={"media_id": str(asset.id)},
+                content_fa={"media_id": str(asset.id)},
+                display_order=0,
+            )
+        ],
+    )
+    session.add(article)
+    session.commit()
+    cache = RecordingCache()
+    service = MediaAdministrationService(
+        session,
+        MediaStorage(tmp_path / "media"),
+        cache,  # type: ignore[arg-type]
+        enqueue_cleanup=lambda _: None,
+    )
+
+    service.update_metadata(
+        asset.id,
+        MediaAssetMetadataWriteRequest(
+            alt_en="Updated journal image",
+            alt_fa="تصویر به‌روزشدهٔ یادداشت",
+            caption_en=None,
+            caption_fa=None,
+            credit=None,
+        ),
+        administrator,
+    )
+
+    assert cache.invalidated[-1] >= {
+        "journal-list",
+        "journal-list:en",
+        "journal-list:fa",
+        "article:journal-managed-block",
+        "article:journal-managed-block:en",
+        "article:journal-managed-block:fa",
+    }
+    with pytest.raises(MediaInUseError, match="journal article block"):
+        service.delete(asset.id, administrator)
 
 
 def test_transient_processing_failure_is_durable_and_propagates_for_celery_retry(

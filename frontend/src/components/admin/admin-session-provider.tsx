@@ -11,7 +11,7 @@ import {
 
 type AdminSessionContextValue = {
   isLoading: boolean;
-  logout: () => Promise<void>;
+  logout: () => Promise<boolean>;
   session: AdminSession | null;
   setSession: (session: AdminSession) => void;
 };
@@ -40,8 +40,14 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    if (session !== null) await logoutAdministrator(session.csrf_token);
-    setSession(null);
+    if (session === null) return true;
+    try {
+      await logoutAdministrator(session.csrf_token);
+      setSession(null);
+      return true;
+    } catch {
+      return false;
+    }
   }, [session]);
 
   const value = useMemo(

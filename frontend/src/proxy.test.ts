@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import proxy from "./proxy";
 
@@ -10,6 +10,7 @@ describe("security proxy", () => {
 
     expect(contentSecurityPolicy).toContain("frame-ancestors 'none'");
     expect(contentSecurityPolicy).toMatch(/script-src 'self' 'nonce-[A-Za-z0-9+/=]+'/);
+    expect(contentSecurityPolicy).toContain("style-src 'self' 'unsafe-inline'");
     expect(contentSecurityPolicy).toContain("style-src-attr 'unsafe-inline'");
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
   });
@@ -20,5 +21,19 @@ describe("security proxy", () => {
     expect(response.headers.get("location")).toBeNull();
     expect(response.headers.get("Content-Security-Policy")).toContain("default-src 'self'");
     expect(response.headers.get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
+  });
+
+  it("keeps inline stylesheet content disabled in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+
+    try {
+      const response = proxy(new NextRequest("https://voluma.example/en"));
+      const contentSecurityPolicy = response.headers.get("Content-Security-Policy");
+
+      expect(contentSecurityPolicy).toContain("style-src 'self';");
+      expect(contentSecurityPolicy).not.toContain("style-src 'self' 'unsafe-inline'");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

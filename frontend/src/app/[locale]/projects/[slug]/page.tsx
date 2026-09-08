@@ -148,12 +148,14 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         </Reveal>
       ) : null}
 
-      {project.material ? (
-        <section className="project-material section-shell">
-          <Reveal className="project-material__copy">
-            <h2>{project.material.title}</h2>
-            <p>{project.material.body}</p>
-          </Reveal>
+      {project.material || galleryImages.length ? (
+        <section className={`project-material section-shell${project.material ? "" : " project-material--gallery-only"}`}>
+          {project.material ? (
+            <Reveal className="project-material__copy">
+              <h2>{project.material.title}</h2>
+              <p>{project.material.body}</p>
+            </Reveal>
+          ) : <h2 className="sr-only">{locale === "fa" ? "گالری پروژه" : "Project gallery"}</h2>}
           {galleryImages.length ? (
             <ProjectGallery
               closeLabel={copy.closeGallery}

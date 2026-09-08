@@ -23,6 +23,12 @@ pins, private Compose networking, TLS Nginx routing, nonce-based CSP, runbooks, 
 automation. A real container build, scan, clean-host deployment, and restore exercise still
 require observed Docker/registry access; they are not claimed as complete by this repository.
 
+Journal article covers are managed-media references. An administrator may also add a managed
+single-image block directly within an article by dropping a `JPEG`, `PNG`, or `WebP` file into
+the article editor. The upload is processed asynchronously; publication requires the image to be
+`ready` with English and Persian alt text. The API refuses unavailable or unsafe references, and
+media referenced by a journal cover or article block cannot be deleted until it is removed.
+
 ## Planned layout
 
 ```text

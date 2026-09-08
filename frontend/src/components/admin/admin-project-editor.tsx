@@ -636,7 +636,11 @@ export function AdminProjectEditor({ projectId }: { projectId?: string }) {
           </div>
         ) : null}
         <div className="admin-editor__footer">
-          <button disabled={isSaving} type="submit">{isSaving ? "Saving…" : project === null ? "Create project" : "Save project"}</button>
+          {activeTab === "Gallery" && project !== null ? (
+            <p className="admin-editor__hint">Gallery selections are saved separately. Use “Save gallery and set public cover” above; “Save project” does not save selected images.</p>
+          ) : (
+            <button disabled={isSaving} type="submit">{isSaving ? "Saving…" : project === null ? "Create project" : "Save project"}</button>
+          )}
         </div>
       </form>
     </section>

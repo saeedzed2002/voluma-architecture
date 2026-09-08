@@ -90,7 +90,7 @@ def _published_projects(*, include_blocks: bool = False) -> Select[tuple[Project
 
 
 def _published_articles(*, include_blocks: bool = False) -> Select[tuple[JournalArticle]]:
-    options = [selectinload(JournalArticle.category)]
+    options = [selectinload(JournalArticle.category), selectinload(JournalArticle.cover_media)]
     if include_blocks:
         options.append(selectinload(JournalArticle.blocks))
     return (
@@ -275,11 +275,37 @@ def journal_card(article: JournalArticle, locale: Locale) -> JournalCardResponse
         category=JournalCategoryResponse(slug=article.category.slug, title=category_title),
         published_at=article.published_at,
         reading_minutes=article.reading_minutes,
-        cover_image=_image(article.cover_image_url, _locale_field(article, "cover_alt", locale)),
+        cover_image=(
+            _managed_image(article.cover_media, locale)
+            if article.cover_media is not None
+            else _image(article.cover_image_url, _locale_field(article, "cover_alt", locale))
+        ),
     )
 
 
-def _journal_blocks(article: JournalArticle, locale: Locale) -> list[ProjectEditorialBlockResponse]:
+def _journal_blocks(
+    session: Session, article: JournalArticle, locale: Locale
+) -> list[ProjectEditorialBlockResponse]:
+    media_ids = {
+        SingleImageBlockPayload.model_validate(content).media_id
+        for block in article.blocks
+        if block.block_type == "single_image"
+        for content in (block.content_en, block.content_fa)
+    }
+    assets_by_id = {
+        asset.id: asset
+        for asset in (
+            session.scalars(
+                select(MediaAsset).where(
+                    MediaAsset.id.in_(media_ids),
+                    MediaAsset.processing_state == MediaProcessingState.READY,
+                    MediaAsset.deleted_at.is_(None),
+                )
+            ).all()
+            if media_ids
+            else []
+        )
+    }
     blocks: list[ProjectEditorialBlockResponse] = []
     for block in article.blocks:
         content = block.content_fa if locale == "fa" else block.content_en
@@ -299,6 +325,15 @@ def _journal_blocks(article: JournalArticle, locale: Locale) -> list[ProjectEdit
                     attribution=quote_payload.attribution,
                 )
             )
+        elif block.block_type == "single_image":
+            payload = SingleImageBlockPayload.model_validate(content)
+            asset = assets_by_id.get(payload.media_id)
+            if asset is not None:
+                image = _managed_image(asset, locale)
+                if image is not None:
+                    blocks.append(
+                        SingleImageEditorialBlockResponse(block_type="single_image", image=image)
+                    )
     return blocks
 
 
@@ -554,7 +589,7 @@ class PublicContentService:
         )
         if article is None:
             return None
-        blocks = _journal_blocks(article, locale)
+        blocks = _journal_blocks(self.session, article, locale)
         body = [
             paragraph
             for block in blocks

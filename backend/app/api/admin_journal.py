@@ -22,6 +22,7 @@ from app.schemas.admin import (
 )
 from app.services.journal_administration import (
     JournalAdministrationService,
+    JournalArticleMediaValidationError,
     JournalArticleNotFoundError,
     JournalArticlePublishingValidationError,
     JournalArticleSlugConflictError,
@@ -199,6 +200,11 @@ def create_article(
     except JournalArticlePublishingValidationError as error:
         session.rollback()
         raise _publishing_invalid(error) from error
+    except JournalArticleMediaValidationError as error:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
+        ) from error
     except RedisError as error:
         raise _cache_unavailable() from error
 
@@ -231,6 +237,11 @@ def update_article(
     except JournalArticlePublishingValidationError as error:
         session.rollback()
         raise _publishing_invalid(error) from error
+    except JournalArticleMediaValidationError as error:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
+        ) from error
     except RedisError as error:
         raise _cache_unavailable() from error
 

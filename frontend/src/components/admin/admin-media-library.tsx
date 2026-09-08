@@ -177,7 +177,7 @@ export function AdminMediaLibrary() {
       setAssets((current) => current.filter((entry) => entry.id !== asset.id));
       setMessage("Asset deletion has been queued after its durable soft-delete.");
     } catch {
-      setMessage("The asset could not be deleted. Remove any project use before deleting it.");
+      setMessage("The asset could not be deleted. Remove every project or journal use before deleting it.");
     } finally {
       setIsBusy(false);
     }

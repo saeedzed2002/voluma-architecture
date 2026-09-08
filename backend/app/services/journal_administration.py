@@ -13,6 +13,8 @@ from app.models.content import (
     JournalArticle,
     JournalArticleBlock,
     JournalCategory,
+    MediaAsset,
+    MediaProcessingState,
     PublicationState,
 )
 from app.schemas.admin import (
@@ -28,6 +30,7 @@ from app.schemas.admin import (
     JournalArticleCreateRequest,
     JournalArticleUpdateRequest,
     JournalCategoryReorderRequest,
+    SingleImageBlockPayload,
 )
 from app.services.admin_auth import record_audit_event
 from app.services.public_cache import TaggedPublicCache
@@ -65,6 +68,10 @@ class JournalArticlePublishingValidationError(JournalAdministrationError):
     def __init__(self, fields: list[str]) -> None:
         super().__init__("journal article cannot be published")
         self.fields = fields
+
+
+class JournalArticleMediaValidationError(JournalAdministrationError):
+    pass
 
 
 class JournalAdministrationService:
@@ -281,7 +288,11 @@ class JournalAdministrationService:
         statement = (
             select(JournalArticle)
             .where(JournalArticle.id == article_id)
-            .options(selectinload(JournalArticle.category), selectinload(JournalArticle.blocks))
+            .options(
+                selectinload(JournalArticle.category),
+                selectinload(JournalArticle.blocks),
+                selectinload(JournalArticle.cover_media),
+            )
         )
         if lock:
             statement = statement.with_for_update()
@@ -304,6 +315,7 @@ class JournalAdministrationService:
         article.excerpt_en = payload.excerpt_en
         article.excerpt_fa = payload.excerpt_fa
         article.reading_minutes = payload.reading_minutes
+        article.cover_media = self._cover_media_or_raise(payload.cover_media_id)
         article.cover_image_url = payload.cover_image_url
         article.cover_alt_en = payload.cover_alt_en
         article.cover_alt_fa = payload.cover_alt_fa
@@ -317,7 +329,25 @@ class JournalAdministrationService:
             article.published_at = None
         article.body_en = _legacy_body(payload.blocks, "en")
         article.body_fa = _legacy_body(payload.blocks, "fa")
+        self._validate_block_media(payload.blocks)
         self._replace_blocks(article, payload.blocks)
+
+    def _cover_media_or_raise(self, media_id: UUID | None) -> MediaAsset | None:
+        if media_id is None:
+            return None
+        with self.session.no_autoflush:
+            asset = self.session.scalar(
+                select(MediaAsset).where(MediaAsset.id == media_id).with_for_update()
+            )
+        if asset is None or asset.deleted_at is not None:
+            raise JournalArticleMediaValidationError("journal cover media was not found")
+        if asset.processing_state != MediaProcessingState.READY:
+            raise JournalArticleMediaValidationError("journal cover media must be ready")
+        if not asset.alt_en or not asset.alt_fa:
+            raise JournalArticleMediaValidationError(
+                "journal cover media requires localized alt text"
+            )
+        return asset
 
     def _replace_blocks(
         self,
@@ -337,8 +367,24 @@ class JournalAdministrationService:
             )
         self.session.flush()
 
-    @staticmethod
-    def _validate_publishable(article: JournalArticle) -> None:
+    def _validate_block_media(self, blocks: list[JournalArticleBlockWriteRequest]) -> None:
+        media_ids = {
+            SingleImageBlockPayload.model_validate(content).media_id
+            for block in blocks
+            if block.block_type == "single_image"
+            for content in (block.content_en, block.content_fa)
+        }
+        if not media_ids:
+            return
+        with self.session.no_autoflush:
+            assets = self.session.scalars(
+                select(MediaAsset).where(MediaAsset.id.in_(media_ids)).with_for_update()
+            ).all()
+        assets_by_id = {asset.id: asset for asset in assets}
+        if set(assets_by_id) != media_ids or any(asset.deleted_at is not None for asset in assets):
+            raise JournalArticleMediaValidationError("one or more article images were not found")
+
+    def _validate_publishable(self, article: JournalArticle) -> None:
         if article.publication_state != PublicationState.PUBLISHED:
             return
         missing: list[str] = []
@@ -353,6 +399,25 @@ class JournalAdministrationService:
             not article.cover_alt_en or not article.cover_alt_fa
         ):
             missing.extend(("cover_alt_en", "cover_alt_fa"))
+        image_ids = {
+            SingleImageBlockPayload.model_validate(content).media_id
+            for block in article.blocks
+            if block.block_type == "single_image"
+            for content in (block.content_en, block.content_fa)
+        }
+        if image_ids:
+            assets = self.session.scalars(
+                select(MediaAsset).where(MediaAsset.id.in_(image_ids))
+            ).all()
+            assets_by_id = {asset.id: asset for asset in assets}
+            if set(assets_by_id) != image_ids or any(
+                asset.deleted_at is not None
+                or asset.processing_state != MediaProcessingState.READY
+                or not asset.alt_en
+                or not asset.alt_fa
+                for asset in assets
+            ):
+                missing.append("ready_bilingual_article_images")
         if missing:
             raise JournalArticlePublishingValidationError(missing)
 
@@ -440,6 +505,7 @@ def _article_response(article: JournalArticle) -> AdminJournalArticleResponse:
         excerpt_en=article.excerpt_en,
         excerpt_fa=article.excerpt_fa,
         reading_minutes=article.reading_minutes,
+        cover_media_id=article.cover_media_id,
         cover_image_url=article.cover_image_url,
         cover_alt_en=article.cover_alt_en,
         cover_alt_fa=article.cover_alt_fa,
