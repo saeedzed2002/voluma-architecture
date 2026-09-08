@@ -11,6 +11,11 @@ export const metadata: Metadata = {
   title: "Administration — VOLUMA",
 };
 
+// The security proxy supplies a per-request CSP nonce. This root layout must
+// stay request-rendered so Next.js can attach that nonce to its client scripts;
+// otherwise the browser correctly blocks administrator interactivity.
+export const dynamic = "force-dynamic";
+
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <html className={instrumentSans.variable} lang="en">
