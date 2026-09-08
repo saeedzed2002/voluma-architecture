@@ -10,6 +10,7 @@ describe("security proxy", () => {
 
     expect(contentSecurityPolicy).toContain("frame-ancestors 'none'");
     expect(contentSecurityPolicy).toMatch(/script-src 'self' 'nonce-[A-Za-z0-9+/=]+'/);
+    expect(contentSecurityPolicy).toContain("style-src-attr 'unsafe-inline'");
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
   });
 

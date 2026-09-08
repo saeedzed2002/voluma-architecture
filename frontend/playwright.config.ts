@@ -24,11 +24,24 @@ export default defineConfig({
   projects: [
     {
       name: "desktop-chrome",
-      use: { ...devices["Desktop Chrome"], channel: "chrome" },
+      // CI reaches the private BFF directly rather than through Nginx. Give
+      // each browser project a distinct simulated, trusted-proxy address so a
+      // negative-login test cannot consume the production IP rate-limit budget
+      // of a valid-login test in the other project. Nginx replaces this header
+      // with its remote address in production.
+      use: {
+        ...devices["Desktop Chrome"],
+        channel: "chrome",
+        extraHTTPHeaders: { "x-forwarded-for": "198.51.100.10" },
+      },
     },
     {
       name: "mobile-chrome",
-      use: { ...devices["Pixel 7"], channel: "chrome" },
+      use: {
+        ...devices["Pixel 7"],
+        channel: "chrome",
+        extraHTTPHeaders: { "x-forwarded-for": "198.51.100.11" },
+      },
     },
   ],
 });
