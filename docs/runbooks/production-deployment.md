@@ -49,11 +49,11 @@ private `api` network address; browsers use the same public origin through Nginx
 2. Set `VOLUMA_INITIAL_ADMIN_EMAIL` and `VOLUMA_INITIAL_ADMIN_PASSWORD` only in the
    protected bootstrap environment. The password must be unique and at least 12
    characters. It is never committed or printed by the release process.
-3. Build and start the stack, including the one-shot migration and initial-admin
-   bootstrap service:
+3. Build and start the stack, including the one-shot migration service:
 
 ```sh
-docker compose --env-file /etc/voluma/production.env --profile bootstrap up --build --detach --wait
+docker compose --env-file /etc/voluma/production.env up --build --detach --wait
+docker compose --env-file /etc/voluma/production.env --profile bootstrap run --rm --no-deps provision-admin
 ```
 
 4. Record the resulting application-image digests, then run the release smoke suite:

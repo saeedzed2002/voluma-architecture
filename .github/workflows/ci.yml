@@ -158,7 +158,10 @@ jobs:
             -subj "/CN=localhost"
 
       - name: Build, migrate, and start the isolated stack
-        run: docker compose --profile bootstrap up --build --detach --wait --wait-timeout 240
+        run: docker compose up --build --detach --wait --wait-timeout 240
+
+      - name: Provision the CI-only administrator
+        run: docker compose --profile bootstrap run --rm --no-deps provision-admin
 
       - name: Load CI-only representative content
         run: docker compose exec -T api python -m app.fixtures.seed
