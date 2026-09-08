@@ -177,7 +177,9 @@ services:
       VOLUMA_API_BASE_URL: http://api:8000
       VOLUMA_PUBLIC_ORIGIN: ${VOLUMA_PUBLIC_ORIGIN:?Set the canonical HTTPS origin in protected deployment configuration.}
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/admin/login').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      # Liveness only: the later HTTPS release smoke validates public pages,
+      # the BFF, and administrator login through Nginx.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/robots.txt').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 5
