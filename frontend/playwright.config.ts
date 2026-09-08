@@ -16,7 +16,11 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: `corepack pnpm start --port ${port}`,
+    command: "corepack pnpm start:standalone",
+    env: {
+      HOSTNAME: "127.0.0.1",
+      PORT: port,
+    },
     url: `http://127.0.0.1:${port}/en`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
