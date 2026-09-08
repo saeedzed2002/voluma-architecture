@@ -31,15 +31,13 @@ services:
 
   redis:
     image: redis:8.10.1@sha256:298e5b3bc566bade82f46ad5511777a4a07a294097ce16ada2f6a42be5239df5
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set a protected Redis password.}
     command:
       [
-        "redis-server",
-        "--appendonly",
-        "yes",
-        "--appendfsync",
-        "everysec",
-        "--requirepass",
-        "${REDIS_PASSWORD:?Set a protected Redis password.}",
+        "sh",
+        "-ec",
+        "exec redis-server --appendonly yes --appendfsync everysec --requirepass \"$${REDIS_PASSWORD}\"",
       ]
     healthcheck:
       test: ["CMD-SHELL", "redis-cli --no-auth-warning -a $$REDIS_PASSWORD ping | grep -q PONG"]
