@@ -37,14 +37,6 @@ function MediaPickerCard({
   const [credit, setCredit] = useState(asset.credit ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    setAltEn(asset.alt_en ?? "");
-    setAltFa(asset.alt_fa ?? "");
-    setCaptionEn(asset.caption_en ?? "");
-    setCaptionFa(asset.caption_fa ?? "");
-    setCredit(asset.credit ?? "");
-  }, [asset.alt_en, asset.alt_fa, asset.caption_en, asset.caption_fa, asset.credit, asset.id]);
-
   const saveMetadata = async () => {
     setIsSaving(true);
     try {
@@ -175,10 +167,6 @@ export function AdminMediaPicker({
   }, []);
 
   useEffect(() => {
-    if (isOpen) void refresh();
-  }, [isOpen, refresh]);
-
-  useEffect(() => {
     if (!isOpen || !assets.some((asset) => asset.processing_state === "processing")) return;
     const interval = window.setInterval(() => void refresh(), 3_000);
     return () => window.clearInterval(interval);
@@ -232,6 +220,12 @@ export function AdminMediaPicker({
     if (!disabled && !isUploading) void upload(event.dataTransfer.files);
   };
 
+  const toggleOpen = () => {
+    const nextIsOpen = !isOpen;
+    setIsOpen(nextIsOpen);
+    if (nextIsOpen) void refresh();
+  };
+
   return (
     <section className="admin-media-picker" aria-label={title}>
       <div className="admin-media-picker__heading">
@@ -245,7 +239,7 @@ export function AdminMediaPicker({
         </div>
         <button
           disabled={disabled || isUploading}
-          onClick={() => setIsOpen((current) => !current)}
+          onClick={toggleOpen}
           type="button"
         >
           {isOpen ? "Hide managed images" : "Choose or upload image"}
