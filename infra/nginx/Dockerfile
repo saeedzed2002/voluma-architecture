@@ -3,10 +3,9 @@ FROM nginx:1.30.4-alpine@sha256:dc5069ad14f19660b141b21236140b91656bf89bbc3e2417
 COPY infra/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY infra/nginx/conf.d/media.conf /etc/nginx/conf.d/media.conf
 COPY infra/nginx/conf.d/proxy-headers.conf /etc/nginx/conf.d/proxy-headers.conf
-
-RUN mkdir --parents /tmp/nginx/client /tmp/nginx/proxy /tmp/nginx/fastcgi /tmp/nginx/uwsgi /tmp/nginx/scgi \
-    && chown -R nginx:nginx /tmp/nginx
-
-USER nginx
+COPY --chmod=755 infra/nginx/entrypoint.sh /usr/local/bin/voluma-nginx-entrypoint
 
 EXPOSE 8080 8443
+
+ENTRYPOINT ["/usr/local/bin/voluma-nginx-entrypoint"]
+CMD ["nginx", "-g", "daemon off;"]
