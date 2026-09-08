@@ -15,6 +15,7 @@ frontend/test-results/
 # Python
 backend/.venv/
 backend/.pytest_cache/
+backend/.pytest-tmp/
 backend/.mypy_cache/
 backend/.ruff_cache/
 backend/.coverage
@@ -31,6 +32,8 @@ backend/coverage.xml
 /media/
 /postgres_data/
 /redis_data/
+/infra/backups/*
+!/infra/backups/.gitkeep
 
 # Editor and OS files
 .DS_Store

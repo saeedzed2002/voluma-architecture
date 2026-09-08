@@ -78,6 +78,13 @@ def _too_many_attempts() -> HTTPException:
 
 
 def _request_ip(request: Request) -> str:
+    """Use the Nginx-sanitized address that the private Next.js BFF forwards."""
+
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        first_address = forwarded_for.split(",", maxsplit=1)[0].strip()
+        if first_address:
+            return first_address
     return request.client.host if request.client is not None else "unknown"
 
 

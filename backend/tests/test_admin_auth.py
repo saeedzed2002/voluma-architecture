@@ -145,6 +145,29 @@ def test_login_errors_are_generic_and_rate_limited(
     assert response.json() == {"detail": "try again later"}
 
 
+def test_login_rate_limit_uses_the_edge_sanitized_client_address(
+    session: Session, client: tuple[TestClient, FakeRedis]
+) -> None:
+    test_client, _ = client
+    _administrator(session)
+    payload = {"email": "administrator@example.com", "password": "incorrect password"}
+
+    for _ in range(5):
+        response = test_client.post(
+            "/api/v1/admin/auth/login",
+            headers={"Origin": ORIGIN, "X-Forwarded-For": "203.0.113.10"},
+            json=payload,
+        )
+        assert response.status_code == 401
+
+    response = test_client.post(
+        "/api/v1/admin/auth/login",
+        headers={"Origin": ORIGIN, "X-Forwarded-For": "203.0.113.11"},
+        json=payload,
+    )
+    assert response.status_code == 401
+
+
 def test_login_rotates_an_existing_session(
     session: Session, client: tuple[TestClient, FakeRedis]
 ) -> None:

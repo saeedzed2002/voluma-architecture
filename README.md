@@ -12,33 +12,37 @@ does not duplicate that specification.
 
 ## Current phase
 
-Phases 1 through 4 are implemented. The approved public experience renders from
+Phases 1 through 5 are implemented. The approved public experience renders from
 purpose-built, published-only FastAPI response schemas with `no-store` Next.js fetches.
 The administrator workspace provides protected bilingual content, ordering, publishing,
 message triage, singleton site-settings workflows, and a managed media library with audit
 events and Redis tagged cache invalidation. Phase 5 adds validated JPEG/PNG/WebP uploads,
 durable processing states, Celery derivative generation, versioned public media paths, and
-project gallery selection. Production container hardening and deployment remain Phase 6.
+project gallery selection. Phase 6 now supplies production Dockerfiles, immutable base-image
+pins, private Compose networking, TLS Nginx routing, nonce-based CSP, runbooks, and release
+automation. A real container build, scan, clean-host deployment, and restore exercise still
+require observed Docker/registry access; they are not claimed as complete by this repository.
 
 ## Planned layout
 
 ```text
 frontend/  Next.js public site and administrative interface
 backend/   FastAPI API, migrations, services, and Celery tasks
-nginx/     reverse-proxy and public derivative-media configuration
+infra/nginx/ Nginx image, reverse proxy, and public derivative-media configuration
 infra/     Compose, scripts, and backup operations
 docs/      product source of truth, ADRs, and runbooks
 ```
 
 ## Run the current application locally
 
-Phase 3 uses two temporary local containers for PostgreSQL and Redis. This is a
-development-only bootstrap, not the production Compose deployment planned for Phase 6.
-Choose a local password rather than committing one, then start the dependencies:
+Use the development Compose file for PostgreSQL and Redis. It binds their ports only to
+`127.0.0.1`; it is deliberately separate from the production stack. Copy `.env.example`
+to a protected local `.env`, replace every password placeholder consistently in the URLs,
+then start the dependencies:
 
 ```powershell
-docker run --rm -d --name voluma-phase3-postgres -e POSTGRES_DB=voluma -e POSTGRES_USER=voluma -e POSTGRES_PASSWORD=<local-password> -p 127.0.0.1:54329:5432 postgres:18.6
-docker run --rm -d --name voluma-phase3-redis -p 127.0.0.1:56379:6379 redis:8.10.1 redis-server --save "" --appendonly no
+Copy-Item .env.example .env
+docker compose --env-file .env -f docker-compose.dev.yml up --detach --wait
 ```
 
 Run the migration, load representative development-only content, and start the API:
@@ -46,8 +50,8 @@ Run the migration, load representative development-only content, and start the A
 ```powershell
 cd D:\Project\VOLUMA\backend
 $env:DATABASE_URL = "postgresql+psycopg://voluma:<local-password>@127.0.0.1:54329/voluma"
-$env:REDIS_URL = "redis://127.0.0.1:56379/0"
-$env:CELERY_BROKER_URL = "redis://127.0.0.1:56379/1"
+$env:REDIS_URL = "redis://:<local-redis-password>@127.0.0.1:56379/0"
+$env:CELERY_BROKER_URL = "redis://:<local-redis-password>@127.0.0.1:56379/1"
 $env:VOLUMA_MEDIA_ROOT = "D:\Project\VOLUMA\.voluma-media"
 uv run alembic upgrade head
 uv run python -m app.fixtures.seed
@@ -66,14 +70,14 @@ files as well as the Nginx-readable `public/` derivative subtree.
 ```powershell
 cd D:\Project\VOLUMA\backend
 $env:DATABASE_URL = "postgresql+psycopg://voluma:<local-password>@127.0.0.1:54329/voluma"
-$env:REDIS_URL = "redis://127.0.0.1:56379/0"
-$env:CELERY_BROKER_URL = "redis://127.0.0.1:56379/1"
+$env:REDIS_URL = "redis://:<local-redis-password>@127.0.0.1:56379/0"
+$env:CELERY_BROKER_URL = "redis://:<local-redis-password>@127.0.0.1:56379/1"
 $env:VOLUMA_MEDIA_ROOT = "D:\Project\VOLUMA\.voluma-media"
 uv run celery -A app.worker:celery_app worker --pool=solo --loglevel=INFO
 ```
 
 `--pool=solo` is the compatible local Windows worker mode. The production worker
-process and shared persistent volume are delivered with the Phase 6 Compose release.
+process and shared persistent volume are defined by the Phase 6 Compose release.
 
 In a second terminal, install the exact Node.js `24.20.0` runtime and run the frontend.
 Corepack reads the locked `pnpm@11.25.0` package-manager version from
@@ -133,6 +137,16 @@ The complete source of truth remains the product specification. Do not substitut
 nearby runtime or dependency version when regenerating lockfiles or release images.
 Copy `.env.example` to `.env` only for protected local configuration, replace every
 placeholder with protected local values, and never commit a populated `.env`.
+
+## Production operations
+
+Use only the documented procedures in
+[`docs/runbooks/production-deployment.md`](docs/runbooks/production-deployment.md),
+[`docs/runbooks/backup-and-restore.md`](docs/runbooks/backup-and-restore.md), and
+[`docs/runbooks/monitoring-and-performance.md`](docs/runbooks/monitoring-and-performance.md).
+Production uses valid TLS, exposes only Nginx ports `80` and `443`, and never receives
+development fixtures or source bind mounts. The base-image provenance is recorded in
+[`docs/runbooks/image-provenance.md`](docs/runbooks/image-provenance.md).
 
 ## License status
 

@@ -50,6 +50,23 @@ The initial locked frontend and backend direct dependencies use the specificatio
 - Manifest and lockfile paths changed
 - Test, container-build, and rollback evidence
 
+## 2026-09-08 — Phase 6 CI security tooling
+
+- Scope: CI-only GitHub Actions; no production application dependency or lockfile changed.
+- Packages/actions: `gitleaks/gitleaks-action` pinned to commit
+  `e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e` (documented `v3`),
+  `aquasecurity/trivy-action==v0.36.0`, and
+  `actions/dependency-review-action==v4`.
+- Reason: the approved Phase 6 quality gates require a history secret scan, dependency
+  review/audit, and high/critical OS-plus-library container image scan in addition to
+  application checks and Compose smoke coverage.
+- Evidence: official action documentation reviewed on 2026-09-08; the workflow builds
+  the locally tagged Compose images before scanning them. Live CI, image-scan, and
+  clean-host evidence remain pending until a runner executes this workflow.
+- Files: `.github/workflows/ci.yml` and this catalog.
+- Rollback: remove a CI action only together with an approved replacement that preserves
+  the same required scan category and is validated in CI.
+
 ## 2026-09-05 — TypeScript 7 compiler with TypeScript 6 tooling API
 
 - Owner: project owner, authorized as part of Phase 1 implementation.

@@ -9,12 +9,12 @@ permissions:
   contents: read
 
 jobs:
-  locked-bootstrap:
-    name: Verify Phase 4 CMS workflows
+  application-checks:
+    name: Validate locked application contracts
     runs-on: ubuntu-24.04
     services:
       postgres:
-        image: postgres:18.6
+        image: postgres:18.6@sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280
         env:
           POSTGRES_DB: voluma
           POSTGRES_USER: voluma
@@ -27,7 +27,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       redis:
-        image: redis:8.10.1
+        image: redis:8.10.1@sha256:298e5b3bc566bade82f46ad5511777a4a07a294097ce16ada2f6a42be5239df5
         ports:
           - 6379:6379
         options: >-
@@ -44,19 +44,16 @@ jobs:
         with:
           node-version: 24.20.0
 
-      - name: Install frontend from lockfile
+      - name: Install and validate frontend from the lockfile
         working-directory: frontend
         run: |
           corepack enable
           corepack pnpm install --frozen-lockfile
-
-      - name: Validate public frontend
-        working-directory: frontend
-        run: |
           corepack pnpm lint
           corepack pnpm typecheck
           corepack pnpm test
           corepack pnpm build
+          corepack pnpm audit --prod --audit-level=high
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -68,39 +65,49 @@ jobs:
         with:
           version: 0.12.9
 
-      - name: Install backend from lockfile
-        working-directory: backend
-        run: uv sync --frozen --all-groups
-
-      - name: Validate backend and apply the empty-database migration
+      - name: Install and validate backend from the lockfile
         working-directory: backend
         env:
           DATABASE_URL: postgresql+psycopg://voluma:ci-only-postgres-password@127.0.0.1:5432/voluma
           REDIS_URL: redis://127.0.0.1:6379/0
+          CELERY_BROKER_URL: redis://127.0.0.1:6379/1
+          VOLUMA_MEDIA_ROOT: ${{ runner.temp }}/voluma-media
           VOLUMA_INITIAL_ADMIN_EMAIL: e2e-administrator@example.com
           VOLUMA_INITIAL_ADMIN_PASSWORD: ci-only-administrator-password
         run: |
+          uv sync --frozen --all-groups
           uv run ruff format --check .
           uv run ruff check .
           uv run mypy app
-          uv run pytest
+          uv run pytest --cov=app --cov-report=term-missing
           uv run alembic upgrade head
+          uv run alembic check
           uv run python -m app.fixtures.seed
           uv run python -m app.commands.provision_initial_administrator
 
-      - name: Start API for browser checks
+      - name: Start API and media worker for browser checks
         working-directory: backend
         env:
+          CELERY_BROKER_URL: redis://127.0.0.1:6379/1
           DATABASE_URL: postgresql+psycopg://voluma:ci-only-postgres-password@127.0.0.1:5432/voluma
           REDIS_URL: redis://127.0.0.1:6379/0
+          VOLUMA_MEDIA_ROOT: ${{ runner.temp }}/voluma-media
           VOLUMA_PUBLIC_ORIGIN: http://127.0.0.1:3000
         run: |
           nohup uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/voluma-api.log" 2>&1 &
+          nohup uv run celery -A app.worker.celery_app worker --hostname=voluma-ci@%h --loglevel=warning > "$RUNNER_TEMP/voluma-worker.log" 2>&1 &
           for attempt in {1..30}; do
             curl --fail --silent http://127.0.0.1:8000/api/readyz && break
             sleep 1
           done
           curl --fail --silent http://127.0.0.1:8000/api/readyz
+          for attempt in {1..30}; do
+            if uv run celery -A app.worker.celery_app inspect ping --timeout=1 | grep --quiet pong; then
+              break
+            fi
+            sleep 1
+          done
+          uv run celery -A app.worker.celery_app inspect ping --timeout=1 | grep --quiet pong
 
       - name: Run browser and accessibility checks against the API
         working-directory: frontend
@@ -112,3 +119,115 @@ jobs:
 
       - name: Check whitespace errors
         run: git diff-tree --check --no-commit-id -r HEAD
+
+      - name: Print API and worker logs after a failure
+        if: failure()
+        run: |
+          cat "$RUNNER_TEMP/voluma-api.log" || true
+          cat "$RUNNER_TEMP/voluma-worker.log" || true
+
+  compose-smoke:
+    name: Build and smoke the production stack
+    runs-on: ubuntu-24.04
+    needs: application-checks
+    env:
+      CELERY_BROKER_URL: redis://:ci-only-redis-password@redis:6379/1
+      DATABASE_URL: postgresql+psycopg://voluma:ci-only-postgres-password@postgres:5432/voluma
+      POSTGRES_DB: voluma
+      POSTGRES_PASSWORD: ci-only-postgres-password
+      POSTGRES_USER: voluma
+      REDIS_PASSWORD: ci-only-redis-password
+      REDIS_URL: redis://:ci-only-redis-password@redis:6379/0
+      VOLUMA_ENVIRONMENT: production
+      VOLUMA_IMAGE_TAG: ci
+      VOLUMA_INITIAL_ADMIN_EMAIL: e2e-administrator@example.com
+      VOLUMA_INITIAL_ADMIN_PASSWORD: ci-only-administrator-password
+      VOLUMA_PUBLIC_ORIGIN: https://localhost
+      VOLUMA_TLS_CERT_PATH: ${{ runner.temp }}/voluma-tls/fullchain.pem
+      VOLUMA_TLS_KEY_PATH: ${{ runner.temp }}/voluma-tls/privkey.pem
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Generate CI-only TLS material
+        run: |
+          mkdir --parents "$RUNNER_TEMP/voluma-tls"
+          openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+            -keyout "$RUNNER_TEMP/voluma-tls/privkey.pem" \
+            -out "$RUNNER_TEMP/voluma-tls/fullchain.pem" \
+            -subj "/CN=localhost"
+
+      - name: Build, migrate, and start the isolated stack
+        run: docker compose --profile bootstrap up --build --detach --wait --wait-timeout 240
+
+      - name: Load CI-only representative content
+        run: docker compose exec -T api python -m app.fixtures.seed
+
+      - name: Smoke the HTTPS reverse proxy and BFF routes
+        env:
+          VOLUMA_SMOKE_ADMIN_EMAIL: e2e-administrator@example.com
+          VOLUMA_SMOKE_ADMIN_PASSWORD: ci-only-administrator-password
+          VOLUMA_SMOKE_ALLOW_INSECURE_TLS: "1"
+        run: sh infra/scripts/release-smoke.sh
+
+      - name: Scan API image for high and critical vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: voluma-api:ci
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          vuln-type: os,library
+
+      - name: Scan frontend image for high and critical vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: voluma-frontend:ci
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          skip-setup-trivy: true
+          vuln-type: os,library
+
+      - name: Scan Nginx image for high and critical vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: voluma-nginx:ci
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          skip-setup-trivy: true
+          vuln-type: os,library
+
+      - name: Print Compose logs after a failure
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Stop the isolated stack
+        if: always()
+        run: docker compose down --remove-orphans
+
+  dependency-review:
+    name: Review dependency changes
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  secret-scan:
+    name: Scan repository history for secrets
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source with history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

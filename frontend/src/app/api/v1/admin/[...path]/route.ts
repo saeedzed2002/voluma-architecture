@@ -4,7 +4,14 @@ const backendBaseUrl = (
   process.env.VOLUMA_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000"
 ).replace(/\/$/, "");
 
-const forwardedHeaders = ["accept", "content-type", "cookie", "origin", "x-voluma-csrf"] as const;
+const forwardedHeaders = [
+  "accept",
+  "content-type",
+  "cookie",
+  "origin",
+  "x-forwarded-for",
+  "x-voluma-csrf",
+] as const;
 
 export const dynamic = "force-dynamic";
 

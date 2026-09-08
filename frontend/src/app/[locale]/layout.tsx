@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Script from "next/script";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
@@ -20,6 +21,15 @@ type LocaleLayoutProps = {
   children: ReactNode;
   params: Promise<{ locale: string }>;
 };
+
+function serializeStructuredData(value: object) {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -69,6 +79,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   const locale = localeParam as Locale;
   const direction = directionForLocale(locale);
   const site = await getSite(locale);
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   const structuredData = {
     "@context": "https://schema.org",
     "@graph": [
@@ -96,11 +107,12 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
       suppressHydrationWarning
     >
       <body>
-        <Script id="voluma-theme-init" strategy="beforeInteractive">
+        <Script id="voluma-theme-init" nonce={nonce} strategy="beforeInteractive">
           {themeInitScript(site.default_theme)}
         </Script>
         <script
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+          dangerouslySetInnerHTML={{ __html: serializeStructuredData(structuredData) }}
+          nonce={nonce}
           type="application/ld+json"
         />
         <NextIntlClientProvider>
