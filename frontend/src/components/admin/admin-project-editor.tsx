@@ -230,6 +230,45 @@ function TextField({
   );
 }
 
+function EditorialTextFields({
+  contentEn,
+  contentFa,
+  onContentEnChange,
+  onContentFaChange,
+}: {
+  contentEn: { body: string; heading?: string };
+  contentFa: { body: string; heading?: string };
+  onContentEnChange: (content: { body: string; heading?: string }) => void;
+  onContentFaChange: (content: { body: string; heading?: string }) => void;
+}) {
+  return (
+    <>
+      <TextField
+        label="Text heading / EN"
+        onChange={(heading) => onContentEnChange({ ...contentEn, heading })}
+        value={contentEn.heading ?? ""}
+      />
+      <TextField
+        label="Text body / EN"
+        multiline
+        onChange={(body) => onContentEnChange({ ...contentEn, body })}
+        value={contentEn.body}
+      />
+      <TextField
+        label="Text heading / FA"
+        onChange={(heading) => onContentFaChange({ ...contentFa, heading })}
+        value={contentFa.heading ?? ""}
+      />
+      <TextField
+        label="Text body / FA"
+        multiline
+        onChange={(body) => onContentFaChange({ ...contentFa, body })}
+        value={contentFa.body}
+      />
+    </>
+  );
+}
+
 function TaxonomyChecklist({
   label,
   onChange,
@@ -285,68 +324,51 @@ function ProjectBlocksEditor({
       </p>
       {blocks.map((block, index) => (
         <article className="admin-block-editor__block" key={`${block.block_type}-${index}`}>
-          {block.block_type === "text" || block.block_type === "image_text" ? (
+          {block.block_type === "text" ? (
+            <EditorialTextFields
+              contentEn={block.content_en}
+              contentFa={block.content_fa}
+              onContentEnChange={(content_en) => update(index, { ...block, content_en })}
+              onContentFaChange={(content_fa) => update(index, { ...block, content_fa })}
+            />
+          ) : block.block_type === "image_text" ? (
             <>
-              <TextField
-                label="Text heading / EN"
-                onChange={(heading) =>
-                  update(index, { ...block, content_en: { ...block.content_en, heading } })
+              <EditorialTextFields
+                contentEn={block.content_en}
+                contentFa={block.content_fa}
+                onContentEnChange={(content_en) =>
+                  update(index, { ...block, content_en: { ...block.content_en, ...content_en } })
                 }
-                value={block.content_en.heading ?? ""}
-              />
-              <TextField
-                label="Text body / EN"
-                multiline
-                onChange={(body) =>
-                  update(index, { ...block, content_en: { ...block.content_en, body } })
+                onContentFaChange={(content_fa) =>
+                  update(index, { ...block, content_fa: { ...block.content_fa, ...content_fa } })
                 }
-                value={block.content_en.body}
               />
-              <TextField
-                label="Text heading / FA"
-                onChange={(heading) =>
-                  update(index, { ...block, content_fa: { ...block.content_fa, heading } })
+              <AdminMediaPicker
+                disabled={disabled}
+                onSelect={(asset) =>
+                  update(index, {
+                    ...block,
+                    content_en: { ...block.content_en, media_id: asset.id },
+                    content_fa: { ...block.content_fa, media_id: asset.id },
+                  })
                 }
-                value={block.content_fa.heading ?? ""}
+                selectedIds={block.content_en.media_id ? [block.content_en.media_id] : []}
+                title="Image beside this text"
               />
-              <TextField
-                label="Text body / FA"
-                multiline
-                onChange={(body) =>
-                  update(index, { ...block, content_fa: { ...block.content_fa, body } })
-                }
-                value={block.content_fa.body}
-              />
-              {block.block_type === "image_text" ? (
-                <>
-                  <AdminMediaPicker
-                    disabled={disabled}
-                    onSelect={(asset) =>
-                      update(index, {
-                        ...block,
-                        content_en: { ...block.content_en, media_id: asset.id },
-                        content_fa: { ...block.content_fa, media_id: asset.id },
-                      })
-                    }
-                    selectedIds={block.content_en.media_id ? [block.content_en.media_id] : []}
-                    title="Image beside this text"
-                  />
-                  {block.content_en.media_id ? (
-                    <button
-                      disabled={disabled}
-                      onClick={() =>
-                        update(index, {
-                          ...block,
-                          content_en: { ...block.content_en, media_id: "" },
-                          content_fa: { ...block.content_fa, media_id: "" },
-                        })
-                      }
-                      type="button"
-                    >
-                      Remove selected image
-                    </button>
-                  ) : null}
-                </>
+              {block.content_en.media_id ? (
+                <button
+                  disabled={disabled}
+                  onClick={() =>
+                    update(index, {
+                      ...block,
+                      content_en: { ...block.content_en, media_id: "" },
+                      content_fa: { ...block.content_fa, media_id: "" },
+                    })
+                  }
+                  type="button"
+                >
+                  Remove selected image
+                </button>
               ) : null}
             </>
           ) : block.block_type === "quote" ? (
