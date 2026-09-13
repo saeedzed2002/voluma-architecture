@@ -149,6 +149,33 @@ function imageTextBlock(mediaId = ""): JournalArticleBlockWrite {
   };
 }
 
+function quoteBlock(): JournalArticleBlockWrite {
+  return {
+    block_type: "quote",
+    content_en: { quote: "" },
+    content_fa: { quote: "" },
+  };
+}
+
+const articleSectionDetails = {
+  text: {
+    description: "A paragraph or longer passage in both languages.",
+    title: "Text",
+  },
+  quote: {
+    description: "A short statement that deserves its own emphasis.",
+    title: "Quote",
+  },
+  single_image: {
+    description: "A full visual moment between passages.",
+    title: "Image",
+  },
+  image_text: {
+    description: "A smaller image with its related copy beside it.",
+    title: "Image with text",
+  },
+} as const;
+
 function emptyArticle(categoryId = ""): ArticleForm {
   return {
     blocks: [textBlock()],
@@ -336,6 +363,27 @@ export function AdminJournalManager() {
       ...current,
       blocks: current.blocks.map((item, itemIndex) => (itemIndex === index ? block : item)),
     }));
+  };
+
+  const moveBlock = (index: number, direction: -1 | 1) => {
+    setArticleForm((current) => {
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= current.blocks.length) return current;
+      const blocks = [...current.blocks];
+      [blocks[index], blocks[targetIndex]] = [blocks[targetIndex], blocks[index]];
+      return { ...current, blocks };
+    });
+  };
+
+  const removeBlock = (index: number) => {
+    setArticleForm((current) => ({
+      ...current,
+      blocks: current.blocks.filter((_, blockIndex) => blockIndex !== index),
+    }));
+  };
+
+  const addBlock = (block: JournalArticleBlockWrite) => {
+    setArticleForm((current) => ({ ...current, blocks: [...current.blocks, block] }));
   };
 
   const articleSubmitLabel =
@@ -683,36 +731,41 @@ export function AdminJournalManager() {
           </div>
 
           <fieldset className="admin-block-editor">
-            <legend>Article blocks</legend>
+            <legend>Article content</legend>
+            <p>
+              Start with the cover image above, then add each part in the order readers should see
+              it. Everything saves together with the article.
+            </p>
             {articleForm.blocks.map((block, index) => (
               <div className="admin-block-editor__block" key={`${block.block_type}-${index}`}>
-                <label className="admin-editor__field">
-                  <span>Block type</span>
-                  <select
-                    onChange={(event) =>
-                      replaceBlock(
-                        index,
-                        event.target.value === "quote"
-                          ? {
-                              block_type: "quote",
-                              content_en: { quote: "" },
-                              content_fa: { quote: "" },
-                            }
-                          : event.target.value === "single_image"
-                            ? imageBlock()
-                            : event.target.value === "image_text"
-                              ? imageTextBlock()
-                              : textBlock(),
-                      )
-                    }
-                    value={block.block_type}
-                  >
-                    <option value="text">Text</option>
-                    <option value="quote">Quote</option>
-                    <option value="single_image">Image</option>
-                    <option value="image_text">Image and text</option>
-                  </select>
-                </label>
+                <header className="admin-block-editor__section-heading">
+                  <div>
+                    <p>Section {index + 1}</p>
+                    <h3>{articleSectionDetails[block.block_type].title}</h3>
+                    <span>{articleSectionDetails[block.block_type].description}</span>
+                  </div>
+                  <div className="admin-block-editor__section-actions">
+                    <button
+                      aria-label={`Move section ${index + 1} earlier`}
+                      disabled={index === 0}
+                      onClick={() => moveBlock(index, -1)}
+                      type="button"
+                    >
+                      Move earlier
+                    </button>
+                    <button
+                      aria-label={`Move section ${index + 1} later`}
+                      disabled={index === articleForm.blocks.length - 1}
+                      onClick={() => moveBlock(index, 1)}
+                      type="button"
+                    >
+                      Move later
+                    </button>
+                    <button onClick={() => removeBlock(index)} type="button">
+                      Remove section
+                    </button>
+                  </div>
+                </header>
                 {block.block_type === "text" ? (
                   <>
                     <label className="admin-editor__field">
@@ -801,18 +854,25 @@ export function AdminJournalManager() {
                     </label>
                   </>
                 ) : block.block_type === "single_image" ? (
-                  <AdminMediaPicker
-                    allowUnreadySelection
-                    onAssetUpdated={(asset) =>
-                      setMedia((current) => [
-                        asset,
-                        ...current.filter((item) => item.id !== asset.id),
-                      ])
-                    }
-                    onSelect={(asset) => replaceBlock(index, imageBlock(asset.id))}
-                    selectedIds={block.content_en.media_id ? [block.content_en.media_id] : []}
-                    title="Article image"
-                  />
+                  <>
+                    <AdminMediaPicker
+                      allowUnreadySelection
+                      onAssetUpdated={(asset) =>
+                        setMedia((current) => [
+                          asset,
+                          ...current.filter((item) => item.id !== asset.id),
+                        ])
+                      }
+                      onSelect={(asset) => replaceBlock(index, imageBlock(asset.id))}
+                      selectedIds={block.content_en.media_id ? [block.content_en.media_id] : []}
+                      title="Article image"
+                    />
+                    {block.content_en.media_id ? (
+                      <button onClick={() => replaceBlock(index, imageBlock())} type="button">
+                        Remove image
+                      </button>
+                    ) : null}
+                  </>
                 ) : (
                   <>
                     <AdminMediaPicker
@@ -833,6 +893,20 @@ export function AdminJournalManager() {
                       selectedIds={block.content_en.media_id ? [block.content_en.media_id] : []}
                       title="Image beside text"
                     />
+                    {block.content_en.media_id ? (
+                      <button
+                        onClick={() =>
+                          replaceBlock(index, {
+                            ...block,
+                            content_en: { ...block.content_en, media_id: "" },
+                            content_fa: { ...block.content_fa, media_id: "" },
+                          })
+                        }
+                        type="button"
+                      >
+                        Remove image
+                      </button>
+                    ) : null}
                     <label className="admin-editor__field">
                       <span>Heading / EN</span>
                       <input
@@ -891,52 +965,29 @@ export function AdminJournalManager() {
                     </label>
                   </>
                 )}
-                <button
-                  onClick={() =>
-                    setArticleForm((current) => ({
-                      ...current,
-                      blocks: current.blocks.filter((_, blockIndex) => blockIndex !== index),
-                    }))
-                  }
-                  type="button"
-                >
-                  Remove block
-                </button>
               </div>
             ))}
-            <button
-              onClick={() =>
-                setArticleForm((current) => ({
-                  ...current,
-                  blocks: [...current.blocks, textBlock()],
-                }))
-              }
-              type="button"
-            >
-              Add text block
-            </button>
-            <button
-              onClick={() =>
-                setArticleForm((current) => ({
-                  ...current,
-                  blocks: [...current.blocks, imageBlock()],
-                }))
-              }
-              type="button"
-            >
-              Add image block
-            </button>
-            <button
-              onClick={() =>
-                setArticleForm((current) => ({
-                  ...current,
-                  blocks: [...current.blocks, imageTextBlock()],
-                }))
-              }
-              type="button"
-            >
-              Add image and text
-            </button>
+            <div className="admin-block-editor__add">
+              <p>What would you like to add next?</p>
+              <div>
+                <button onClick={() => addBlock(textBlock())} type="button">
+                  <strong>Text</strong>
+                  <span>Write the next passage.</span>
+                </button>
+                <button onClick={() => addBlock(imageBlock())} type="button">
+                  <strong>Image</strong>
+                  <span>Place a visual between passages.</span>
+                </button>
+                <button onClick={() => addBlock(imageTextBlock())} type="button">
+                  <strong>Image with text</strong>
+                  <span>Pair a smaller image with its copy.</span>
+                </button>
+                <button onClick={() => addBlock(quoteBlock())} type="button">
+                  <strong>Quote</strong>
+                  <span>Set a short statement apart.</span>
+                </button>
+              </div>
+            </div>
           </fieldset>
 
           <fieldset className="admin-block-editor">

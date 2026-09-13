@@ -3218,6 +3218,93 @@ html[lang="fa"] .journal-article__header h1 {
   padding-block-start: 1rem;
 }
 
+.admin-block-editor__section-heading {
+  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.admin-block-editor__section-heading > div:first-child {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.admin-block-editor__section-heading p,
+.admin-block-editor__section-heading span {
+  color: #a8ada8;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.admin-block-editor__section-heading h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.admin-block-editor__section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-block-editor__section-actions button,
+.admin-block-editor__add button {
+  border: 1px solid #4b504b;
+  color: #f4f1e7;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.7rem;
+}
+
+.admin-block-editor__section-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.admin-block-editor__add {
+  border-block-start: 1px solid #353835;
+  display: grid;
+  gap: 0.75rem;
+  padding-block-start: 1rem;
+}
+
+.admin-block-editor__add > p {
+  color: #f4f1e7;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.admin-block-editor__add > div {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-block-editor__add button {
+  display: grid;
+  gap: 0.25rem;
+  min-block-size: 5.75rem;
+  text-align: start;
+}
+
+.admin-block-editor__add button:hover,
+.admin-block-editor__add button:focus-visible {
+  border-color: #ddf26b;
+}
+
+.admin-block-editor__add strong {
+  font-size: 0.95rem;
+}
+
+.admin-block-editor__add span {
+  color: #a8ada8;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 .admin-journal-image-block {
   display: grid;
   gap: 1rem;
@@ -3733,6 +3820,10 @@ html[lang="fa"] .journal-article__header h1 {
 
   .admin-editor__grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-block-editor__add > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .admin-settings__pair,

@@ -133,7 +133,9 @@ test("administrator saves a processed image through the project form and uses it
     .getByLabel("Body / EN", { exact: true })
     .fill("A measured journal paragraph.");
   await articleSection.getByLabel("Body / FA", { exact: true }).fill("یک بند سنجیده برای یادداشت.");
-  await articleSection.getByRole("button", { name: "Add image block" }).click();
+  await articleSection
+    .getByRole("button", { name: /Image\s+Place a visual between passages/ })
+    .click();
   const articleImagePicker = articleSection.getByLabel("Article image");
   await articleImagePicker.getByRole("button", { name: "Choose existing" }).click();
   const articleImageCard = articleImagePicker.locator(
