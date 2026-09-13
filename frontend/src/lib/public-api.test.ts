@@ -14,7 +14,7 @@ describe("complete public archives", () => {
         new Response(
           JSON.stringify({
             items: [{ slug: "first" }],
-            pagination: { limit: 100, offset: 0, total: 101 },
+            pagination: { limit: 24, offset: 0, total: 25 },
           }),
           { status: 200 },
         ),
@@ -23,7 +23,7 @@ describe("complete public archives", () => {
         new Response(
           JSON.stringify({
             items: [{ slug: "second" }],
-            pagination: { limit: 100, offset: 100, total: 101 },
+            pagination: { limit: 24, offset: 24, total: 25 },
           }),
           { status: 200 },
         ),
@@ -35,12 +35,12 @@ describe("complete public archives", () => {
     expect(projects.map((project) => project.slug)).toEqual(["first", "second"]);
     expect(upstream).toHaveBeenNthCalledWith(
       1,
-      "http://localhost:8000/api/v1/public/projects?limit=100&locale=en",
+      "http://localhost:8000/api/v1/public/projects?locale=en",
       expect.any(Object),
     );
     expect(upstream).toHaveBeenNthCalledWith(
       2,
-      "http://localhost:8000/api/v1/public/projects?limit=100&offset=100&locale=en",
+      "http://localhost:8000/api/v1/public/projects?offset=24&locale=en",
       expect.any(Object),
     );
   });

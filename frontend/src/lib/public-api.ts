@@ -196,8 +196,6 @@ export function getProjects(locale: Locale, query: PublicProjectQuery = {}) {
   return publicFetch<PublicPage<PublicProject>>(`/projects${suffix ? `?${suffix}` : ""}`, locale);
 }
 
-const fullArchivePageLimit = 100;
-
 async function getAllPages<T>(
   fetchPage: (offset: number) => Promise<PublicPage<T>>,
 ): Promise<T[]> {
@@ -216,7 +214,7 @@ async function getAllPages<T>(
 }
 
 export function getAllProjects(locale: Locale) {
-  return getAllPages((offset) => getProjects(locale, { limit: fullArchivePageLimit, offset }));
+  return getAllPages((offset) => getProjects(locale, { offset }));
 }
 
 export function getProjectFilters(locale: Locale) {
@@ -252,7 +250,7 @@ export function getJournal(locale: Locale, query: PublicJournalQuery = {}) {
 }
 
 export function getAllJournalArticles(locale: Locale) {
-  return getAllPages((offset) => getJournal(locale, { limit: fullArchivePageLimit, offset }));
+  return getAllPages((offset) => getJournal(locale, { offset }));
 }
 
 export function getArticle(locale: Locale, slug: string) {

@@ -263,6 +263,9 @@ def test_public_route_excludes_draft_and_uses_response_schema(session: Session) 
         assert all(item["slug"] != "internal-draft" for item in payload["items"])
         assert "publication_state" not in payload["items"][0]
 
+        oversized_page_response = client.get("/api/v1/public/projects?locale=en&limit=25")
+        assert oversized_page_response.status_code == 422
+
         filters_response = client.get("/api/v1/public/projects/filters?locale=fa")
         assert filters_response.status_code == 200
         assert filters_response.json()["disciplines"][0]["title"] == "معماری"
