@@ -151,7 +151,18 @@ jobs:
           VOLUMA_API_BASE_URL: http://127.0.0.1:8000
           VOLUMA_E2E_ADMIN_EMAIL: e2e-administrator@example.com
           VOLUMA_E2E_ADMIN_PASSWORD: ci-only-administrator-password
-        run: corepack pnpm test:e2e
+        shell: bash
+        run: |
+          set -o pipefail
+          if output="$(corepack pnpm test:e2e 2>&1)"; then
+            printf '%s\n' "$output"
+          else
+            printf '%s\n' "$output"
+            while IFS= read -r line; do
+              printf '::error title=Browser integration check failed::%s\n' "$line"
+            done <<< "$output"
+            exit 1
+          fi
 
       - name: Check whitespace errors
         run: git diff-tree --check --no-commit-id -r HEAD
