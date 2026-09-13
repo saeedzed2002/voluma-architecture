@@ -18,6 +18,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.models.admin import AdminUser, AuditEvent
+from app.models.content import SiteSettings
+from app.services.site_settings_defaults import create_default_site_settings
 
 SESSION_PREFIX = "voluma:session:"
 LOGIN_IP_RATE_PREFIX = "voluma:rate:login:ip:"
@@ -202,19 +204,20 @@ def provision_initial_administrator(session: Session, settings: Settings) -> Adm
         raise InitialAdministratorConfigurationError(
             "initial administrator email is invalid"
         ) from error
-    existing = session.scalar(select(AdminUser).where(AdminUser.email == normalized_email))
-    if existing is not None:
-        return existing
-    administrator = AdminUser(
-        email=normalized_email, password_hash=hash_password(password), is_active=True
-    )
-    session.add(administrator)
-    session.flush()
-    record_audit_event(
-        session,
-        actor_id=administrator.id,
-        action="administrator.provisioned",
-        target_type="admin_user",
-        target_id=administrator.id,
-    )
+    administrator = session.scalar(select(AdminUser).where(AdminUser.email == normalized_email))
+    if administrator is None:
+        administrator = AdminUser(
+            email=normalized_email, password_hash=hash_password(password), is_active=True
+        )
+        session.add(administrator)
+        session.flush()
+        record_audit_event(
+            session,
+            actor_id=administrator.id,
+            action="administrator.provisioned",
+            target_type="admin_user",
+            target_id=administrator.id,
+        )
+    if session.scalar(select(SiteSettings.id).limit(1)) is None:
+        session.add(create_default_site_settings())
     return administrator

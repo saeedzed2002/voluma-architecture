@@ -9,11 +9,12 @@ from sqlalchemy.orm import Session
 
 from app.api.admin import get_admin_redis
 from app.api.public import get_public_cache
+from app.core.config import Settings
 from app.db.session import get_session
 from app.main import app
 from app.models.admin import AdminUser, AuditEvent
 from app.models.content import MediaAsset, MediaProcessingState, SiteSettings
-from app.services.admin_auth import hash_password
+from app.services.admin_auth import hash_password, provision_initial_administrator
 
 ORIGIN = "http://localhost:3000"
 PASSWORD = "a test-only administrator password"
@@ -219,3 +220,27 @@ def test_settings_update_bootstraps_the_singleton_when_no_record_exists(
     assert created.status_code == 200
     assert created.json()["id"] is not None
     assert session.scalar(select(SiteSettings)) is not None
+
+
+def test_initial_administrator_bootstrap_makes_public_settings_available(
+    session: Session, client: tuple[TestClient, RecordingCache]
+) -> None:
+    test_client, _cache = client
+    existing = session.scalar(select(SiteSettings))
+    assert existing is not None
+    session.delete(existing)
+    session.commit()
+
+    provision_initial_administrator(
+        session,
+        Settings(
+            VOLUMA_INITIAL_ADMIN_EMAIL="bootstrap-administrator@example.com",
+            VOLUMA_INITIAL_ADMIN_PASSWORD=PASSWORD,
+        ),
+    )
+    session.commit()
+
+    assert test_client.get("/api/v1/public/site?locale=en").status_code == 200
+    home = test_client.get("/api/v1/public/home?locale=fa")
+    assert home.status_code == 200
+    assert home.json()["hero_title"] == "معماری برای زندگی میان دیوارها."
