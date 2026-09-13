@@ -33,7 +33,11 @@ WORKDIR /app
 # carries transitive packages that are neither needed nor appropriate at runtime.
 RUN rm -rf /usr/local/lib/node_modules/npm \
     /usr/local/bin/npm \
-    /usr/local/bin/npx
+    /usr/local/bin/npx \
+    && apt-get update \
+    && apt-get install --no-install-recommends --only-upgrade \
+        "libpcre2-8-0=10.42-1+deb12u1" \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --gid 10001 --system voluma \
     && useradd --uid 10001 --gid voluma --system --no-create-home voluma

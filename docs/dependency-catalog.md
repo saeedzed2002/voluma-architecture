@@ -13,22 +13,22 @@ The initial locked frontend and backend direct dependencies use the specificatio
 ## 2026-09-13 — PCRE2 runtime security update
 
 - Owner: project owner, authorized during CI remediation.
-- Change: the production API image explicitly upgrades the inherited Debian package
-  `libpcre2-8-0` to the exact security build `10.42-1+deb12u1`.
-- Reason: the immutable Python base-image digest contains `libpcre2-8-0==10.42-1`,
-  for which Trivy reports the fixed high-severity findings `CVE-2026-86145` and
-  `CVE-2026-89161`. The Debian security build is the scanner's reported fixed
-  version. The update is limited to the production runner stage; it introduces no
-  Python dependency and changes neither manifest nor lockfile.
-- Evidence: local Trivy `0.70.0` scan of the API image identified both findings and
-  the exact Debian fixed version. The official `python:3.14.7-slim-bookworm` tag
-  still resolves to the existing pinned manifest-list digest, so changing only that
-  digest cannot remediate this advisory.
-- Files: `backend/Dockerfile` and this catalog. No application dependency or
-  lockfile changed.
-- Validation and rollback: rebuild and scan the API image before release; run the
-  Compose smoke stack. If rollback is required, retain the explicit package pin only
-  when reverting to an image that has been independently scanned clean.
+- Change: the production API and frontend images explicitly upgrade the inherited
+  Debian package `libpcre2-8-0` to the exact security build `10.42-1+deb12u1`.
+- Reason: the immutable Python and Node base-image digests contain
+  `libpcre2-8-0==10.42-1`, for which Trivy reports the fixed high-severity findings
+  `CVE-2026-86145` and `CVE-2026-89161`. The Debian security build is the scanner's
+  reported fixed version. The update is limited to the production runner stages; it
+  introduces no application dependency and changes neither manifest nor lockfile.
+- Evidence: local Trivy `0.70.0` scans of the API and frontend images identified both
+  findings and the exact Debian fixed version. The official pinned Python and Node
+  base-image digests include the inherited vulnerable package, so changing only a
+  base-image tag cannot remediate this advisory.
+- Files: `backend/Dockerfile`, `frontend/Dockerfile`, and this catalog. No application
+  dependency or lockfile changed.
+- Validation and rollback: rebuild and scan the API and frontend images before release;
+  run the Compose smoke stack. If rollback is required, retain the explicit package pin
+  only when reverting to images that have been independently scanned clean.
 
 ## 2026-09-08 — Python runtime image security refresh
 
