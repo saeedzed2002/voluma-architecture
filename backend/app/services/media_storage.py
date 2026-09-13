@@ -3,7 +3,10 @@ from __future__ import annotations
 import os
 import shutil
 import warnings
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
+from importlib import import_module
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -20,6 +23,10 @@ DERIVATIVE_WIDTHS = (320, 640, 1024, 1600, 2400)
 
 class MediaUploadValidationError(ValueError):
     """An uploaded file violates VOLUMA's image-source contract."""
+
+
+class MediaOperationInProgressError(OSError):
+    """Another worker is already processing or removing this asset."""
 
 
 @dataclass(frozen=True)
@@ -127,9 +134,11 @@ class MediaStorage:
         if animated:
             raise MediaUploadValidationError("animated images are not accepted")
         if width > max_dimension or height > max_dimension:
-            raise MediaUploadValidationError("image dimensions exceed the 12000 pixel limit")
+            raise MediaUploadValidationError(
+                f"image dimensions exceed the {max_dimension} pixel limit"
+            )
         if width * height > max_pixels:
-            raise MediaUploadValidationError("image exceeds the 100000000 pixel limit")
+            raise MediaUploadValidationError(f"image exceeds the {max_pixels} pixel limit")
         extension, content_type = ALLOWED_FORMATS[image_format]
         return SourceImage(
             extension=extension,
@@ -161,6 +170,49 @@ class MediaStorage:
 
     def processing_directory(self, media_id: UUID, derivative_version: str) -> Path:
         return self.staging_root / f"process-{media_id}-{derivative_version}"
+
+    @contextmanager
+    def exclusive_media_operation(self, media_id: UUID) -> Iterator[None]:
+        """Serialize processing and cleanup without stale locks after worker loss."""
+
+        self.staging_root.mkdir(parents=True, exist_ok=True)
+        lock_path = self.staging_root / f"media-{media_id}.lock"
+        with lock_path.open("a+b") as lock_file:
+            lock_file.seek(0, os.SEEK_END)
+            if lock_file.tell() == 0:
+                lock_file.write(b"0")
+                lock_file.flush()
+            lock_file.seek(0)
+            try:
+                if os.name == "nt":
+                    import msvcrt
+
+                    msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    fcntl = import_module("fcntl")
+
+                    flock = getattr(fcntl, "flock")  # noqa: B009
+                    lock_exclusive = int(getattr(fcntl, "LOCK_EX"))  # noqa: B009
+                    lock_nonblocking = int(getattr(fcntl, "LOCK_NB"))  # noqa: B009
+                    flock(lock_file.fileno(), lock_exclusive | lock_nonblocking)
+            except OSError as error:
+                raise MediaOperationInProgressError(
+                    "media operation already in progress"
+                ) from error
+            try:
+                yield
+            finally:
+                lock_file.seek(0)
+                if os.name == "nt":
+                    import msvcrt
+
+                    msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    fcntl = import_module("fcntl")
+
+                    flock = getattr(fcntl, "flock")  # noqa: B009
+                    lock_un = int(getattr(fcntl, "LOCK_UN"))  # noqa: B009
+                    flock(lock_file.fileno(), lock_un)
 
     def publish_directory(
         self, staged_directory: Path, media_id: UUID, derivative_version: str

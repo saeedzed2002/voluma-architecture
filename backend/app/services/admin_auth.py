@@ -30,6 +30,7 @@ LOGIN_ACCOUNT_LIMIT = 10
 LOGIN_ACCOUNT_PERIOD_SECONDS = 60 * 60
 
 _password_hash = PasswordHash.recommended()
+_DUMMY_PASSWORD_HASH = _password_hash.hash("voluma-invalid-login-placeholder")
 
 
 class AdminAuthenticationUnavailableError(RuntimeError):
@@ -57,6 +58,17 @@ def hash_password(password: str) -> str:
 
 def verify_password(password: str, password_hash: str) -> bool:
     return _password_hash.verify(password, password_hash)
+
+
+def verify_login_password(password: str, administrator: AdminUser | None) -> bool:
+    """Always perform Argon2 work so a missing email cannot be timed remotely."""
+
+    password_hash = (
+        administrator.password_hash
+        if administrator is not None and administrator.is_active
+        else _DUMMY_PASSWORD_HASH
+    )
+    return verify_password(password, password_hash)
 
 
 def _fingerprint(value: str) -> str:

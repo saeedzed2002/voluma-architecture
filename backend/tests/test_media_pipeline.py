@@ -33,6 +33,7 @@ from app.services.media_administration import (
     MediaQueueError,
 )
 from app.services.media_storage import (
+    MediaOperationInProgressError,
     MediaStorage,
     MediaUploadValidationError,
     generate_derivatives,
@@ -92,6 +93,16 @@ def test_upload_boundary_accepts_exactly_50_mib_and_rejects_one_extra_byte(tmp_p
 
     with pytest.raises(MediaUploadValidationError, match="50 MiB"):
         _stage(storage, at_limit + b"\0")
+
+
+def test_media_operation_lock_defers_cleanup_while_processing(tmp_path: Path) -> None:
+    storage = MediaStorage(tmp_path / "media")
+    media_id = uuid4()
+
+    with storage.exclusive_media_operation(media_id):
+        with pytest.raises(MediaOperationInProgressError):
+            with storage.exclusive_media_operation(media_id):
+                pass
 
 
 def test_derivative_generation_creates_verified_avif_and_webp(tmp_path: Path) -> None:

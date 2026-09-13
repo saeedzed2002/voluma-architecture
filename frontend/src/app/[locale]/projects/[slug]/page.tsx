@@ -13,7 +13,7 @@ import { siteCopy } from "@/content/site";
 import { Link } from "@/i18n/navigation";
 import { routing, type Locale } from "@/i18n/routing";
 import { formatYear } from "@/lib/locale";
-import { getProject, getProjects, PublicApiError } from "@/lib/public-api";
+import { getAllProjects, getProject, PublicApiError } from "@/lib/public-api";
 import { publicMetadata } from "@/lib/seo";
 
 type ProjectPageProps = {
@@ -50,12 +50,12 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     if (error instanceof PublicApiError && error.status === 404) notFound();
     throw error;
   }
-  const archive = await getProjects(locale);
+  const archive = await getAllProjects(locale);
   const copy = siteCopy[locale];
-  const projectIndex = archive.items.findIndex((entry) => entry.slug === slug);
-  const previous = archive.items[(projectIndex - 1 + archive.items.length) % archive.items.length];
-  const next = archive.items[(projectIndex + 1) % archive.items.length];
-  const related = archive.items.filter((entry) => entry.slug !== slug).slice(0, 2);
+  const projectIndex = archive.findIndex((entry) => entry.slug === slug);
+  const previous = archive[(projectIndex - 1 + archive.length) % archive.length];
+  const next = archive[(projectIndex + 1) % archive.length];
+  const related = archive.filter((entry) => entry.slug !== slug).slice(0, 2);
   const galleryImages: GalleryImage[] = project.gallery.map((image, index) => ({
     image,
     caption: index === 0 ? copy.detailCaption : copy.materialCaption,

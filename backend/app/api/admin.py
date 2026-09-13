@@ -33,7 +33,7 @@ from app.services.admin_auth import (
     normalize_email,
     validate_csrf,
     validate_mutation_origin,
-    verify_password,
+    verify_login_password,
 )
 
 SESSION_COOKIE_NAME = "voluma_admin_session"
@@ -168,11 +168,8 @@ def login(
         if limiter.is_limited(ip_address=ip_address, email=email):
             raise _too_many_attempts()
         administrator = session.scalar(select(AdminUser).where(AdminUser.email == email))
-        if (
-            administrator is None
-            or not administrator.is_active
-            or not verify_password(payload.password, administrator.password_hash)
-        ):
+        password_is_valid = verify_login_password(payload.password, administrator)
+        if administrator is None or not administrator.is_active or not password_is_valid:
             limiter.record_failure(ip_address=ip_address, email=email)
             raise _invalid_credentials()
         limiter.clear(ip_address=ip_address, email=email)

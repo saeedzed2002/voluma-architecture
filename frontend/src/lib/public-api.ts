@@ -144,6 +144,7 @@ export type PublicProjectFilters = {
 
 export type PublicProjectQuery = {
   discipline?: string;
+  limit?: number;
   location?: string;
   offset?: number;
   q?: string;
@@ -154,6 +155,7 @@ export type PublicProjectQuery = {
 
 export type PublicJournalQuery = {
   category?: string;
+  limit?: number;
   offset?: number;
 };
 
@@ -183,6 +185,7 @@ export function getHome(locale: Locale) {
 export function getProjects(locale: Locale, query: PublicProjectQuery = {}) {
   const parameters = new URLSearchParams();
   if (query.discipline) parameters.set("discipline", query.discipline);
+  if (query.limit) parameters.set("limit", String(query.limit));
   if (query.location) parameters.set("location", query.location);
   if (query.offset) parameters.set("offset", String(query.offset));
   if (query.q) parameters.set("q", query.q);
@@ -191,6 +194,29 @@ export function getProjects(locale: Locale, query: PublicProjectQuery = {}) {
   if (query.year) parameters.set("year", String(query.year));
   const suffix = parameters.toString();
   return publicFetch<PublicPage<PublicProject>>(`/projects${suffix ? `?${suffix}` : ""}`, locale);
+}
+
+const fullArchivePageLimit = 100;
+
+async function getAllPages<T>(
+  fetchPage: (offset: number) => Promise<PublicPage<T>>,
+): Promise<T[]> {
+  const items: T[] = [];
+  let offset = 0;
+  let total = 0;
+
+  do {
+    const page = await fetchPage(offset);
+    items.push(...page.items);
+    total = page.pagination.total;
+    offset += page.pagination.limit;
+  } while (offset < total);
+
+  return items;
+}
+
+export function getAllProjects(locale: Locale) {
+  return getAllPages((offset) => getProjects(locale, { limit: fullArchivePageLimit, offset }));
 }
 
 export function getProjectFilters(locale: Locale) {
@@ -216,12 +242,17 @@ export function getStudio(locale: Locale) {
 export function getJournal(locale: Locale, query: PublicJournalQuery = {}) {
   const parameters = new URLSearchParams();
   if (query.category) parameters.set("category", query.category);
+  if (query.limit) parameters.set("limit", String(query.limit));
   if (query.offset) parameters.set("offset", String(query.offset));
   const suffix = parameters.toString();
   return publicFetch<PublicPage<PublicJournalCard>>(
     `/journal${suffix ? `?${suffix}` : ""}`,
     locale,
   );
+}
+
+export function getAllJournalArticles(locale: Locale) {
+  return getAllPages((offset) => getJournal(locale, { limit: fullArchivePageLimit, offset }));
 }
 
 export function getArticle(locale: Locale, slug: string) {

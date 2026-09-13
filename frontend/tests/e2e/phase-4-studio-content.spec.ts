@@ -43,10 +43,10 @@ test("administrator publishes people and recognition that render on the public s
     .locator(".admin-media-card")
     .filter({ hasText: portraitId });
   await expect(portraitCard).toHaveCount(1, { timeout: 15_000 });
-  await expect(portraitCard.getByText("ready", { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(portraitCard.getByText("Ready", { exact: true })).toBeVisible({ timeout: 15_000 });
   await portraitCard.getByLabel("Alt text / EN").fill("Portrait of a studio member");
   await portraitCard.getByLabel("Alt text / FA").fill("پرترهٔ عضو استودیو");
-  await portraitCard.getByRole("button", { name: "Save metadata" }).click();
+  await portraitCard.getByRole("button", { name: "Save image details" }).click();
 
   await page.getByRole("link", { name: "People" }).click();
   await page.getByRole("button", { name: "Create draft" }).click();
@@ -61,7 +61,7 @@ test("administrator publishes people and recognition that render on the public s
     `.admin-media-picker__card[data-media-id="${portraitId}"]`,
   );
   await expect(portraitPickerCard).toHaveCount(1, { timeout: 15_000 });
-  await expect(portraitPickerCard.getByText("ready", { exact: true })).toBeVisible();
+  await expect(portraitPickerCard.getByText("Ready", { exact: true })).toBeVisible();
   await portraitPickerCard.getByRole("button", { name: "Select image" }).click();
   await page.getByLabel("Publication state").selectOption("published");
   await page.getByRole("button", { name: "Save entry" }).click();

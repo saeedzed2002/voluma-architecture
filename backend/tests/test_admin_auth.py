@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+import app.api.admin as admin_api
 from app.api.admin import SESSION_COOKIE_NAME, get_admin_redis
 from app.core.config import Settings
 from app.db.session import get_session
@@ -143,6 +144,37 @@ def test_login_errors_are_generic_and_rate_limited(
     response = test_client.post("/api/v1/admin/auth/login", headers=headers, json=payload)
     assert response.status_code == 429
     assert response.json() == {"detail": "try again later"}
+
+
+def test_login_runs_password_verification_for_an_unknown_email(
+    session: Session,
+    client: tuple[TestClient, FakeRedis],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    test_client, _ = client
+    checked_administrators: list[AdminUser | None] = []
+    original_verify = admin_api.verify_login_password
+
+    def record_verification(password: str, administrator: AdminUser | None) -> bool:
+        checked_administrators.append(administrator)
+        return original_verify(password, administrator)
+
+    monkeypatch.setattr(admin_api, "verify_login_password", record_verification)
+    response = test_client.post(
+        "/api/v1/admin/auth/login",
+        headers={"Origin": ORIGIN},
+        json={"email": "unknown@example.com", "password": "incorrect password"},
+    )
+
+    assert response.status_code == 401
+    assert checked_administrators == [None]
+
+
+def test_settings_normalize_the_environment_and_bound_media_pixels() -> None:
+    settings = Settings(VOLUMA_ENVIRONMENT=" Production ")
+
+    assert settings.is_production is True
+    assert settings.media_max_pixels == 40_000_000
 
 
 def test_login_rate_limit_uses_the_edge_sanitized_client_address(

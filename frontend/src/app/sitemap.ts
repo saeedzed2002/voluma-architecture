@@ -1,8 +1,7 @@
 import type { MetadataRoute } from "next";
 
-import { journalArticles } from "@/content/public-pages";
-import { projects } from "@/content/site";
 import { siteOrigin } from "@/lib/seo";
+import { getAllJournalArticles, getAllProjects } from "@/lib/public-api";
 
 const staticPaths = [
   "",
@@ -15,20 +14,32 @@ const staticPaths = [
   "/privacy",
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const localizedStaticPaths = ["en", "fa"].flatMap((locale) =>
     staticPaths.map((path) => ({ url: new URL(`/${locale}${path}`, siteOrigin).toString() })),
   );
-  const projectPaths = ["en", "fa"].flatMap((locale) =>
-    projects.map((project) => ({
-      url: new URL(`/${locale}/projects/${project.slug}`, siteOrigin).toString(),
+  const [englishProjects, persianProjects, englishArticles, persianArticles] = await Promise.all([
+    getAllProjects("en"),
+    getAllProjects("fa"),
+    getAllJournalArticles("en"),
+    getAllJournalArticles("fa"),
+  ]);
+  const projectPaths = [
+    ...englishProjects.map((project) => ({
+      url: new URL(`/en/projects/${project.slug}`, siteOrigin).toString(),
     })),
-  );
-  const articlePaths = ["en", "fa"].flatMap((locale) =>
-    journalArticles.map((article) => ({
-      url: new URL(`/${locale}/journal/${article.slug}`, siteOrigin).toString(),
+    ...persianProjects.map((project) => ({
+      url: new URL(`/fa/projects/${project.slug}`, siteOrigin).toString(),
     })),
-  );
+  ];
+  const articlePaths = [
+    ...englishArticles.map((article) => ({
+      url: new URL(`/en/journal/${article.slug}`, siteOrigin).toString(),
+    })),
+    ...persianArticles.map((article) => ({
+      url: new URL(`/fa/journal/${article.slug}`, siteOrigin).toString(),
+    })),
+  ];
 
   return [...localizedStaticPaths, ...projectPaths, ...articlePaths];
 }

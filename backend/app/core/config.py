@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,7 +34,16 @@ class Settings(BaseSettings):
     )
     media_max_upload_bytes: int = Field(default=50 * 1024 * 1024, ge=1)
     media_max_dimension: int = Field(default=12_000, ge=1)
-    media_max_pixels: int = Field(default=100_000_000, ge=1)
+    media_max_pixels: int = Field(
+        default=40_000_000, validation_alias="VOLUMA_MEDIA_MAX_PIXELS", ge=1
+    )
+
+    @field_validator("environment", mode="before")
+    @classmethod
+    def normalize_environment(cls, value: object) -> str:
+        if not isinstance(value, str):
+            raise ValueError("environment must be a string")
+        return value.strip().lower()
 
     @property
     def is_production(self) -> bool:

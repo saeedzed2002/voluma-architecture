@@ -70,9 +70,16 @@ def _mark_failed(media_id: UUID, error: Exception) -> None:
 
 
 def process_media_asset(media_id: UUID) -> None:
-    """Produce immutable public derivatives from one durable source image."""
+    """Serialize derivative generation with deferred cleanup for one media asset."""
 
     storage = _storage()
+    with storage.exclusive_media_operation(media_id):
+        _process_media_asset(storage, media_id)
+
+
+def _process_media_asset(storage: MediaStorage, media_id: UUID) -> None:
+    """Produce immutable public derivatives from one durable source image."""
+
     with SessionLocal() as session:
         asset = session.scalar(
             select(MediaAsset).where(MediaAsset.id == media_id).with_for_update()
@@ -125,7 +132,14 @@ def process_media_asset(media_id: UUID) -> None:
 
 
 def cleanup_media_asset(media_id: UUID) -> None:
+    """Remove a soft-deleted asset only when no processing operation holds its lock."""
+
     storage = _storage()
+    with storage.exclusive_media_operation(media_id):
+        _cleanup_media_asset(storage, media_id)
+
+
+def _cleanup_media_asset(storage: MediaStorage, media_id: UUID) -> None:
     with SessionLocal() as session:
         asset = session.scalar(
             select(MediaAsset).where(MediaAsset.id == media_id).with_for_update()
