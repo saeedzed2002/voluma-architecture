@@ -28,14 +28,19 @@ WORKDIR /app
 
 # Runtime dependencies are supplied exclusively by the frozen application virtual
 # environment below. Removing distribution-maintenance installers keeps their vendored
-# packages out of the production image and prevents runtime mutation.
+# packages out of the production image and prevents runtime mutation. The immutable
+# base image requires an explicit PCRE2 security-package pin.
 RUN groupadd --gid 10001 --system voluma \
     && useradd --uid 10001 --gid voluma --system --no-create-home voluma \
+    && apt-get update \
+    && apt-get install --no-install-recommends --only-upgrade \
+        "libpcre2-8-0=10.42-1+deb12u1" \
     && install --directory --owner=voluma --group=voluma --mode=0750 /var/lib/voluma-media \
     && rm -rf /usr/local/lib/python3.14/ensurepip \
         /usr/local/lib/python3.14/site-packages/pip \
         /usr/local/lib/python3.14/site-packages/pip-*.dist-info \
-    && rm -f /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.14
+    && rm -f /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.14 \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --chown=voluma:voluma --from=builder /opt/voluma-venv /opt/voluma-venv
 COPY --chown=voluma:voluma --from=builder /app /app
