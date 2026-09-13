@@ -10,6 +10,18 @@ version tables that would drift from the specification and lockfiles.
 The initial locked frontend and backend direct dependencies use the specification's
 2026-09-05 baseline, including the compatibility correction below.
 
+## 2026-09-13 — Phase 6 CI execution evidence
+
+- Scope: evidence update only. No application dependency, lockfile, or workflow action
+  changed.
+- Evidence: [GitHub Actions run 34763817085](https://github.com/saeedzed2002/voluma-architecture/actions/runs/34763817085)
+  passed on commit `dc30d556dfb79fe4b5c756374d764bffbd46d6ef`. It completed the history
+  secret scan, locked application validation, browser and worker integration checks,
+  isolated Compose build and HTTPS smoke test, and high/critical Trivy scans of the API,
+  frontend, and Nginx images.
+- Boundary: this repository is retained as a source-code portfolio. No public deployment,
+  clean-host deployment exercise, or operational backup/restore exercise is claimed.
+
 ## 2026-09-13 — PCRE2 runtime security update
 
 - Owner: project owner, authorized during CI remediation.

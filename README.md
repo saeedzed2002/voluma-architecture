@@ -4,15 +4,29 @@ VOLUMA is a premium bilingual architecture-studio website, editorial project arc
 journal, and lightweight content-management system. It is designed as a single
 application with a Next.js public/admin frontend and a FastAPI content/media backend.
 
+[![Continuous integration](https://github.com/saeedzed2002/voluma-architecture/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/saeedzed2002/voluma-architecture/actions/workflows/ci.yml?query=branch%3Amain)
+
 The complete source of truth is
 [`docs/product/VOLUMA_PROJECT_SPECIFICATION_FINAL.md`](docs/product/VOLUMA_PROJECT_SPECIFICATION_FINAL.md).
 It defines scope, design direction, architecture, security constraints, exact version
 baseline, phases, validation, and the Definition of Done. This repository deliberately
 does not duplicate that specification.
 
-## Current phase
+## Project status
 
-Phases 1 through 5 are implemented. The approved public experience renders from
+VOLUMA is complete as a source-code portfolio. It is not deployed, and this repository
+does not claim a public production deployment, clean-host deployment exercise, or
+operational backup/restore exercise.
+
+The current `main` branch passed the complete [GitHub Actions CI run](https://github.com/saeedzed2002/voluma-architecture/actions/runs/34763817085) for commit
+[`dc30d55`](https://github.com/saeedzed2002/voluma-architecture/commit/dc30d556dfb79fe4b5c756374d764bffbd46d6ef). The observed gates include repository secret
+scanning, locked frontend and backend validation, migrations and seed commands, browser
+and worker integration checks, an isolated Compose build and HTTPS smoke test, and
+high/critical Trivy scans of the API, frontend, and Nginx images.
+
+## Implemented scope
+
+Phases 1 through 6 are implemented. The approved public experience renders from
 purpose-built, published-only FastAPI response schemas with `no-store` Next.js fetches.
 The administrator workspace provides protected bilingual content, ordering, publishing,
 message triage, singleton site-settings workflows, and a managed media library with audit
@@ -20,8 +34,9 @@ events and Redis tagged cache invalidation. Phase 5 adds validated JPEG/PNG/WebP
 durable processing states, Celery derivative generation, versioned public media paths, and
 project gallery selection. Phase 6 now supplies production Dockerfiles, immutable base-image
 pins, private Compose networking, TLS Nginx routing, nonce-based CSP, runbooks, and release
-automation. A real container build, scan, clean-host deployment, and restore exercise still
-require observed Docker/registry access; they are not claimed as complete by this repository.
+automation. The completed CI run provides container-build, image-scan, browser, worker, and
+Compose-smoke evidence. Deployment and restore remain deliberately unrun because this is a
+source-code portfolio, not a live service.
 
 Journal article covers are managed-media references. An administrator may also add a managed
 single-image block directly within an article by dropping a `JPEG`, `PNG`, or `WebP` file into

@@ -644,10 +644,9 @@ Before any later upgrade, re-check the official source and record the reason, ta
       .env.example
       .gitignore
       .dockerignore
-      AGENTS.md
       README.md
 
-Use a root AGENTS.md that points to this specification, lists validation commands, and preserves the architecture/security rules. Keep a short ADR whenever a material architectural decision changes. Avoid duplicate, drifting documentation.
+Use the root README to point to this specification, list validation commands, and preserve concise architecture and security guidance. Keep a short ADR whenever a material architectural decision changes. Avoid duplicate, drifting documentation.
 
 ## 11. Docker Compose deployment
 
@@ -709,9 +708,9 @@ TLS uses a valid production certificate mounted/configured for Nginx. HTTP redir
 
 ### Phase 0 — repository and scope freeze
 
-Create the repository, root documentation, AGENTS.md, .editorconfig, gitignore, env examples, Docker ignore files, license decision, issue/PR templates if used, and CI skeleton. Record this specification in docs/product or docs/architecture. Initialize pnpm and uv lockfiles from the version baseline. Produce an ADR for local persistent media storage and one for frontend-first delivery.
+Create the repository, root documentation, .editorconfig, gitignore, env examples, Docker ignore files, license decision, issue/PR templates if used, and CI skeleton. Record this specification in docs/product or docs/architecture. Initialize pnpm and uv lockfiles from the version baseline. Produce an ADR for local persistent media storage and one for frontend-first delivery.
 
-Exit criteria: clean repository, reproducible local bootstrap, all direct versions locked, no secrets committed, and this specification referenced by AGENTS.md.
+Exit criteria: clean repository, reproducible local bootstrap, all direct versions locked, no secrets committed, and this specification referenced by the root README.
 
 ### Phase 1 — visual system and static frontend
 
