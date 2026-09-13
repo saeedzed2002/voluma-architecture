@@ -224,6 +224,8 @@ jobs:
 
       - name: Scan API image for high and critical vulnerabilities
         uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
         with:
           image-ref: voluma-api:ci
           exit-code: "1"
@@ -233,22 +235,24 @@ jobs:
 
       - name: Scan frontend image for high and critical vulnerabilities
         uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
         with:
           image-ref: voluma-frontend:ci
           exit-code: "1"
           ignore-unfixed: true
           severity: HIGH,CRITICAL
-          skip-setup-trivy: true
           vuln-type: os,library
 
       - name: Scan Nginx image for high and critical vulnerabilities
         uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
         with:
           image-ref: voluma-nginx:ci
           exit-code: "1"
           ignore-unfixed: true
           severity: HIGH,CRITICAL
-          skip-setup-trivy: true
           vuln-type: os,library
 
       - name: Print Compose logs after a failure

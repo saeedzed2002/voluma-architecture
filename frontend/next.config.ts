@@ -16,8 +16,11 @@ const nextConfig: NextConfig = {
     return {
       afterFiles: [
         {
-          destination: `${apiBaseUrl}/media/:path*`,
-          source: "/media/:path*",
+          // Managed derivatives always have media ID, derivative version, and file
+          // segments. Keeping this rewrite narrow lets development fixture images in
+          // public/media remain available through the Next.js static-file handler.
+          destination: `${apiBaseUrl}/media/:mediaId/:derivativeVersion/:filename`,
+          source: "/media/:mediaId/:derivativeVersion/:filename",
         },
       ],
     };
