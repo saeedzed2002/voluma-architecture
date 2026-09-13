@@ -42,8 +42,19 @@ openssl enc -aes-256-cbc -salt -pbkdf2 -iter 600000 \
   -pass env:VOLUMA_BACKUP_ENCRYPTION_PASSWORD
 
 sha256sum "$backup_root/voluma-$timestamp.tar.gz.enc" > "$backup_root/voluma-$timestamp.tar.gz.enc.sha256"
-openssl dgst -sha256 -mac HMAC -macopt keyenv:VOLUMA_BACKUP_ENCRYPTION_PASSWORD \
-  "$backup_root/voluma-$timestamp.tar.gz.enc" > "$backup_root/voluma-$timestamp.tar.gz.enc.hmac"
+docker compose run --rm --no-deps \
+  -e VOLUMA_BACKUP_ENCRYPTION_PASSWORD \
+  --entrypoint python api -c '
+import hashlib
+import hmac
+import os
+import sys
+
+digest = hmac.new(os.environ["VOLUMA_BACKUP_ENCRYPTION_PASSWORD"].encode(), digestmod=hashlib.sha256)
+for chunk in iter(lambda: sys.stdin.buffer.read(1024 * 1024), b""):
+    digest.update(chunk)
+print(digest.hexdigest())
+' < "$backup_root/voluma-$timestamp.tar.gz.enc" > "$backup_root/voluma-$timestamp.tar.gz.enc.hmac"
 cp "$backup_root/voluma-$timestamp.tar.gz.enc" \
   "$backup_root/voluma-$timestamp.tar.gz.enc.sha256" \
   "$backup_root/voluma-$timestamp.tar.gz.enc.hmac" \

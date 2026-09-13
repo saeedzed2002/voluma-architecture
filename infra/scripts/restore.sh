@@ -32,7 +32,19 @@ umask 077
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 
 expected_hmac=$(awk '{print $NF}' "$hmac_path")
-actual_hmac=$(openssl dgst -sha256 -mac HMAC -macopt keyenv:VOLUMA_BACKUP_ENCRYPTION_PASSWORD "$archive_path" | awk '{print $NF}')
+actual_hmac=$(docker compose run --rm --no-deps \
+  -e VOLUMA_BACKUP_ENCRYPTION_PASSWORD \
+  --entrypoint python api -c '
+import hashlib
+import hmac
+import os
+import sys
+
+digest = hmac.new(os.environ["VOLUMA_BACKUP_ENCRYPTION_PASSWORD"].encode(), digestmod=hashlib.sha256)
+for chunk in iter(lambda: sys.stdin.buffer.read(1024 * 1024), b""):
+    digest.update(chunk)
+print(digest.hexdigest())
+' < "$archive_path")
 if [ "$expected_hmac" != "$actual_hmac" ]; then
   echo "Backup authentication check failed." >&2
   exit 65
