@@ -20,6 +20,13 @@ jobs:
     name: Validate application contracts
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    env:
+      CELERY_BROKER_URL: redis://127.0.0.1:6379/1
+      DATABASE_URL: postgresql+psycopg://voluma:ci-only-postgres-password@127.0.0.1:5432/voluma
+      REDIS_URL: redis://127.0.0.1:6379/0
+      VOLUMA_INITIAL_ADMIN_EMAIL: e2e-administrator@example.com
+      VOLUMA_INITIAL_ADMIN_PASSWORD: ci-only-administrator-password
+      VOLUMA_MEDIA_ROOT: ${{ runner.temp }}/voluma-media
     services:
       postgres:
         image: postgres:18.6@sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280
@@ -75,21 +82,27 @@ jobs:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
 
-      - name: Install and validate backend from the lockfile
+      - name: Sync backend from the lockfile
         working-directory: backend
-        env:
-          DATABASE_URL: postgresql+psycopg://voluma:ci-only-postgres-password@127.0.0.1:5432/voluma
-          REDIS_URL: redis://127.0.0.1:6379/0
-          CELERY_BROKER_URL: redis://127.0.0.1:6379/1
-          VOLUMA_MEDIA_ROOT: ${{ runner.temp }}/voluma-media
-          VOLUMA_INITIAL_ADMIN_EMAIL: e2e-administrator@example.com
-          VOLUMA_INITIAL_ADMIN_PASSWORD: ci-only-administrator-password
+        run: uv sync --frozen --all-groups
+
+      - name: Check backend formatting and lint
+        working-directory: backend
         run: |
-          uv sync --frozen --all-groups
           uv run ruff format --check .
           uv run ruff check .
-          uv run mypy app
-          uv run pytest --cov=app --cov-report=term-missing
+
+      - name: Type-check the backend
+        working-directory: backend
+        run: uv run mypy app
+
+      - name: Run backend unit tests
+        working-directory: backend
+        run: uv run pytest --cov=app --cov-report=term-missing
+
+      - name: Validate migrations and seed commands
+        working-directory: backend
+        run: |
           uv run alembic upgrade head
           uv run alembic check
           uv run python -m app.fixtures.seed
@@ -98,10 +111,6 @@ jobs:
       - name: Start API and media worker for browser checks
         working-directory: backend
         env:
-          CELERY_BROKER_URL: redis://127.0.0.1:6379/1
-          DATABASE_URL: postgresql+psycopg://voluma:ci-only-postgres-password@127.0.0.1:5432/voluma
-          REDIS_URL: redis://127.0.0.1:6379/0
-          VOLUMA_MEDIA_ROOT: ${{ runner.temp }}/voluma-media
           VOLUMA_PUBLIC_ORIGIN: http://127.0.0.1:3000
         run: |
           nohup uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/voluma-api.log" 2>&1 &
@@ -122,10 +131,6 @@ jobs:
       - name: Run media worker integration checks through Redis
         working-directory: backend
         env:
-          CELERY_BROKER_URL: redis://127.0.0.1:6379/1
-          DATABASE_URL: postgresql+psycopg://voluma:ci-only-postgres-password@127.0.0.1:5432/voluma
-          REDIS_URL: redis://127.0.0.1:6379/0
-          VOLUMA_MEDIA_ROOT: ${{ runner.temp }}/voluma-media
           VOLUMA_RUN_MEDIA_WORKER_INTEGRATION: "1"
         run: uv run pytest tests/test_media_worker_integration.py -q
 
