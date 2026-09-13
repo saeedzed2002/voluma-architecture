@@ -56,7 +56,7 @@ test("administrator publishes people and recognition that render on the public s
   await page.getByLabel("Role / EN").fill("Architect");
   await page.getByLabel("Role / FA").fill("معمار");
   const portraitPicker = page.getByLabel("Portrait");
-  await portraitPicker.getByRole("button", { name: "Choose or upload image" }).click();
+  await portraitPicker.getByRole("button", { name: "Choose existing" }).click();
   const portraitPickerCard = portraitPicker
     .locator(".admin-media-picker__card")
     .filter({ hasText: portraitId });
