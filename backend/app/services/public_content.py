@@ -327,12 +327,13 @@ def journal_card(article: JournalArticle, locale: Locale) -> JournalCardResponse
 def _journal_blocks(
     session: Session, article: JournalArticle, locale: Locale
 ) -> list[ProjectEditorialBlockResponse]:
-    media_ids = {
-        SingleImageBlockPayload.model_validate(content).media_id
-        for block in article.blocks
-        if block.block_type == "single_image"
-        for content in (block.content_en, block.content_fa)
-    }
+    media_ids: set[UUID] = set()
+    for block in article.blocks:
+        for content in (block.content_en, block.content_fa):
+            if block.block_type == "single_image":
+                media_ids.add(SingleImageBlockPayload.model_validate(content).media_id)
+            elif block.block_type == "image_text":
+                media_ids.add(ImageTextBlockPayload.model_validate(content).media_id)
     assets_by_id = {
         asset.id: asset
         for asset in (
@@ -367,13 +368,27 @@ def _journal_blocks(
                 )
             )
         elif block.block_type == "single_image":
-            payload = SingleImageBlockPayload.model_validate(content)
-            asset = assets_by_id.get(payload.media_id)
+            image_payload = SingleImageBlockPayload.model_validate(content)
+            asset = assets_by_id.get(image_payload.media_id)
             if asset is not None:
                 image = _managed_image(asset, locale)
                 if image is not None:
                     blocks.append(
                         SingleImageEditorialBlockResponse(block_type="single_image", image=image)
+                    )
+        elif block.block_type == "image_text":
+            image_text_payload = ImageTextBlockPayload.model_validate(content)
+            asset = assets_by_id.get(image_text_payload.media_id)
+            if asset is not None:
+                image = _managed_image(asset, locale)
+                if image is not None:
+                    blocks.append(
+                        ImageTextEditorialBlockResponse(
+                            block_type="image_text",
+                            heading=image_text_payload.heading,
+                            body=image_text_payload.body,
+                            image=image,
+                        )
                     )
     return blocks
 
@@ -446,6 +461,19 @@ class PublicContentService:
         hero_title = _locale_field(settings, "home_title", locale)
         hero_body = _locale_field(settings, "home_body", locale)
         assert hero_title is not None and hero_body is not None
+        selected_projects_heading = _locale_field(
+            settings, "home_selected_projects_heading", locale
+        )
+        studio_heading = _locale_field(settings, "home_studio_heading", locale)
+        studio_body = _locale_field(settings, "home_studio_body", locale)
+        expertise_heading = _locale_field(settings, "home_expertise_heading", locale)
+        process_heading = _locale_field(settings, "home_process_heading", locale)
+        journal_heading = _locale_field(settings, "home_journal_heading", locale)
+        contact_heading = _locale_field(settings, "home_contact_heading", locale)
+        assert selected_projects_heading is not None
+        assert studio_heading is not None and studio_body is not None
+        assert expertise_heading is not None and process_heading is not None
+        assert journal_heading is not None and contact_heading is not None
         hero = (
             _managed_image(settings.home_hero_media, locale)
             if settings.home_hero_media is not None
@@ -459,6 +487,33 @@ class PublicContentService:
             or _image(
                 settings.home_hero_image_url, _locale_field(settings, "home_hero_alt", locale)
             ),
+            selected_projects_heading=selected_projects_heading,
+            studio_heading=studio_heading,
+            studio_body=studio_body,
+            studio_image=(
+                _managed_image(settings.home_studio_media, locale)
+                if settings.home_studio_media is not None
+                else _image(
+                    "/media/courtyard-house.png",
+                    "نور و سایه در آستانه‌ی یک خانه‌ی حیاط‌دار"
+                    if locale == "fa"
+                    else "Light and shade at the threshold of a courtyard house",
+                )
+            ),
+            expertise_heading=expertise_heading,
+            expertise_image=(
+                _managed_image(settings.home_expertise_media, locale)
+                if settings.home_expertise_media is not None
+                else _image(
+                    "/media/material-shadow.png",
+                    "جزئیات بتن، قاب چوبی و شاخه‌های سبز"
+                    if locale == "fa"
+                    else "Concrete detail, oak frame, and green branches",
+                )
+            ),
+            process_heading=process_heading,
+            journal_heading=journal_heading,
+            contact_heading=contact_heading,
             selected_projects=[project_card(project, locale) for project in selected],
             expertise=[self._expertise_response(item, locale) for item in expertise],
             process=[self._process_response(item, locale) for item in process],
@@ -730,6 +785,8 @@ class PublicContentService:
                 selectinload(SiteSettings.logo_media),
                 selectinload(SiteSettings.favicon_media),
                 selectinload(SiteSettings.home_hero_media),
+                selectinload(SiteSettings.home_studio_media),
+                selectinload(SiteSettings.home_expertise_media),
             )
             .order_by(SiteSettings.created_at)
             .limit(1)

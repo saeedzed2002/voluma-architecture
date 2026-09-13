@@ -55,7 +55,23 @@ export type AdminSiteSettings = {
   favicon_media_id: string | null;
   home_body_en: string;
   home_body_fa: string;
+  home_contact_heading_en: string;
+  home_contact_heading_fa: string;
+  home_expertise_heading_en: string;
+  home_expertise_heading_fa: string;
+  home_expertise_media_id: string | null;
   home_hero_media_id: string | null;
+  home_journal_heading_en: string;
+  home_journal_heading_fa: string;
+  home_process_heading_en: string;
+  home_process_heading_fa: string;
+  home_selected_projects_heading_en: string;
+  home_selected_projects_heading_fa: string;
+  home_studio_body_en: string;
+  home_studio_body_fa: string;
+  home_studio_heading_en: string;
+  home_studio_heading_fa: string;
+  home_studio_media_id: string | null;
   home_title_en: string;
   home_title_fa: string;
   id: string | null;
@@ -105,6 +121,11 @@ export type AdminProjectMedia = {
   display_order: number;
   is_cover: boolean;
   media: AdminMediaAsset;
+};
+
+export type ProjectMediaWriteItem = {
+  is_cover: boolean;
+  media_id: string;
 };
 
 export type AdminTaxonomy = {
@@ -169,6 +190,13 @@ export type AdminJournalCategory = {
 
 export type AdminJournalArticleBlock =
   | {
+      block_type: "image_text";
+      content_en: { body: string; heading?: string; media_id: string };
+      content_fa: { body: string; heading?: string; media_id: string };
+      display_order: number;
+      id: string;
+    }
+  | {
       block_type: "single_image";
       content_en: { media_id: string };
       content_fa: { media_id: string };
@@ -191,6 +219,11 @@ export type AdminJournalArticleBlock =
     };
 
 export type JournalArticleBlockWrite =
+  | {
+      block_type: "image_text";
+      content_en: { body: string; heading?: string; media_id: string };
+      content_fa: { body: string; heading?: string; media_id: string };
+    }
   | {
       block_type: "single_image";
       content_en: { media_id: string };
@@ -403,7 +436,9 @@ export type ProjectWrite = Omit<
   | "disciplines"
   | "typologies"
 > & {
+  blocks?: ProjectBlockWrite[];
   discipline_ids: string[];
+  media_items: ProjectMediaWriteItem[];
   published_at: string | null;
   typology_ids: string[];
 };
@@ -530,7 +565,7 @@ export function getAdminProjectMedia(projectId: string) {
 
 export function replaceAdminProjectMedia(
   projectId: string,
-  items: { is_cover: boolean; media_id: string }[],
+  items: ProjectMediaWriteItem[],
   csrfToken: string,
 ) {
   return adminFetch<{ items: AdminProjectMedia[] }>(

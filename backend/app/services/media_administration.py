@@ -243,9 +243,21 @@ class MediaAdministrationService:
                 .limit(1)
             )
             is not None
+            or self.session.scalar(
+                select(SiteSettings.id)
+                .where(SiteSettings.home_studio_media_id == asset.id)
+                .limit(1)
+            )
+            is not None
+            or self.session.scalar(
+                select(SiteSettings.id)
+                .where(SiteSettings.home_expertise_media_id == asset.id)
+                .limit(1)
+            )
+            is not None
         ):
             raise MediaInUseError(
-                "remove the asset from site branding or the home hero before deletion"
+                "remove the asset from site branding or a home-page section before deletion"
             )
         if self._journal_articles_using_block_media(asset.id):
             raise MediaInUseError(

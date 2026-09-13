@@ -194,6 +194,15 @@ class HomeResponse(PublicModel):
     hero_title: str
     hero_body: str
     hero_image: ImageResponse | None = None
+    selected_projects_heading: str
+    studio_heading: str
+    studio_body: str
+    studio_image: ImageResponse | None = None
+    expertise_heading: str
+    expertise_image: ImageResponse | None = None
+    process_heading: str
+    journal_heading: str
+    contact_heading: str
     selected_projects: list[ProjectCardResponse]
     expertise: list[ExpertiseResponse]
     process: list[ProcessStepResponse]

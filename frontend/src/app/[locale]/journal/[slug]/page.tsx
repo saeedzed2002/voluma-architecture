@@ -65,7 +65,13 @@ export default async function JournalArticlePage({ params }: JournalArticlePageP
       </header>
       <div className="journal-article__cover">
         {article.cover_image ? (
-          <ResponsiveImage fill image={article.cover_image} loading="eager" priority sizes="100vw" />
+          <ResponsiveImage
+            fill
+            image={article.cover_image}
+            loading="eager"
+            priority
+            sizes="100vw"
+          />
         ) : null}
       </div>
       <div className="section-shell journal-article__fixture">
@@ -89,10 +95,28 @@ export default async function JournalArticlePage({ params }: JournalArticlePageP
                   </blockquote>
                 </Reveal>
               ) : block.block_type === "single_image" ? (
-                <Reveal className="journal-article__image" delay={index * 0.05} key={`${block.image.url}-${index}`}>
+                <Reveal
+                  className="journal-article__image"
+                  delay={index * 0.05}
+                  key={`${block.image.url}-${index}`}
+                >
                   <figure>
                     <ResponsiveImage image={block.image} sizes="(max-width: 767px) 100vw, 70vw" />
                   </figure>
+                </Reveal>
+              ) : block.block_type === "image_text" ? (
+                <Reveal
+                  className="journal-article__image-text"
+                  delay={index * 0.05}
+                  key={`${block.image.url}-${index}`}
+                >
+                  <ResponsiveImage image={block.image} sizes="(max-width: 767px) 100vw, 40vw" />
+                  <div>
+                    {block.heading ? <h2>{block.heading}</h2> : null}
+                    {block.body.split(/\n{2,}/).map((paragraph) => (
+                      <p key={paragraph}>{paragraph}</p>
+                    ))}
+                  </div>
                 </Reveal>
               ) : null,
             )

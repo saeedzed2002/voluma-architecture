@@ -118,8 +118,8 @@ export function AdminSettingsManager() {
         <p className="admin-eyebrow">SITE CONTROL</p>
         <h1 id="settings-title">Settings</h1>
         <p>
-          One protected record controls public identity, contact details, appearance, home copy,
-          privacy text, and default metadata.
+          Update the public identity, contact details, appearance, home page, studio page, privacy,
+          and search appearance from one place.
         </p>
       </div>
       <form className="admin-settings__form" onSubmit={save}>
@@ -243,7 +243,7 @@ export function AdminSettingsManager() {
         </fieldset>
 
         <fieldset className="admin-settings__section">
-          <legend>Default SEO</legend>
+          <legend>Search appearance</legend>
           <div className="admin-editor__grid">
             <label className="admin-editor__field">
               <span>Title / EN</span>
@@ -278,9 +278,14 @@ export function AdminSettingsManager() {
           </div>
         </fieldset>
 
-        <fieldset className="admin-settings__section">
-          <legend>Home and studio</legend>
+        <fieldset className="admin-settings__section" id="home">
+          <legend>Home page</legend>
+          <p className="admin-editor__hint">
+            Edit every editorial section shown on the public home page. Projects, expertise, process
+            steps, and journal articles are managed from their own content areas.
+          </p>
           <div className="admin-editor__grid">
+            <h2 className="admin-settings__subheading">Hero</h2>
             <label className="admin-editor__field admin-editor__field--wide">
               <span>Home title / EN</span>
               <textarea
@@ -321,6 +326,148 @@ export function AdminSettingsManager() {
                 Remove home hero image
               </button>
             ) : null}
+            <h2 className="admin-settings__subheading">Selected projects</h2>
+            <label className="admin-editor__field admin-editor__field--wide">
+              <span>Selected projects heading / EN</span>
+              <input
+                onChange={(event) => set("home_selected_projects_heading_en", event.target.value)}
+                value={settings.home_selected_projects_heading_en}
+              />
+            </label>
+            <label className="admin-editor__field admin-editor__field--wide">
+              <span>Selected projects heading / FA</span>
+              <input
+                dir="rtl"
+                onChange={(event) => set("home_selected_projects_heading_fa", event.target.value)}
+                value={settings.home_selected_projects_heading_fa}
+              />
+            </label>
+            <h2 className="admin-settings__subheading">Studio feature</h2>
+            <label className="admin-editor__field admin-editor__field--wide">
+              <span>Studio section heading / EN</span>
+              <input
+                onChange={(event) => set("home_studio_heading_en", event.target.value)}
+                value={settings.home_studio_heading_en}
+              />
+            </label>
+            <label className="admin-editor__field admin-editor__field--wide">
+              <span>Studio section heading / FA</span>
+              <input
+                dir="rtl"
+                onChange={(event) => set("home_studio_heading_fa", event.target.value)}
+                value={settings.home_studio_heading_fa}
+              />
+            </label>
+            <label className="admin-editor__field admin-editor__field--wide">
+              <span>Studio section text / EN</span>
+              <textarea
+                onChange={(event) => set("home_studio_body_en", event.target.value)}
+                value={settings.home_studio_body_en}
+              />
+            </label>
+            <label className="admin-editor__field admin-editor__field--wide">
+              <span>Studio section text / FA</span>
+              <textarea
+                dir="rtl"
+                onChange={(event) => set("home_studio_body_fa", event.target.value)}
+                value={settings.home_studio_body_fa}
+              />
+            </label>
+            <AdminMediaPicker
+              onSelect={(asset) => set("home_studio_media_id", asset.id)}
+              selectedIds={settings.home_studio_media_id ? [settings.home_studio_media_id] : []}
+              title="Studio section image"
+            />
+            {settings.home_studio_media_id ? (
+              <button onClick={() => set("home_studio_media_id", null)} type="button">
+                Remove studio section image
+              </button>
+            ) : null}
+            <h2 className="admin-settings__subheading">Expertise feature</h2>
+            <label className="admin-editor__field admin-editor__field--wide">
+              <span>Expertise section heading / EN</span>
+              <input
+                onChange={(event) => set("home_expertise_heading_en", event.target.value)}
+                value={settings.home_expertise_heading_en}
+              />
+            </label>
+            <label className="admin-editor__field admin-editor__field--wide">
+              <span>Expertise section heading / FA</span>
+              <input
+                dir="rtl"
+                onChange={(event) => set("home_expertise_heading_fa", event.target.value)}
+                value={settings.home_expertise_heading_fa}
+              />
+            </label>
+            <AdminMediaPicker
+              onSelect={(asset) => set("home_expertise_media_id", asset.id)}
+              selectedIds={
+                settings.home_expertise_media_id ? [settings.home_expertise_media_id] : []
+              }
+              title="Expertise section image"
+            />
+            {settings.home_expertise_media_id ? (
+              <button onClick={() => set("home_expertise_media_id", null)} type="button">
+                Remove expertise section image
+              </button>
+            ) : null}
+            <h2 className="admin-settings__subheading">Process</h2>
+            <label className="admin-editor__field admin-editor__field--wide">
+              <span>Process section heading / EN</span>
+              <input
+                onChange={(event) => set("home_process_heading_en", event.target.value)}
+                value={settings.home_process_heading_en}
+              />
+            </label>
+            <label className="admin-editor__field admin-editor__field--wide">
+              <span>Process section heading / FA</span>
+              <input
+                dir="rtl"
+                onChange={(event) => set("home_process_heading_fa", event.target.value)}
+                value={settings.home_process_heading_fa}
+              />
+            </label>
+            <h2 className="admin-settings__subheading">Journal preview</h2>
+            <label className="admin-editor__field admin-editor__field--wide">
+              <span>Journal section heading / EN</span>
+              <input
+                onChange={(event) => set("home_journal_heading_en", event.target.value)}
+                value={settings.home_journal_heading_en}
+              />
+            </label>
+            <label className="admin-editor__field admin-editor__field--wide">
+              <span>Journal section heading / FA</span>
+              <input
+                dir="rtl"
+                onChange={(event) => set("home_journal_heading_fa", event.target.value)}
+                value={settings.home_journal_heading_fa}
+              />
+            </label>
+            <h2 className="admin-settings__subheading">Contact invitation</h2>
+            <label className="admin-editor__field admin-editor__field--wide">
+              <span>Contact section heading / EN</span>
+              <input
+                onChange={(event) => set("home_contact_heading_en", event.target.value)}
+                value={settings.home_contact_heading_en}
+              />
+            </label>
+            <label className="admin-editor__field admin-editor__field--wide">
+              <span>Contact section heading / FA</span>
+              <input
+                dir="rtl"
+                onChange={(event) => set("home_contact_heading_fa", event.target.value)}
+                value={settings.home_contact_heading_fa}
+              />
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset className="admin-settings__section" id="studio">
+          <legend>Studio page</legend>
+          <p className="admin-editor__hint">
+            Edit the introduction and principles displayed on the public studio page.
+          </p>
+          <div className="admin-editor__grid">
             <label className="admin-editor__field admin-editor__field--wide">
               <span>Studio introduction / EN</span>
               <textarea

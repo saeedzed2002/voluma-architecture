@@ -1967,6 +1967,32 @@ html[lang="fa"] .journal-article__header h1 {
   inline-size: 100%;
 }
 
+.journal-article__body .journal-article__image-text {
+  align-items: start;
+  display: grid;
+  gap: clamp(1.5rem, 4vw, 4rem);
+  grid-column: 2;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  margin: clamp(2rem, 5vw, 5rem) 0;
+}
+
+.journal-article__image-text img {
+  aspect-ratio: 4 / 5;
+  block-size: 100%;
+  inline-size: 100%;
+  object-fit: cover;
+}
+
+.journal-article__image-text h2 {
+  margin-block-start: 0;
+}
+
+@media (max-width: 767px) {
+  .journal-article__body .journal-article__image-text {
+    grid-template-columns: 1fr;
+  }
+}
+
 .journal-article__related {
   border-block-start: 1px solid var(--line);
   padding-block-start: clamp(2rem, 5vw, 5rem);
@@ -2871,12 +2897,29 @@ html[lang="fa"] .journal-article__header h1 {
 
 .admin-sidebar nav {
   display: grid;
+  gap: 1.75rem;
+}
+
+.admin-sidebar__group {
+  display: grid;
+}
+
+.admin-sidebar__group > p {
+  color: #8a8f89;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  margin: 0 0 0.45rem;
+  text-transform: uppercase;
 }
 
 .admin-sidebar nav a {
-  border-block: 1px solid #353835;
+  border-block-start: 1px solid #353835;
   min-height: 3rem;
   padding-block: 0.8rem;
+}
+
+.admin-sidebar__group a:last-child {
+  border-block-end: 1px solid #353835;
 }
 
 .admin-sidebar nav a[aria-current="page"] {
@@ -3095,6 +3138,11 @@ html[lang="fa"] .journal-article__header h1 {
   display: grid;
   gap: 1.25rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-editor__cover {
+  grid-column: 1 / -1;
+  order: -1;
 }
 
 .admin-editor__field,
@@ -3394,6 +3442,18 @@ html[lang="fa"] .journal-article__header h1 {
   line-height: 1.5;
 }
 
+.admin-media-picker__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-media-picker__actions button:first-child {
+  background: #ddf26b;
+  border-color: #ddf26b;
+  color: #101210;
+}
+
 .admin-media-picker__upload {
   align-items: center;
   border: 1px dashed var(--line-strong);
@@ -3441,15 +3501,18 @@ html[lang="fa"] .journal-article__header h1 {
   object-fit: cover;
 }
 
-.admin-media-picker__heading code {
-  color: var(--ink-muted);
-  font-size: 0.7rem;
-  overflow-wrap: anywhere;
-}
-
 .admin-media-picker__metadata {
   display: grid;
   gap: 0.5rem;
+}
+
+.admin-media-picker__metadata summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.admin-media-picker__metadata[open] summary {
+  margin-block-end: 0.5rem;
 }
 
 .admin-project-media__save {
@@ -3529,6 +3592,22 @@ html[lang="fa"] .journal-article__header h1 {
   font-size: 1.1rem;
   font-weight: 500;
   padding-inline: 0.25rem;
+}
+
+.admin-settings__subheading {
+  border-block-start: 1px solid #353835;
+  font-size: 0.9rem;
+  font-weight: 600;
+  grid-column: 1 / -1;
+  letter-spacing: 0.04em;
+  margin: 0.5rem 0 0;
+  padding-block-start: 1rem;
+}
+
+.admin-settings__subheading:first-child {
+  border-block-start: 0;
+  margin-block-start: 0;
+  padding-block-start: 0;
 }
 
 .admin-settings__collection {
@@ -3616,6 +3695,14 @@ html[lang="fa"] .journal-article__header h1 {
     flex: 0 0 auto;
     padding-inline: 0.8rem;
     white-space: nowrap;
+  }
+
+  .admin-sidebar__group {
+    display: contents;
+  }
+
+  .admin-sidebar__group > p {
+    display: none;
   }
 
   .admin-sidebar nav a:first-child {

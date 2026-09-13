@@ -50,7 +50,9 @@ function articleValidationMessage(form: ArticleForm, media: AdminMediaAsset[]): 
   }
 
   const emptyImageBlock = form.blocks.some(
-    (block) => block.block_type === "single_image" && !block.content_en.media_id,
+    (block) =>
+      (block.block_type === "single_image" || block.block_type === "image_text") &&
+      !block.content_en.media_id,
   );
   if (emptyImageBlock)
     return "Choose or upload an image for every image block, or remove the empty block.";
@@ -80,7 +82,12 @@ function articleValidationMessage(form: ArticleForm, media: AdminMediaAsset[]): 
     ) {
       return "Every quote block needs English and Persian text before publication.";
     }
-    if (block.block_type === "single_image") {
+    if (block.block_type === "image_text") {
+      if (!block.content_en.body.trim() || !block.content_fa.body.trim()) {
+        return "Every image and text block needs English and Persian text before publication.";
+      }
+    }
+    if (block.block_type === "single_image" || block.block_type === "image_text") {
       const asset = media.find((item) => item.id === block.content_en.media_id);
       if (
         asset === undefined ||
@@ -131,6 +138,14 @@ function imageBlock(mediaId = ""): JournalArticleBlockWrite {
     block_type: "single_image",
     content_en: { media_id: mediaId },
     content_fa: { media_id: mediaId },
+  };
+}
+
+function imageTextBlock(mediaId = ""): JournalArticleBlockWrite {
+  return {
+    block_type: "image_text",
+    content_en: { body: "", media_id: mediaId },
+    content_fa: { body: "", media_id: mediaId },
   };
 }
 
@@ -335,7 +350,9 @@ export function AdminJournalManager() {
     if (session === null) return;
     const mediaIds = new Set(
       articleForm.blocks.flatMap((block) =>
-        block.block_type === "single_image" ? [block.content_en.media_id] : [],
+        block.block_type === "single_image" || block.block_type === "image_text"
+          ? [block.content_en.media_id]
+          : [],
       ),
     );
     const selectedAssets = media.filter((asset) => mediaIds.has(asset.id));
@@ -596,30 +613,35 @@ export function AdminJournalManager() {
                 value={articleForm.reading_minutes}
               />
             </label>
-            <AdminMediaPicker
-              onAssetUpdated={(asset) =>
-                setMedia((current) => [asset, ...current.filter((item) => item.id !== asset.id)])
-              }
-              onSelect={(asset) =>
-                setArticleForm((current) => ({
-                  ...current,
-                  cover_alt_en: null,
-                  cover_alt_fa: null,
-                  cover_image_url: null,
-                  cover_media_id: asset.id,
-                }))
-              }
-              selectedIds={articleForm.cover_media_id ? [articleForm.cover_media_id] : []}
-              title="Article cover image"
-            />
-            {articleForm.cover_media_id ? (
-              <button
-                onClick={() => setArticleForm((current) => ({ ...current, cover_media_id: null }))}
-                type="button"
-              >
-                Remove selected cover image
-              </button>
-            ) : null}
+            <div className="admin-editor__cover">
+              <AdminMediaPicker
+                allowUnreadySelection
+                onAssetUpdated={(asset) =>
+                  setMedia((current) => [asset, ...current.filter((item) => item.id !== asset.id)])
+                }
+                onSelect={(asset) =>
+                  setArticleForm((current) => ({
+                    ...current,
+                    cover_alt_en: null,
+                    cover_alt_fa: null,
+                    cover_image_url: null,
+                    cover_media_id: asset.id,
+                  }))
+                }
+                selectedIds={articleForm.cover_media_id ? [articleForm.cover_media_id] : []}
+                title="Article cover image"
+              />
+              {articleForm.cover_media_id ? (
+                <button
+                  onClick={() =>
+                    setArticleForm((current) => ({ ...current, cover_media_id: null }))
+                  }
+                  type="button"
+                >
+                  Remove selected cover image
+                </button>
+              ) : null}
+            </div>
             <label className="admin-editor__field admin-editor__field--wide">
               <span>Title / EN</span>
               <input
@@ -678,7 +700,9 @@ export function AdminJournalManager() {
                             }
                           : event.target.value === "single_image"
                             ? imageBlock()
-                            : textBlock(),
+                            : event.target.value === "image_text"
+                              ? imageTextBlock()
+                              : textBlock(),
                       )
                     }
                     value={block.block_type}
@@ -686,6 +710,7 @@ export function AdminJournalManager() {
                     <option value="text">Text</option>
                     <option value="quote">Quote</option>
                     <option value="single_image">Image</option>
+                    <option value="image_text">Image and text</option>
                   </select>
                 </label>
                 {block.block_type === "text" ? (
@@ -775,8 +800,9 @@ export function AdminJournalManager() {
                       />
                     </label>
                   </>
-                ) : (
+                ) : block.block_type === "single_image" ? (
                   <AdminMediaPicker
+                    allowUnreadySelection
                     onAssetUpdated={(asset) =>
                       setMedia((current) => [
                         asset,
@@ -787,6 +813,83 @@ export function AdminJournalManager() {
                     selectedIds={block.content_en.media_id ? [block.content_en.media_id] : []}
                     title="Article image"
                   />
+                ) : (
+                  <>
+                    <AdminMediaPicker
+                      allowUnreadySelection
+                      onAssetUpdated={(asset) =>
+                        setMedia((current) => [
+                          asset,
+                          ...current.filter((item) => item.id !== asset.id),
+                        ])
+                      }
+                      onSelect={(asset) =>
+                        replaceBlock(index, {
+                          ...block,
+                          content_en: { ...block.content_en, media_id: asset.id },
+                          content_fa: { ...block.content_fa, media_id: asset.id },
+                        })
+                      }
+                      selectedIds={block.content_en.media_id ? [block.content_en.media_id] : []}
+                      title="Image beside text"
+                    />
+                    <label className="admin-editor__field">
+                      <span>Heading / EN</span>
+                      <input
+                        onChange={(event) =>
+                          replaceBlock(index, {
+                            ...block,
+                            content_en: {
+                              ...block.content_en,
+                              heading: event.target.value || undefined,
+                            },
+                          })
+                        }
+                        value={block.content_en.heading ?? ""}
+                      />
+                    </label>
+                    <label className="admin-editor__field">
+                      <span>Heading / FA</span>
+                      <input
+                        dir="rtl"
+                        onChange={(event) =>
+                          replaceBlock(index, {
+                            ...block,
+                            content_fa: {
+                              ...block.content_fa,
+                              heading: event.target.value || undefined,
+                            },
+                          })
+                        }
+                        value={block.content_fa.heading ?? ""}
+                      />
+                    </label>
+                    <label className="admin-editor__field admin-editor__field--wide">
+                      <span>Text / EN</span>
+                      <textarea
+                        onChange={(event) =>
+                          replaceBlock(index, {
+                            ...block,
+                            content_en: { ...block.content_en, body: event.target.value },
+                          })
+                        }
+                        value={block.content_en.body}
+                      />
+                    </label>
+                    <label className="admin-editor__field admin-editor__field--wide">
+                      <span>Text / FA</span>
+                      <textarea
+                        dir="rtl"
+                        onChange={(event) =>
+                          replaceBlock(index, {
+                            ...block,
+                            content_fa: { ...block.content_fa, body: event.target.value },
+                          })
+                        }
+                        value={block.content_fa.body}
+                      />
+                    </label>
+                  </>
                 )}
                 <button
                   onClick={() =>
@@ -822,6 +925,17 @@ export function AdminJournalManager() {
               type="button"
             >
               Add image block
+            </button>
+            <button
+              onClick={() =>
+                setArticleForm((current) => ({
+                  ...current,
+                  blocks: [...current.blocks, imageTextBlock()],
+                }))
+              }
+              type="button"
+            >
+              Add image and text
             </button>
           </fieldset>
 

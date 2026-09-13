@@ -248,6 +248,22 @@ class AdminProjectBlockResponse(AdminModel):
     display_order: int
 
 
+class ProjectMediaWriteItem(AdminModel):
+    media_id: UUID
+    is_cover: bool = False
+
+
+def _validate_project_media_items(
+    items: list[ProjectMediaWriteItem],
+) -> list[ProjectMediaWriteItem]:
+    identifiers = [item.media_id for item in items]
+    if len(identifiers) != len(set(identifiers)):
+        raise ValueError("project media assets must be unique")
+    if sum(item.is_cover for item in items) > 1:
+        raise ValueError("a project can have only one cover image")
+    return items
+
+
 class ProjectEditableFields(AdminModel):
     publication_state: PublicationState = PublicationState.DRAFT
     published_at: datetime | None = None
@@ -294,6 +310,8 @@ class ProjectEditableFields(AdminModel):
     material_fa: str | None = Field(default=None, max_length=12_000)
     discipline_ids: list[UUID] = Field(default_factory=list, max_length=24)
     typology_ids: list[UUID] = Field(default_factory=list, max_length=24)
+    media_items: list[ProjectMediaWriteItem] | None = Field(default=None, max_length=100)
+    blocks: list[ProjectBlockWriteRequest] | None = Field(default=None, max_length=80)
 
     @field_validator(
         "subtitle_en",
@@ -342,6 +360,13 @@ class ProjectEditableFields(AdminModel):
         if len(value) != len(set(value)):
             raise ValueError("taxonomy identifiers must be unique")
         return value
+
+    @field_validator("media_items")
+    @classmethod
+    def media_items_must_be_unique(
+        cls, value: list[ProjectMediaWriteItem] | None
+    ) -> list[ProjectMediaWriteItem] | None:
+        return None if value is None else _validate_project_media_items(value)
 
     @model_validator(mode="after")
     def bilingual_sections_must_be_complete(self) -> ProjectEditableFields:
@@ -484,7 +509,7 @@ class JournalCategoryReorderRequest(AdminModel):
         return value
 
 
-JournalArticleBlockType = Literal["text", "quote", "single_image"]
+JournalArticleBlockType = Literal["text", "quote", "single_image", "image_text"]
 
 
 class JournalArticleBlockWriteRequest(AdminModel):
@@ -662,6 +687,22 @@ class SiteSettingsWriteRequest(AdminModel):
     home_body_en: str = Field(min_length=1, max_length=12_000)
     home_body_fa: str = Field(min_length=1, max_length=12_000)
     home_hero_media_id: UUID | None = None
+    home_selected_projects_heading_en: str = Field(min_length=1, max_length=240)
+    home_selected_projects_heading_fa: str = Field(min_length=1, max_length=240)
+    home_studio_heading_en: str = Field(min_length=1, max_length=240)
+    home_studio_heading_fa: str = Field(min_length=1, max_length=240)
+    home_studio_body_en: str = Field(min_length=1, max_length=12_000)
+    home_studio_body_fa: str = Field(min_length=1, max_length=12_000)
+    home_studio_media_id: UUID | None = None
+    home_expertise_heading_en: str = Field(min_length=1, max_length=240)
+    home_expertise_heading_fa: str = Field(min_length=1, max_length=240)
+    home_expertise_media_id: UUID | None = None
+    home_process_heading_en: str = Field(min_length=1, max_length=240)
+    home_process_heading_fa: str = Field(min_length=1, max_length=240)
+    home_journal_heading_en: str = Field(min_length=1, max_length=240)
+    home_journal_heading_fa: str = Field(min_length=1, max_length=240)
+    home_contact_heading_en: str = Field(min_length=1, max_length=240)
+    home_contact_heading_fa: str = Field(min_length=1, max_length=240)
     studio_intro_en: str = Field(min_length=1, max_length=12_000)
     studio_intro_fa: str = Field(min_length=1, max_length=12_000)
     studio_principles: list[SiteSettingsPrinciple] = Field(default_factory=list, max_length=12)
@@ -674,6 +715,20 @@ class SiteSettingsWriteRequest(AdminModel):
         "home_title_fa",
         "home_body_en",
         "home_body_fa",
+        "home_selected_projects_heading_en",
+        "home_selected_projects_heading_fa",
+        "home_studio_heading_en",
+        "home_studio_heading_fa",
+        "home_studio_body_en",
+        "home_studio_body_fa",
+        "home_expertise_heading_en",
+        "home_expertise_heading_fa",
+        "home_process_heading_en",
+        "home_process_heading_fa",
+        "home_journal_heading_en",
+        "home_journal_heading_fa",
+        "home_contact_heading_en",
+        "home_contact_heading_fa",
         "studio_intro_en",
         "studio_intro_fa",
         "privacy_en",
@@ -763,22 +818,15 @@ class MediaAssetMetadataWriteRequest(AdminModel):
         return value.strip() or None
 
 
-class ProjectMediaWriteItem(AdminModel):
-    media_id: UUID
-    is_cover: bool = False
-
-
 class ProjectMediaReplaceRequest(AdminModel):
     items: list[ProjectMediaWriteItem] = Field(default_factory=list, max_length=100)
 
-    @model_validator(mode="after")
-    def media_items_are_usable(self) -> ProjectMediaReplaceRequest:
-        identifiers = [item.media_id for item in self.items]
-        if len(identifiers) != len(set(identifiers)):
-            raise ValueError("project media assets must be unique")
-        if sum(item.is_cover for item in self.items) > 1:
-            raise ValueError("a project can have only one cover image")
-        return self
+    @field_validator("items")
+    @classmethod
+    def items_must_be_unique(
+        cls, value: list[ProjectMediaWriteItem]
+    ) -> list[ProjectMediaWriteItem]:
+        return _validate_project_media_items(value)
 
 
 class ProjectMediaResponse(AdminModel):

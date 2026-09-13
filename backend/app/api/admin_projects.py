@@ -30,6 +30,7 @@ from app.services.media_storage import MediaStorage
 from app.services.project_administration import (
     ProjectAdministrationService,
     ProjectBlockMediaError,
+    ProjectGalleryMediaError,
     ProjectNotFoundError,
     ProjectPublishingValidationError,
     ProjectReorderError,
@@ -102,6 +103,11 @@ def create_project(
             detail={"message": "project cannot be published", "fields": error.fields},
         ) from error
     except ProjectBlockMediaError as error:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
+        ) from error
+    except ProjectGalleryMediaError as error:
         session.rollback()
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
@@ -181,6 +187,11 @@ def update_project(
             detail={"message": "project cannot be published", "fields": error.fields},
         ) from error
     except ProjectBlockMediaError as error:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
+        ) from error
+    except ProjectGalleryMediaError as error:
         session.rollback()
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)

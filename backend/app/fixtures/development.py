@@ -39,6 +39,25 @@ def seed_development_content(session: Session) -> bool:
         home_hero_image_url="/media/voluma-mountain-house.png",
         home_hero_alt_en="Concrete and timber house overlooking mountains and a lake",
         home_hero_alt_fa="خانه‌ی بتنی و چوبی رو به کوهستان و دریاچه",
+        home_selected_projects_heading_en="Selected projects",
+        home_selected_projects_heading_fa="پروژه‌های منتخب",
+        home_studio_heading_en="We design for atmosphere, use, and time.",
+        home_studio_heading_fa="برای کیفیت فضا، شیوه‌ی استفاده و گذر زمان طراحی می‌کنیم.",
+        home_studio_body_en=(
+            "VOLUMA is an architecture and design practice working across homes, workplaces, "
+            "and cultural spaces."
+        ),
+        home_studio_body_fa=(
+            "ولوما استودیوی معماری و طراحی است که روی خانه، محیط کار و فضاهای فرهنگی کار می‌کند."
+        ),
+        home_expertise_heading_en="What we shape",
+        home_expertise_heading_fa="آنچه شکل می‌دهیم",
+        home_process_heading_en="A clear path from first question to built form.",
+        home_process_heading_fa="مسیری روشن از نخستین پرسش تا فضای ساخته‌شده.",
+        home_journal_heading_en="Latest from the journal",
+        home_journal_heading_fa="تازه‌ترین یادداشت‌ها",
+        home_contact_heading_en="Begin with a place, a question, or a possibility.",
+        home_contact_heading_fa="با یک مکان، یک پرسش یا یک امکان آغاز کنیم.",
         studio_intro_en=(
             "VOLUMA is presented as a development fixture. Published studio people, collaborators, "
             "recognition, and contact details require owner approval."

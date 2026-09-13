@@ -219,6 +219,101 @@ def test_project_workflow_keeps_drafts_private_and_invalidates_after_publish(
     ]
 
 
+def test_project_update_persists_gallery_and_blocks_with_the_project_form(
+    session: Session, client: tuple[TestClient, RecordingCache]
+) -> None:
+    test_client, _cache = client
+    _administrator(session)
+    headers = _login(test_client)
+    created = test_client.post(
+        "/api/v1/admin/projects", headers=headers, json=_project_payload(session)
+    )
+    assert created.status_code == 201
+    project_id = created.json()["id"]
+
+    cover = MediaAsset(
+        original_extension="png",
+        source_content_type="image/png",
+        source_size_bytes=100,
+        source_width=20,
+        source_height=10,
+        processing_state=MediaProcessingState.READY,
+        derivative_version="project-form-cover",
+        derivative_width=20,
+        derivative_height=10,
+        alt_en="Project form cover",
+        alt_fa="تصویر جلد فرم پروژه",
+    )
+    session.add(cover)
+    session.commit()
+
+    payload = _without_slug(_project_payload(session, state="published"))
+    payload["media_items"] = [{"media_id": str(cover.id), "is_cover": True}]
+    payload["blocks"] = [
+        {
+            "block_type": "image_text",
+            "content_en": {
+                "body": "An image and text block saved with the project.",
+                "media_id": str(cover.id),
+            },
+            "content_fa": {
+                "body": "بلوک تصویر و متن همراه پروژه ذخیره می‌شود.",
+                "media_id": str(cover.id),
+            },
+        }
+    ]
+    updated = test_client.put(f"/api/v1/admin/projects/{project_id}", headers=headers, json=payload)
+
+    assert updated.status_code == 200
+    assert updated.json()["blocks"][0]["block_type"] == "image_text"
+    gallery = test_client.get(f"/api/v1/admin/projects/{project_id}/media")
+    assert gallery.status_code == 200
+    assert len(gallery.json()["items"]) == 1
+    gallery_item = gallery.json()["items"][0]
+    assert gallery_item["display_order"] == 0
+    assert gallery_item["is_cover"] is True
+    assert gallery_item["media"]["id"] == str(cover.id)
+    actions = session.scalars(
+        select(AuditEvent.action)
+        .where(AuditEvent.target_id == UUID(project_id))
+        .order_by(AuditEvent.created_at)
+    ).all()
+    assert actions == ["project.created", "project.updated"]
+
+
+def test_project_draft_keeps_processing_gallery_images_until_publish(
+    session: Session, client: tuple[TestClient, RecordingCache]
+) -> None:
+    test_client, _cache = client
+    _administrator(session)
+    headers = _login(test_client)
+    processing_image = MediaAsset(
+        original_extension="png",
+        source_content_type="image/png",
+        source_size_bytes=100,
+        source_width=20,
+        source_height=10,
+        processing_state=MediaProcessingState.PROCESSING,
+    )
+    session.add(processing_image)
+    session.commit()
+
+    payload = _project_payload(session)
+    payload["media_items"] = [{"media_id": str(processing_image.id), "is_cover": True}]
+    created = test_client.post("/api/v1/admin/projects", headers=headers, json=payload)
+    assert created.status_code == 201
+
+    publish_payload = _without_slug(_project_payload(session, state="published"))
+    publish_payload["media_items"] = [{"media_id": str(processing_image.id), "is_cover": True}]
+    published = test_client.put(
+        f"/api/v1/admin/projects/{created.json()['id']}",
+        headers=headers,
+        json=publish_payload,
+    )
+    assert published.status_code == 422
+    assert "ready" in published.json()["detail"]
+
+
 def test_project_image_text_block_requires_ready_managed_media_and_renders_publicly(
     session: Session, client: tuple[TestClient, RecordingCache]
 ) -> None:
@@ -747,7 +842,7 @@ def test_journal_categories_and_articles_publish_bilingual_editorial_blocks(
     )
     session.add(unready_cover)
     session.commit()
-    rejected_cover = test_client.post(
+    processing_cover_draft = test_client.post(
         "/api/v1/admin/journal/articles",
         headers=headers,
         json={
@@ -756,8 +851,34 @@ def test_journal_categories_and_articles_publish_bilingual_editorial_blocks(
             "cover_media_id": str(unready_cover.id),
         },
     )
-    assert rejected_cover.status_code == 422
-    assert rejected_cover.json()["detail"] == "journal cover media must be ready"
+    assert processing_cover_draft.status_code == 201
+    assert processing_cover_draft.json()["cover_media_id"] == str(unready_cover.id)
+    processing_cover_article_id = UUID(processing_cover_draft.json()["id"])
+    rejected_publish_with_processing_cover = test_client.put(
+        f"/api/v1/admin/journal/articles/{processing_cover_article_id}",
+        headers=headers,
+        json={
+            "publication_state": "published",
+            "category_id": category_id,
+            "title_en": "Processing cover",
+            "title_fa": "تصویر در حال پردازش",
+            "excerpt_en": "A draft that waits for its cover image.",
+            "excerpt_fa": "پیش‌نویسی که منتظر تصویر روی جلد است.",
+            "cover_media_id": str(unready_cover.id),
+            "blocks": [
+                {
+                    "block_type": "text",
+                    "content_en": {"body": "The draft is ready when the image is ready."},
+                    "content_fa": {"body": "پیش‌نویس با آماده شدن تصویر تکمیل می‌شود."},
+                }
+            ],
+        },
+    )
+    assert rejected_publish_with_processing_cover.status_code == 422
+    assert (
+        "ready_bilingual_article_images"
+        in rejected_publish_with_processing_cover.json()["detail"]["fields"]
+    )
 
     second_category = test_client.post(
         "/api/v1/admin/journal/categories",
@@ -832,12 +953,25 @@ def test_journal_categories_and_articles_publish_bilingual_editorial_blocks(
                     "content_en": {"media_id": str(cover.id)},
                     "content_fa": {"media_id": str(cover.id)},
                 },
+                {
+                    "block_type": "image_text",
+                    "content_en": {
+                        "heading": "Material and memory",
+                        "body": "An image and text section keeps the article flow intact.",
+                        "media_id": str(cover.id),
+                    },
+                    "content_fa": {
+                        "heading": "مصالح و خاطره",
+                        "body": "بخش تصویر و متن، جریان یادداشت را یکپارچه نگه می‌دارد.",
+                        "media_id": str(cover.id),
+                    },
+                },
             ],
         },
     )
     assert published.status_code == 200
     assert published.json()["published_at"] is not None
-    assert len(published.json()["blocks"]) == 3
+    assert len(published.json()["blocks"]) == 4
     assert cache.invalidated[-1] >= {
         "home",
         "journal-list",
@@ -852,6 +986,11 @@ def test_journal_categories_and_articles_publish_bilingual_editorial_blocks(
     assert public.json()["blocks"][0]["body"] == "یک بند فارسی سنجیده."
     assert public.json()["blocks"][1]["quote"] == "مصالح زمان را ثبت می‌کند."
     assert public.json()["blocks"][2]["image"]["url"].endswith(
+        f"/{cover.id}/journal-cover-version/w1024.webp"
+    )
+    assert public.json()["blocks"][3]["block_type"] == "image_text"
+    assert public.json()["blocks"][3]["heading"] == "مصالح و خاطره"
+    assert public.json()["blocks"][3]["image"]["url"].endswith(
         f"/{cover.id}/journal-cover-version/w1024.webp"
     )
     assert public.json()["cover_image"]["url"].endswith(
@@ -879,6 +1018,10 @@ def test_journal_categories_and_articles_publish_bilingual_editorial_blocks(
         f"/api/v1/admin/journal/articles/{article_id}", headers=headers
     )
     assert deleted_article.status_code == 204
+    deleted_processing_cover_draft = test_client.delete(
+        f"/api/v1/admin/journal/articles/{processing_cover_article_id}", headers=headers
+    )
+    assert deleted_processing_cover_draft.status_code == 204
     deleted_category = test_client.delete(
         f"/api/v1/admin/journal/categories/{category_id}", headers=headers
     )

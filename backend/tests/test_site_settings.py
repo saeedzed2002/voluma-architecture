@@ -131,6 +131,22 @@ def test_settings_are_authenticated_csrf_protected_and_invalidate_public_content
             "default_seo_description_en": "Owner-managed architecture metadata.",
             "default_seo_description_fa": "فرادادهٔ معماریِ مدیریت‌شده توسط مالک.",
             "home_hero_media_id": str(hero.id),
+            "home_selected_projects_heading_en": "Current work",
+            "home_selected_projects_heading_fa": "کارهای جاری",
+            "home_studio_heading_en": "A studio shaped by place",
+            "home_studio_heading_fa": "استودیویی شکل‌گرفته از مکان",
+            "home_studio_body_en": "A concise editable studio statement.",
+            "home_studio_body_fa": "بیانیه‌ای کوتاه و قابل ویرایش برای استودیو.",
+            "home_studio_media_id": str(hero.id),
+            "home_expertise_heading_en": "Ways of working",
+            "home_expertise_heading_fa": "شیوه‌های کار",
+            "home_expertise_media_id": str(hero.id),
+            "home_process_heading_en": "How work develops",
+            "home_process_heading_fa": "کار چگونه توسعه می‌یابد",
+            "home_journal_heading_en": "Notes from the studio",
+            "home_journal_heading_fa": "یادداشت‌های استودیو",
+            "home_contact_heading_en": "Start a conversation",
+            "home_contact_heading_fa": "گفت‌وگو را آغاز کنید",
         }
     )
 
@@ -171,12 +187,21 @@ def test_settings_are_authenticated_csrf_protected_and_invalidate_public_content
     home = test_client.get("/api/v1/public/home?locale=en")
     assert home.status_code == 200
     assert home.json()["hero_image"]["url"] == f"/media/{hero.id}/hero-v1/w1024.webp"
+    assert home.json()["studio_image"]["url"] == f"/media/{hero.id}/hero-v1/w1024.webp"
+    assert home.json()["expertise_image"]["url"] == f"/media/{hero.id}/hero-v1/w1024.webp"
+    assert home.json()["selected_projects_heading"] == "Current work"
+    assert home.json()["studio_heading"] == "A studio shaped by place"
+    assert home.json()["studio_body"] == "A concise editable studio statement."
+    assert home.json()["expertise_heading"] == "Ways of working"
+    assert home.json()["process_heading"] == "How work develops"
+    assert home.json()["journal_heading"] == "Notes from the studio"
+    assert home.json()["contact_heading"] == "Start a conversation"
 
     protected = test_client.delete(f"/api/v1/admin/media/{hero.id}", headers=headers)
     assert protected.status_code == 409
     assert (
         protected.json()["detail"]
-        == "remove the asset from site branding or the home hero before deletion"
+        == "remove the asset from site branding or a home-page section before deletion"
     )
 
 

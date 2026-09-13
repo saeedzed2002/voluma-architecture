@@ -49,6 +49,22 @@ def _default_response() -> AdminSiteSettingsResponse:
         home_body_en="Configure this site before publishing production content.",
         home_body_fa="پیش از انتشار محتوای تولید، این سایت را پیکربندی کنید.",
         home_hero_media_id=None,
+        home_selected_projects_heading_en="Selected projects",
+        home_selected_projects_heading_fa="پروژه‌های منتخب",
+        home_studio_heading_en="We design for atmosphere, use, and time.",
+        home_studio_heading_fa="برای کیفیت فضا، شیوه‌ی استفاده و گذر زمان طراحی می‌کنیم.",
+        home_studio_body_en="Configure the studio introduction shown on the home page.",
+        home_studio_body_fa="معرفی استودیو که در صفحهٔ اصلی نمایش داده می‌شود را پیکربندی کنید.",
+        home_studio_media_id=None,
+        home_expertise_heading_en="What we shape",
+        home_expertise_heading_fa="آنچه شکل می‌دهیم",
+        home_expertise_media_id=None,
+        home_process_heading_en="A clear path from first question to built form.",
+        home_process_heading_fa="مسیری روشن از نخستین پرسش تا فضای ساخته‌شده.",
+        home_journal_heading_en="Latest from the journal",
+        home_journal_heading_fa="تازه‌ترین یادداشت‌ها",
+        home_contact_heading_en="Begin with a place, a question, or a possibility.",
+        home_contact_heading_fa="با یک مکان، یک پرسش یا یک امکان آغاز کنیم.",
         studio_intro_en="Configure the bilingual studio introduction before publication.",
         studio_intro_fa="پیش از انتشار، معرفی دوزبانهٔ استودیو را پیکربندی کنید.",
         studio_principles=[],
@@ -137,6 +153,22 @@ class SiteSettingsAdministrationService:
         record.home_body_en = payload.home_body_en
         record.home_body_fa = payload.home_body_fa
         record.home_hero_media_id = payload.home_hero_media_id
+        record.home_selected_projects_heading_en = payload.home_selected_projects_heading_en
+        record.home_selected_projects_heading_fa = payload.home_selected_projects_heading_fa
+        record.home_studio_heading_en = payload.home_studio_heading_en
+        record.home_studio_heading_fa = payload.home_studio_heading_fa
+        record.home_studio_body_en = payload.home_studio_body_en
+        record.home_studio_body_fa = payload.home_studio_body_fa
+        record.home_studio_media_id = payload.home_studio_media_id
+        record.home_expertise_heading_en = payload.home_expertise_heading_en
+        record.home_expertise_heading_fa = payload.home_expertise_heading_fa
+        record.home_expertise_media_id = payload.home_expertise_media_id
+        record.home_process_heading_en = payload.home_process_heading_en
+        record.home_process_heading_fa = payload.home_process_heading_fa
+        record.home_journal_heading_en = payload.home_journal_heading_en
+        record.home_journal_heading_fa = payload.home_journal_heading_fa
+        record.home_contact_heading_en = payload.home_contact_heading_en
+        record.home_contact_heading_fa = payload.home_contact_heading_fa
         record.studio_intro_en = payload.studio_intro_en
         record.studio_intro_fa = payload.studio_intro_fa
         record.studio_principles_en = [
@@ -157,6 +189,8 @@ class SiteSettingsAdministrationService:
                 payload.logo_media_id,
                 payload.favicon_media_id,
                 payload.home_hero_media_id,
+                payload.home_studio_media_id,
+                payload.home_expertise_media_id,
             )
             if media_id is not None
         }
@@ -210,6 +244,22 @@ def _settings_response(record: SiteSettings) -> AdminSiteSettingsResponse:
         home_body_en=record.home_body_en,
         home_body_fa=record.home_body_fa,
         home_hero_media_id=record.home_hero_media_id,
+        home_selected_projects_heading_en=record.home_selected_projects_heading_en,
+        home_selected_projects_heading_fa=record.home_selected_projects_heading_fa,
+        home_studio_heading_en=record.home_studio_heading_en,
+        home_studio_heading_fa=record.home_studio_heading_fa,
+        home_studio_body_en=record.home_studio_body_en,
+        home_studio_body_fa=record.home_studio_body_fa,
+        home_studio_media_id=record.home_studio_media_id,
+        home_expertise_heading_en=record.home_expertise_heading_en,
+        home_expertise_heading_fa=record.home_expertise_heading_fa,
+        home_expertise_media_id=record.home_expertise_media_id,
+        home_process_heading_en=record.home_process_heading_en,
+        home_process_heading_fa=record.home_process_heading_fa,
+        home_journal_heading_en=record.home_journal_heading_en,
+        home_journal_heading_fa=record.home_journal_heading_fa,
+        home_contact_heading_en=record.home_contact_heading_en,
+        home_contact_heading_fa=record.home_contact_heading_fa,
         studio_intro_en=record.studio_intro_en,
         studio_intro_fa=record.studio_intro_fa,
         studio_principles=principles,

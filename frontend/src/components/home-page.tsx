@@ -1,5 +1,3 @@
-import Image from "next/image";
-
 import { siteCopy } from "@/content/site";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
@@ -46,12 +44,17 @@ export function HomePage({ home, locale }: HomePageProps) {
 
       <section className="selected-projects section-shell" id="selected-work">
         <Reveal>
-          <h2 className="section-title">{copy.selectedProjects}</h2>
+          <h2 className="section-title">{home.selected_projects_heading}</h2>
         </Reveal>
         <div className="selected-projects__grid">
           {home.selected_projects.map((project, index) => (
             <Reveal delay={index * 0.08} key={project.slug}>
-              <ProjectLink locale={locale} priority={index === 0} project={project} variant="feature" />
+              <ProjectLink
+                locale={locale}
+                priority={index === 0}
+                project={project}
+                variant="feature"
+              />
             </Reveal>
           ))}
         </div>
@@ -59,9 +62,9 @@ export function HomePage({ home, locale }: HomePageProps) {
 
       <section className="studio-statement">
         <Reveal className="studio-statement__copy section-shell--inset">
-          <h2>{copy.statementTitle}</h2>
+          <h2>{home.studio_heading}</h2>
           <div>
-            <p>{copy.statementBody}</p>
+            <p>{home.studio_body}</p>
             <Link className="text-link" href="/studio" prefetch={false}>
               {copy.statementCta}
               <ArrowIcon className="directional-icon" />
@@ -69,22 +72,19 @@ export function HomePage({ home, locale }: HomePageProps) {
           </div>
         </Reveal>
         <div className="studio-statement__media">
-          <Image
-            alt={
-              locale === "fa"
-                ? "نور و سایه در آستانه‌ی یک خانه‌ی حیاط‌دار"
-                : "Light and shade at the threshold of a courtyard house"
-            }
-            fill
-            sizes="(max-width: 767px) 100vw, 42vw"
-            src="/media/courtyard-house.png"
-          />
+          {home.studio_image ? (
+            <ResponsiveImage
+              fill
+              image={home.studio_image}
+              sizes="(max-width: 767px) 100vw, 42vw"
+            />
+          ) : null}
         </div>
       </section>
 
       <section className="expertise section-shell">
         <Reveal className="expertise__index">
-          <h2 className="section-title">{copy.expertiseTitle}</h2>
+          <h2 className="section-title">{home.expertise_heading}</h2>
           <ol>
             {home.expertise.map((item, index) => (
               <li key={item.title}>
@@ -96,16 +96,13 @@ export function HomePage({ home, locale }: HomePageProps) {
           </ol>
         </Reveal>
         <Reveal className="expertise__media" delay={0.08}>
-          <Image
-            alt={
-              locale === "fa"
-                ? "جزئیات بتن، قاب چوبی و شاخه‌های سبز"
-                : "Concrete detail, oak frame, and green branches"
-            }
-            fill
-            sizes="(max-width: 767px) 100vw, 40vw"
-            src="/media/material-shadow.png"
-          />
+          {home.expertise_image ? (
+            <ResponsiveImage
+              fill
+              image={home.expertise_image}
+              sizes="(max-width: 767px) 100vw, 40vw"
+            />
+          ) : null}
         </Reveal>
       </section>
 
@@ -140,13 +137,13 @@ export function HomePage({ home, locale }: HomePageProps) {
 
         <section className="process section-shell">
           <Reveal>
-            <h2>{copy.processTitle}</h2>
+            <h2>{home.process_heading}</h2>
           </Reveal>
           <ol>
-          {home.process.map((step, index) => (
-            <Reveal as="li" delay={index * 0.05} key={step.title}>
-              <span>{String(index + 1).padStart(2, "0")}</span>
-              <strong>{step.title}</strong>
+            {home.process.map((step, index) => (
+              <Reveal as="li" delay={index * 0.05} key={step.title}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{step.title}</strong>
                 <ArrowIcon className="directional-icon" />
               </Reveal>
             ))}
@@ -156,7 +153,7 @@ export function HomePage({ home, locale }: HomePageProps) {
 
       <section className="journal section-shell">
         <Reveal>
-          <h2 className="section-title">{copy.journalTitle}</h2>
+          <h2 className="section-title">{home.journal_heading}</h2>
         </Reveal>
         <div className="journal__list">
           {home.journal.map((item, index) => (
@@ -175,7 +172,8 @@ export function HomePage({ home, locale }: HomePageProps) {
                   <div>
                     <h3>{item.title}</h3>
                     <p>
-                      {item.category.title} · {item.reading_minutes} {locale === "fa" ? "دقیقه" : "min read"}
+                      {item.category.title} · {item.reading_minutes}{" "}
+                      {locale === "fa" ? "دقیقه" : "min read"}
                     </p>
                   </div>
                   <ArrowIcon className="directional-icon" />
@@ -192,7 +190,7 @@ export function HomePage({ home, locale }: HomePageProps) {
 
       <section className="closing-cta">
         <Reveal className="section-shell closing-cta__inner">
-          <h2>{copy.ctaTitle}</h2>
+          <h2>{home.contact_heading}</h2>
           <Link className="text-link text-link--inverse" href="/contact" prefetch={false}>
             {copy.cta}
             <ArrowIcon className="directional-icon" />

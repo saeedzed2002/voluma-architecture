@@ -115,6 +115,26 @@ class SiteSettings(TimestampedUUIDModel):
     home_title_fa: Mapped[str] = mapped_column(Text, nullable=False)
     home_body_en: Mapped[str] = mapped_column(Text, nullable=False)
     home_body_fa: Mapped[str] = mapped_column(Text, nullable=False)
+    home_selected_projects_heading_en: Mapped[str] = mapped_column(Text, nullable=False)
+    home_selected_projects_heading_fa: Mapped[str] = mapped_column(Text, nullable=False)
+    home_studio_heading_en: Mapped[str] = mapped_column(Text, nullable=False)
+    home_studio_heading_fa: Mapped[str] = mapped_column(Text, nullable=False)
+    home_studio_body_en: Mapped[str] = mapped_column(Text, nullable=False)
+    home_studio_body_fa: Mapped[str] = mapped_column(Text, nullable=False)
+    home_studio_media_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("media_assets.id", ondelete="RESTRICT"), index=True
+    )
+    home_expertise_heading_en: Mapped[str] = mapped_column(Text, nullable=False)
+    home_expertise_heading_fa: Mapped[str] = mapped_column(Text, nullable=False)
+    home_expertise_media_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("media_assets.id", ondelete="RESTRICT"), index=True
+    )
+    home_process_heading_en: Mapped[str] = mapped_column(Text, nullable=False)
+    home_process_heading_fa: Mapped[str] = mapped_column(Text, nullable=False)
+    home_journal_heading_en: Mapped[str] = mapped_column(Text, nullable=False)
+    home_journal_heading_fa: Mapped[str] = mapped_column(Text, nullable=False)
+    home_contact_heading_en: Mapped[str] = mapped_column(Text, nullable=False)
+    home_contact_heading_fa: Mapped[str] = mapped_column(Text, nullable=False)
     home_hero_image_url: Mapped[str | None] = mapped_column(String(500))
     home_hero_alt_en: Mapped[str | None] = mapped_column(String(500))
     home_hero_alt_fa: Mapped[str | None] = mapped_column(String(500))
@@ -134,6 +154,10 @@ class SiteSettings(TimestampedUUIDModel):
     logo_media: Mapped[MediaAsset | None] = relationship(foreign_keys=[logo_media_id])
     favicon_media: Mapped[MediaAsset | None] = relationship(foreign_keys=[favicon_media_id])
     home_hero_media: Mapped[MediaAsset | None] = relationship(foreign_keys=[home_hero_media_id])
+    home_studio_media: Mapped[MediaAsset | None] = relationship(foreign_keys=[home_studio_media_id])
+    home_expertise_media: Mapped[MediaAsset | None] = relationship(
+        foreign_keys=[home_expertise_media_id]
+    )
 
 
 class ContactMessage(TimestampedUUIDModel):
@@ -494,7 +518,7 @@ class JournalArticleBlock(TimestampedUUIDModel):
     __tablename__ = "article_blocks"
     __table_args__ = (
         CheckConstraint(
-            "block_type IN ('text', 'quote', 'single_image')",
+            "block_type IN ('text', 'quote', 'single_image', 'image_text')",
             name="ck_article_blocks_type",
         ),
         UniqueConstraint(

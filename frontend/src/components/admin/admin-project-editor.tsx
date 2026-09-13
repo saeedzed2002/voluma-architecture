@@ -7,18 +7,20 @@ import { useEffect, useState } from "react";
 import {
   type AdminProject,
   type AdminProjectFormOptions,
+  type AdminProjectMedia,
   type ProjectBlockWrite,
   type ProjectWrite,
   createAdminProject,
   getAdminProject,
   getAdminProjectFormOptions,
-  replaceAdminProjectBlocks,
+  getAdminProjectMedia,
   updateAdminProject,
 } from "@/lib/admin-api";
+import { normalizeProjectMedia } from "@/lib/project-media";
 
 import { useAdminSession } from "./admin-session-provider";
 import { AdminMediaPicker } from "./admin-media-picker";
-import { AdminProjectMediaManager } from "./admin-project-media-manager";
+import { AdminProjectMediaManager, projectMediaSnapshot } from "./admin-project-media-manager";
 
 type ProjectFormState = {
   architect_en: string;
@@ -76,6 +78,15 @@ type TextFieldName = Exclude<
 
 const tabs = ["General", "Content", "Details", "Gallery", "SEO", "Publishing"] as const;
 type Tab = (typeof tabs)[number];
+
+const tabLabels: Record<Tab, string> = {
+  General: "Project",
+  Content: "Story",
+  Details: "Details",
+  Gallery: "Images",
+  SEO: "Search",
+  Publishing: "Publish",
+};
 
 const blankForm: ProjectFormState = {
   architect_en: "",
@@ -177,7 +188,7 @@ function asForm(project: AdminProject): ProjectFormState {
   };
 }
 
-function asProjectWrite(form: ProjectFormState): ProjectWrite {
+function asProjectWrite(form: ProjectFormState): Omit<ProjectWrite, "blocks" | "media_items"> {
   const { slug, ...rest } = form;
   void slug;
   return {
@@ -319,8 +330,8 @@ function ProjectBlocksEditor({
   return (
     <div className="admin-block-editor">
       <p>
-        All editorial block types are public-ready. Select a managed image here; processing state
-        and bilingual alt text are enforced before it can be saved.
+        Build the page in reading order. Add a text section, an image, or image and text; every
+        change is saved with the project.
       </p>
       {blocks.map((block, index) => (
         <article className="admin-block-editor__block" key={`${block.block_type}-${index}`}>
@@ -344,6 +355,7 @@ function ProjectBlocksEditor({
                 }
               />
               <AdminMediaPicker
+                allowUnreadySelection
                 disabled={disabled}
                 onSelect={(asset) =>
                   update(index, {
@@ -393,6 +405,7 @@ function ProjectBlocksEditor({
           ) : block.block_type === "single_image" || block.block_type === "full_width_image" ? (
             <>
               <AdminMediaPicker
+                allowUnreadySelection
                 disabled={disabled}
                 onSelect={(asset) =>
                   update(index, {
@@ -423,6 +436,7 @@ function ProjectBlocksEditor({
           ) : block.block_type === "paired_image" ? (
             <>
               <AdminMediaPicker
+                allowUnreadySelection
                 disabled={disabled}
                 onSelect={(asset) =>
                   update(index, {
@@ -450,6 +464,7 @@ function ProjectBlocksEditor({
                 </button>
               ) : null}
               <AdminMediaPicker
+                allowUnreadySelection
                 disabled={disabled}
                 onSelect={(asset) =>
                   update(index, {
@@ -482,6 +497,7 @@ function ProjectBlocksEditor({
           ) : block.block_type === "gallery" ? (
             <>
               <AdminMediaPicker
+                allowUnreadySelection
                 disabled={disabled}
                 onSelect={(asset) => {
                   if (block.content_en.media_ids.includes(asset.id)) return;
@@ -642,25 +658,33 @@ function ProjectBlocksEditor({
 export function AdminProjectEditor({ projectId }: { projectId?: string }) {
   const { session } = useAdminSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>("General");
+  const [activeTab, setActiveTab] = useState<Tab>("Gallery");
   const [blocks, setBlocks] = useState<ProjectBlockWrite[]>([]);
   const [form, setForm] = useState<ProjectFormState>(blankForm);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [mediaItems, setMediaItems] = useState<AdminProjectMedia[]>([]);
   const [options, setOptions] = useState<AdminProjectFormOptions | null>(null);
   const [project, setProject] = useState<AdminProject | null>(null);
+  const [savedMediaSnapshot, setSavedMediaSnapshot] = useState("");
 
   useEffect(() => {
     let active = true;
     async function loadEditor() {
       try {
-        const [nextOptions, nextProject] = await Promise.all([
+        const [nextOptions, nextProject, nextProjectMedia] = await Promise.all([
           getAdminProjectFormOptions(),
           projectId === undefined ? Promise.resolve(null) : getAdminProject(projectId),
+          projectId === undefined
+            ? Promise.resolve({ items: [] })
+            : getAdminProjectMedia(projectId),
         ]);
         if (!active) return;
         setOptions(nextOptions);
+        const normalizedMediaItems = normalizeProjectMedia(nextProjectMedia.items);
+        setMediaItems(normalizedMediaItems);
+        setSavedMediaSnapshot(projectMediaSnapshot(normalizedMediaItems));
         if (nextProject !== null) {
           setProject(nextProject);
           setForm(asForm(nextProject));
@@ -682,42 +706,41 @@ export function AdminProjectEditor({ projectId }: { projectId?: string }) {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
+  const hasUnsavedMediaChanges = projectMediaSnapshot(mediaItems) !== savedMediaSnapshot;
+
   const saveProject = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (session === null) return;
     setIsSaving(true);
     setMessage(null);
     try {
-      const payload = asProjectWrite(form);
+      const payload = {
+        ...asProjectWrite(form),
+        blocks,
+        media_items: mediaItems.map((item) => ({
+          is_cover: item.is_cover,
+          media_id: item.media.id,
+        })),
+      };
       const saved =
         project === null
           ? await createAdminProject({ ...payload, slug: form.slug }, session.csrf_token)
           : await updateAdminProject(project.id, payload, session.csrf_token);
       setProject(saved);
       setForm(asForm(saved));
+      setBlocks(saved.blocks.map(asBlockWrite));
+      setSavedMediaSnapshot(projectMediaSnapshot(mediaItems));
       if (project === null) {
         router.replace(`/admin/projects/${saved.id}/edit`);
       } else {
-        setMessage("Project details saved.");
+        setMessage(
+          hasUnsavedMediaChanges
+            ? "Project, images, and editorial content saved."
+            : "Project saved.",
+        );
       }
     } catch {
       setMessage("The project was not saved. Check required bilingual fields and try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const saveBlocks = async () => {
-    if (session === null || project === null) return;
-    setIsSaving(true);
-    setMessage(null);
-    try {
-      const saved = await replaceAdminProjectBlocks(project.id, blocks, session.csrf_token);
-      setProject(saved);
-      setBlocks(saved.blocks.map(asBlockWrite));
-      setMessage("Editorial blocks saved.");
-    } catch {
-      setMessage("Editorial blocks were not saved. Check both language variants and try again.");
     } finally {
       setIsSaving(false);
     }
@@ -756,7 +779,7 @@ export function AdminProjectEditor({ projectId }: { projectId?: string }) {
             role="tab"
             type="button"
           >
-            {tab}
+            {tabLabels[tab]}
           </button>
         ))}
       </div>
@@ -948,16 +971,7 @@ export function AdminProjectEditor({ projectId }: { projectId?: string }) {
               onChange={(value) => setText("material_fa", value)}
               value={form.material_fa}
             />
-            {project !== null ? (
-              <ProjectBlocksEditor blocks={blocks} disabled={isSaving} onChange={setBlocks} />
-            ) : (
-              <p>Save the project first to manage its structured editorial blocks.</p>
-            )}
-            {project !== null ? (
-              <button disabled={isSaving} onClick={() => void saveBlocks()} type="button">
-                Save editorial blocks
-              </button>
-            ) : null}
+            <ProjectBlocksEditor blocks={blocks} disabled={isSaving} onChange={setBlocks} />
           </div>
         ) : null}
         {activeTab === "Details" ? (
@@ -1025,13 +1039,12 @@ export function AdminProjectEditor({ projectId }: { projectId?: string }) {
           </div>
         ) : null}
         {activeTab === "Gallery" ? (
-          project === null ? (
-            <p className="admin-editor__notice">
-              Save the project before managing its media gallery.
-            </p>
-          ) : (
-            <AdminProjectMediaManager projectId={project.id} />
-          )
+          <AdminProjectMediaManager
+            disabled={isSaving}
+            items={mediaItems}
+            onChange={setMediaItems}
+            savedSnapshot={savedMediaSnapshot}
+          />
         ) : null}
         {activeTab === "SEO" ? (
           <div className="admin-editor__grid">
@@ -1094,16 +1107,9 @@ export function AdminProjectEditor({ projectId }: { projectId?: string }) {
           </div>
         ) : null}
         <div className="admin-editor__footer">
-          {activeTab === "Gallery" && project !== null ? (
-            <p className="admin-editor__hint">
-              Gallery selections are saved separately. Use “Save gallery and set public cover”
-              above; “Save project” does not save selected images.
-            </p>
-          ) : (
-            <button disabled={isSaving} type="submit">
-              {isSaving ? "Saving…" : project === null ? "Create project" : "Save project"}
-            </button>
-          )}
+          <button disabled={isSaving} type="submit">
+            {isSaving ? "Saving…" : project === null ? "Create project" : "Save project"}
+          </button>
         </div>
       </form>
     </section>

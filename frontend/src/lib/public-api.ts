@@ -84,13 +84,22 @@ export type PublicJournalArticle = {
 export type PublicJournalCard = Omit<PublicJournalArticle, "body">;
 
 export type PublicHome = {
+  contact_heading: string;
   expertise: PublicExpertise[];
+  expertise_heading: string;
+  expertise_image: PublicImage | null;
   hero_body: string;
   hero_image: PublicImage | null;
   hero_title: string;
   journal: PublicJournalCard[];
+  journal_heading: string;
   process: PublicProcessStep[];
+  process_heading: string;
   selected_projects: PublicProject[];
+  selected_projects_heading: string;
+  studio_body: string;
+  studio_heading: string;
+  studio_image: PublicImage | null;
   studio_name: string;
 };
 

@@ -25,6 +25,7 @@ from app.schemas.admin import (
     AdminJournalCategoryListResponse,
     AdminJournalCategoryResponse,
     AdminJournalCategoryWriteRequest,
+    ImageTextBlockPayload,
     JournalArticleBlockType,
     JournalArticleBlockWriteRequest,
     JournalArticleCreateRequest,
@@ -341,12 +342,6 @@ class JournalAdministrationService:
             )
         if asset is None or asset.deleted_at is not None:
             raise JournalArticleMediaValidationError("journal cover media was not found")
-        if asset.processing_state != MediaProcessingState.READY:
-            raise JournalArticleMediaValidationError("journal cover media must be ready")
-        if not asset.alt_en or not asset.alt_fa:
-            raise JournalArticleMediaValidationError(
-                "journal cover media requires localized alt text"
-            )
         return asset
 
     def _replace_blocks(
@@ -368,12 +363,7 @@ class JournalAdministrationService:
         self.session.flush()
 
     def _validate_block_media(self, blocks: list[JournalArticleBlockWriteRequest]) -> None:
-        media_ids = {
-            SingleImageBlockPayload.model_validate(content).media_id
-            for block in blocks
-            if block.block_type == "single_image"
-            for content in (block.content_en, block.content_fa)
-        }
+        media_ids = _block_media_ids(blocks)
         if not media_ids:
             return
         with self.session.no_autoflush:
@@ -399,12 +389,14 @@ class JournalAdministrationService:
             not article.cover_alt_en or not article.cover_alt_fa
         ):
             missing.extend(("cover_alt_en", "cover_alt_fa"))
-        image_ids = {
-            SingleImageBlockPayload.model_validate(content).media_id
-            for block in article.blocks
-            if block.block_type == "single_image"
-            for content in (block.content_en, block.content_fa)
-        }
+        image_ids = _block_media_ids(article.blocks)
+        if article.cover_media is not None and (
+            article.cover_media.deleted_at is not None
+            or article.cover_media.processing_state != MediaProcessingState.READY
+            or not article.cover_media.alt_en
+            or not article.cover_media.alt_fa
+        ):
+            missing.append("ready_bilingual_article_images")
         if image_ids:
             assets = self.session.scalars(
                 select(MediaAsset).where(MediaAsset.id.in_(image_ids))
@@ -474,6 +466,19 @@ def _legacy_body(blocks: list[JournalArticleBlockWriteRequest], locale: str) -> 
         if isinstance(body, str) and body.strip():
             paragraphs.append(body.strip())
     return "\n\n".join(paragraphs)
+
+
+def _block_media_ids(
+    blocks: list[JournalArticleBlockWriteRequest] | list[JournalArticleBlock],
+) -> set[UUID]:
+    media_ids: set[UUID] = set()
+    for block in blocks:
+        for content in (block.content_en, block.content_fa):
+            if block.block_type == "single_image":
+                media_ids.add(SingleImageBlockPayload.model_validate(content).media_id)
+            elif block.block_type == "image_text":
+                media_ids.add(ImageTextBlockPayload.model_validate(content).media_id)
+    return media_ids
 
 
 def _category_response(category: JournalCategory) -> AdminJournalCategoryResponse:

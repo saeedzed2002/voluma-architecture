@@ -17,6 +17,7 @@ from app.models.content import (
     MediaProcessingState,
     Project,
     ProjectBlock,
+    ProjectMedia,
     PublicationState,
     Typology,
 )
@@ -34,6 +35,7 @@ from app.schemas.admin import (
     ProjectBlockType,
     ProjectBlockWriteRequest,
     ProjectCreateRequest,
+    ProjectMediaWriteItem,
     ProjectReorderRequest,
     ProjectUpdateRequest,
     SingleImageBlockPayload,
@@ -69,6 +71,10 @@ class ProjectReorderError(ProjectAdministrationError):
 
 
 class ProjectBlockMediaError(ProjectAdministrationError):
+    pass
+
+
+class ProjectGalleryMediaError(ProjectAdministrationError):
     pass
 
 
@@ -157,6 +163,8 @@ class ProjectAdministrationService:
         self._apply_fields(project, payload)
         self.session.add(project)
         self.session.flush()
+        self._replace_media_items(project, payload.media_items)
+        self._replace_blocks(project, payload.blocks)
         self._validate_publishable(project)
         record_audit_event(
             self.session,
@@ -176,6 +184,8 @@ class ProjectAdministrationService:
         project = self._project_or_raise(project_id, lock=True)
         was_published = project.publication_state == PublicationState.PUBLISHED
         self._apply_fields(project, payload)
+        self._replace_media_items(project, payload.media_items)
+        self._replace_blocks(project, payload.blocks)
         self._validate_publishable(project)
         record_audit_event(
             self.session,
@@ -197,20 +207,7 @@ class ProjectAdministrationService:
     ) -> AdminProjectResponse:
         project = self._project_or_raise(project_id, lock=True)
         was_published = project.publication_state == PublicationState.PUBLISHED
-        self._validate_block_media(self._block_media_ids(payload.blocks))
-        for existing_block in project.blocks:
-            self.session.delete(existing_block)
-        self.session.flush()
-        for display_order, block_request in enumerate(payload.blocks):
-            project.blocks.append(
-                ProjectBlock(
-                    block_type=block_request.block_type,
-                    content_en=block_request.content_en,
-                    content_fa=block_request.content_fa,
-                    display_order=display_order,
-                )
-            )
-        self.session.flush()
+        self._replace_blocks(project, payload.blocks)
         self._validate_publishable(project)
         record_audit_event(
             self.session,
@@ -280,6 +277,7 @@ class ProjectAdministrationService:
             .options(
                 selectinload(Project.blocks),
                 selectinload(Project.disciplines),
+                selectinload(Project.media_links).selectinload(ProjectMedia.media),
                 selectinload(Project.typologies),
             )
         )
@@ -306,6 +304,65 @@ class ProjectAdministrationService:
             project.published_at = _published_at(payload.published_at)
         else:
             project.published_at = None
+
+    def _replace_media_items(
+        self, project: Project, items: list[ProjectMediaWriteItem] | None
+    ) -> None:
+        if items is None:
+            return
+        requested_ids = [item.media_id for item in items]
+        assets = (
+            self.session.scalars(
+                select(MediaAsset).where(MediaAsset.id.in_(requested_ids)).with_for_update()
+            ).all()
+            if requested_ids
+            else []
+        )
+        assets_by_id = {asset.id: asset for asset in assets}
+        if set(assets_by_id) != set(requested_ids):
+            raise ProjectGalleryMediaError("one or more media assets were not found")
+        for asset in assets:
+            if asset.deleted_at is not None:
+                raise ProjectGalleryMediaError("deleted media assets cannot be placed in a project")
+            if project.publication_state == PublicationState.PUBLISHED and (
+                asset.processing_state != MediaProcessingState.READY
+                or not asset.alt_en
+                or not asset.alt_fa
+            ):
+                raise ProjectGalleryMediaError(
+                    "published project media must be ready and have localized alt text"
+                )
+        for link in tuple(project.media_links):
+            self.session.delete(link)
+        self.session.flush()
+        for display_order, item in enumerate(items):
+            project.media_links.append(
+                ProjectMedia(
+                    media=assets_by_id[item.media_id],
+                    display_order=display_order,
+                    is_cover=item.is_cover,
+                )
+            )
+
+    def _replace_blocks(
+        self, project: Project, blocks: list[ProjectBlockWriteRequest] | None
+    ) -> None:
+        if blocks is None:
+            return
+        self._validate_block_media(self._block_media_ids(blocks))
+        for existing_block in project.blocks:
+            self.session.delete(existing_block)
+        self.session.flush()
+        for display_order, block_request in enumerate(blocks):
+            project.blocks.append(
+                ProjectBlock(
+                    block_type=block_request.block_type,
+                    content_en=block_request.content_en,
+                    content_fa=block_request.content_fa,
+                    display_order=display_order,
+                )
+            )
+        self.session.flush()
 
     def _disciplines(self, identifiers: list[UUID]) -> list[Discipline]:
         return _ordered_taxonomy(
@@ -345,6 +402,17 @@ class ProjectAdministrationService:
         for index, image in enumerate(project.gallery_images):
             if not image.get("url") or not image.get("alt_en") or not image.get("alt_fa"):
                 missing.append(f"gallery_images[{index}]")
+        if project.media_links and not any(link.is_cover for link in project.media_links):
+            missing.append("cover_image")
+        for index, link in enumerate(project.media_links):
+            asset = link.media
+            if (
+                asset.deleted_at is not None
+                or asset.processing_state != MediaProcessingState.READY
+                or not asset.alt_en
+                or not asset.alt_fa
+            ):
+                missing.append(f"project_media[{index}]")
         try:
             self._validate_block_media(self._block_media_ids(project.blocks))
         except ProjectBlockMediaError:

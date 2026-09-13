@@ -3,7 +3,7 @@
 /* Direct derivative URLs must be requested from Nginx, not optimized through Next.js. */
 /* eslint-disable @next/next/no-img-element */
 
-import { type DragEvent, useCallback, useEffect, useId, useState } from "react";
+import { type DragEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 
 import {
   getAdminMedia,
@@ -17,13 +17,22 @@ import { useAdminSession } from "./admin-session-provider";
 
 const maxUploadBytes = 50 * 1024 * 1024;
 
+const imageStatus = {
+  deleted: "Removed",
+  failed: "Could not prepare image",
+  processing: "Preparing image…",
+  ready: "Ready",
+} as const;
+
 function MediaPickerCard({
+  allowUnreadySelection,
   asset,
   disabled,
   onSaveMetadata,
   onSelect,
   selected,
 }: {
+  allowUnreadySelection: boolean;
   asset: AdminMediaAsset;
   disabled: boolean;
   onSaveMetadata: (asset: AdminMediaAsset, metadata: MediaAssetMetadataWrite) => Promise<void>;
@@ -52,10 +61,12 @@ function MediaPickerCard({
     }
   };
 
-  const canSelect = asset.processing_state === "ready" && Boolean(asset.alt_en && asset.alt_fa);
+  const canSelect =
+    (allowUnreadySelection && asset.processing_state !== "deleted") ||
+    (asset.processing_state === "ready" && Boolean(asset.alt_en && asset.alt_fa));
 
   return (
-    <article className="admin-media-picker__card">
+    <article className="admin-media-picker__card" data-media-id={asset.id}>
       <div className="admin-media-picker__preview">
         {asset.preview_url ? (
           <img alt={asset.alt_en ?? "Managed media preview"} src={asset.preview_url} />
@@ -64,15 +75,15 @@ function MediaPickerCard({
         )}
       </div>
       <div className="admin-media-picker__heading">
-        <strong>{asset.processing_state}</strong>
-        <code>{asset.id}</code>
+        <strong>{imageStatus[asset.processing_state]}</strong>
       </div>
       {asset.processing_error ? (
         <p className="admin-form__message" role="alert">
           {asset.processing_error}
         </p>
       ) : null}
-      <div className="admin-media-picker__metadata">
+      <details className="admin-media-picker__metadata">
+        <summary>Describe image</summary>
         <label className="admin-editor__field">
           <span>Alt text / EN</span>
           <input
@@ -116,9 +127,9 @@ function MediaPickerCard({
           />
         </label>
         <button disabled={disabled || isSaving} onClick={() => void saveMetadata()} type="button">
-          {isSaving ? "Saving media metadata…" : "Save media metadata"}
+          {isSaving ? "Saving image details…" : "Save image details"}
         </button>
-      </div>
+      </details>
       <button
         disabled={disabled || selected || !canSelect}
         onClick={() => onSelect(asset)}
@@ -127,20 +138,24 @@ function MediaPickerCard({
         {selected
           ? "Selected"
           : canSelect
-            ? "Select image"
-            : "Processing or bilingual alt text required"}
+            ? asset.processing_state === "ready"
+              ? "Select image"
+              : "Add while it prepares"
+            : "Finish image details before selecting"}
       </button>
     </article>
   );
 }
 
 export function AdminMediaPicker({
+  allowUnreadySelection = false,
   disabled = false,
   onAssetUpdated,
   onSelect,
   selectedIds = [],
   title = "Managed images",
 }: {
+  allowUnreadySelection?: boolean;
   disabled?: boolean;
   onAssetUpdated?: (asset: AdminMediaAsset) => void;
   onSelect: (asset: AdminMediaAsset) => void;
@@ -149,6 +164,7 @@ export function AdminMediaPicker({
 }) {
   const { session } = useAdminSession();
   const inputId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [assets, setAssets] = useState<AdminMediaAsset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
@@ -226,6 +242,12 @@ export function AdminMediaPicker({
     if (nextIsOpen) void refresh();
   };
 
+  const openForUpload = () => {
+    if (disabled || isUploading) return;
+    if (!isOpen) setIsOpen(true);
+    window.setTimeout(() => inputRef.current?.click(), 0);
+  };
+
   return (
     <section className="admin-media-picker" aria-label={title}>
       <div className="admin-media-picker__heading">
@@ -237,13 +259,14 @@ export function AdminMediaPicker({
               : "No image selected yet."}
           </p>
         </div>
-        <button
-          disabled={disabled || isUploading}
-          onClick={toggleOpen}
-          type="button"
-        >
-          {isOpen ? "Hide managed images" : "Choose or upload image"}
-        </button>
+        <div className="admin-media-picker__actions">
+          <button disabled={disabled || isUploading} onClick={openForUpload} type="button">
+            {isUploading ? "Uploading photos…" : "Upload photos"}
+          </button>
+          <button disabled={disabled || isUploading} onClick={toggleOpen} type="button">
+            {isOpen ? "Hide images" : "Choose existing"}
+          </button>
+        </div>
       </div>
       {isOpen ? (
         <>
@@ -257,6 +280,7 @@ export function AdminMediaPicker({
               disabled={disabled || isUploading}
               id={inputId}
               multiple
+              ref={inputRef}
               onChange={(event) => {
                 if (event.target.files) void upload(event.target.files);
                 event.currentTarget.value = "";
@@ -264,7 +288,7 @@ export function AdminMediaPicker({
               type="file"
             />
             <label htmlFor={inputId}>
-              {isUploading ? "Uploading images…" : "Drop images here or choose files"}
+              {isUploading ? "Uploading photos…" : "Drop photos here or choose files"}
             </label>
             <small>JPEG, PNG, or WebP — up to 50 MiB per image.</small>
           </div>
@@ -273,7 +297,7 @@ export function AdminMediaPicker({
             onClick={() => void refresh()}
             type="button"
           >
-            Refresh status
+            Check image status
           </button>
           {message ? (
             <p className="admin-form__message" role="status">
@@ -285,6 +309,7 @@ export function AdminMediaPicker({
             <div className="admin-media-picker__grid">
               {assets.map((asset) => (
                 <MediaPickerCard
+                  allowUnreadySelection={allowUnreadySelection}
                   asset={asset}
                   disabled={disabled}
                   key={`${asset.id}-${asset.updated_at}`}
