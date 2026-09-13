@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from os import getenv
+from uuid import UUID
 
 import pytest
 from PIL import Image
@@ -17,6 +18,14 @@ pytestmark = pytest.mark.skipif(
     getenv("VOLUMA_RUN_MEDIA_WORKER_INTEGRATION") != "1",
     reason="requires an explicitly provisioned PostgreSQL, Redis, and Celery worker",
 )
+
+
+def _cleanup_test_media(storage: MediaStorage, media_id: UUID) -> None:
+    storage.remove_media(media_id)
+    with SessionLocal.begin() as session:
+        asset = session.get(MediaAsset, media_id)
+        if asset is not None:
+            session.delete(asset)
 
 
 def test_real_worker_creates_ready_derivatives_through_redis() -> None:
@@ -63,7 +72,7 @@ def test_real_worker_creates_ready_derivatives_through_redis() -> None:
         assert (derivative_directory / "w1024.webp").is_file()
         assert (derivative_directory / "og.webp").is_file()
     finally:
-        storage.remove_media(media_id)
+        _cleanup_test_media(storage, media_id)
 
 
 def test_real_worker_recovers_after_a_transient_missing_source() -> None:
@@ -118,4 +127,4 @@ def test_real_worker_recovers_after_a_transient_missing_source() -> None:
         assert state == MediaProcessingState.READY
         assert attempts >= 2
     finally:
-        storage.remove_media(media_id)
+        _cleanup_test_media(storage, media_id)
