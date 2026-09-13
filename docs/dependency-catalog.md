@@ -117,7 +117,9 @@ The initial locked frontend and backend direct dependencies use the specificatio
 - Scope: CI-only GitHub Actions; no production application dependency or lockfile changed.
 - Packages/actions: `gitleaks/gitleaks-action` pinned to commit
   `e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e` (documented `v3`),
-  `aquasecurity/trivy-action==v0.36.0`, and
+  `aquasecurity/setup-trivy` pinned to commit
+  `3fb12ec12f41e471780db15c232d5dd185dcb514` (documented `v0.2.6`), which
+  installs exact `Trivy v0.70.0`, and
   `actions/dependency-review-action==v4`.
 - Reason: the approved Phase 6 quality gates require a history secret scan, dependency
   review/audit, and high/critical OS-plus-library container image scan in addition to

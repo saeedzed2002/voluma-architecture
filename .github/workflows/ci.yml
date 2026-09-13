@@ -222,38 +222,24 @@ jobs:
           VOLUMA_SMOKE_ALLOW_INSECURE_TLS: "1"
         run: sh infra/scripts/release-smoke.sh
 
-      - name: Scan API image for high and critical vulnerabilities
-        uses: aquasecurity/trivy-action@v0.36.0
-        env:
-          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
+      - name: Set up the pinned Trivy scanner once
+        uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514
         with:
-          image-ref: voluma-api:ci
-          exit-code: "1"
-          ignore-unfixed: true
-          severity: HIGH,CRITICAL
-          vuln-type: os,library
+          version: v0.70.0
+          cache: true
 
-      - name: Scan frontend image for high and critical vulnerabilities
-        uses: aquasecurity/trivy-action@v0.36.0
+      - name: Scan API, frontend, and Nginx images for high and critical vulnerabilities
         env:
           TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
-        with:
-          image-ref: voluma-frontend:ci
-          exit-code: "1"
-          ignore-unfixed: true
-          severity: HIGH,CRITICAL
-          vuln-type: os,library
-
-      - name: Scan Nginx image for high and critical vulnerabilities
-        uses: aquasecurity/trivy-action@v0.36.0
-        env:
-          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
-        with:
-          image-ref: voluma-nginx:ci
-          exit-code: "1"
-          ignore-unfixed: true
-          severity: HIGH,CRITICAL
-          vuln-type: os,library
+        run: |
+          for image in voluma-api:ci voluma-frontend:ci voluma-nginx:ci; do
+            trivy image \
+              --exit-code 1 \
+              --ignore-unfixed \
+              --severity HIGH,CRITICAL \
+              --pkg-types os,library \
+              "$image"
+          done
 
       - name: Print Compose logs after a failure
         if: failure()
