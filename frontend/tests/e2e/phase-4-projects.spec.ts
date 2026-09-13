@@ -38,7 +38,7 @@ test("administrator creates, publishes, and renders a bilingual project block", 
 
   await expect(page).toHaveURL(/\/admin\/projects\/[^/]+\/edit$/);
   await page.getByRole("tab", { name: "Story" }).click();
-  await page.getByRole("button", { name: "Add text block" }).click();
+  await page.getByRole("button", { name: /Text\s+Write the next passage/ }).click();
   await page.getByLabel("Text body / EN").fill("A measured sequence of light and shadow.");
   await page.getByLabel("Text body / FA").fill("توالی سنجیده‌ای از نور و سایه.");
   await page.getByRole("tab", { name: "Publish" }).click();

@@ -88,6 +88,19 @@ const tabLabels: Record<Tab, string> = {
   Publishing: "Publish",
 };
 
+const projectSectionDetails = {
+  text: { description: "A paragraph or longer passage in both languages.", title: "Text" },
+  quote: { description: "A short statement that deserves its own emphasis.", title: "Quote" },
+  single_image: { description: "A visual moment between passages.", title: "Image" },
+  full_width_image: { description: "A wide image that fills the page.", title: "Wide image" },
+  image_text: {
+    description: "A smaller image with its related copy beside it.",
+    title: "Image with text",
+  },
+  paired_image: { description: "Two images shown together.", title: "Two images" },
+  gallery: { description: "A sequence of related images.", title: "Image group" },
+} as const;
+
 const blankForm: ProjectFormState = {
   architect_en: "",
   architect_fa: "",
@@ -327,14 +340,56 @@ function ProjectBlocksEditor({
     onChange(blocks.map((block, current) => (current === index ? nextBlock : block)));
   };
 
+  const move = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= blocks.length) return;
+    const nextBlocks = [...blocks];
+    [nextBlocks[index], nextBlocks[targetIndex]] = [nextBlocks[targetIndex], nextBlocks[index]];
+    onChange(nextBlocks);
+  };
+
+  const add = (block: ProjectBlockWrite) => onChange([...blocks, block]);
+
   return (
     <div className="admin-block-editor">
       <p>
-        Build the page in reading order. Add a text section, an image, or image and text; every
-        change is saved with the project.
+        Start with the project images, then add each part in the order visitors should see it.
+        Everything saves together with the project.
       </p>
       {blocks.map((block, index) => (
         <article className="admin-block-editor__block" key={`${block.block_type}-${index}`}>
+          <header className="admin-block-editor__section-heading">
+            <div>
+              <p>Section {index + 1}</p>
+              <h3>{projectSectionDetails[block.block_type].title}</h3>
+              <span>{projectSectionDetails[block.block_type].description}</span>
+            </div>
+            <div className="admin-block-editor__section-actions">
+              <button
+                aria-label={`Move section ${index + 1} earlier`}
+                disabled={disabled || index === 0}
+                onClick={() => move(index, -1)}
+                type="button"
+              >
+                Move earlier
+              </button>
+              <button
+                aria-label={`Move section ${index + 1} later`}
+                disabled={disabled || index === blocks.length - 1}
+                onClick={() => move(index, 1)}
+                type="button"
+              >
+                Move later
+              </button>
+              <button
+                disabled={disabled}
+                onClick={() => onChange(blocks.filter((_, current) => current !== index))}
+                type="button"
+              >
+                Remove section
+              </button>
+            </div>
+          </header>
           {block.block_type === "text" ? (
             <EditorialTextFields
               contentEn={block.content_en}
@@ -536,120 +591,103 @@ function ProjectBlocksEditor({
               ) : null}
             </>
           ) : null}
-          <button
-            disabled={disabled}
-            onClick={() => onChange(blocks.filter((_, current) => current !== index))}
-            type="button"
-          >
-            Remove block
-          </button>
         </article>
       ))}
-      <div className="admin-projects__toolbar">
-        <button
-          disabled={disabled}
-          onClick={() =>
-            onChange([
-              ...blocks,
-              { block_type: "text", content_en: { body: "" }, content_fa: { body: "" } },
-            ])
-          }
-          type="button"
-        >
-          Add text block
-        </button>
-        <button
-          disabled={disabled}
-          onClick={() =>
-            onChange([
-              ...blocks,
-              { block_type: "quote", content_en: { quote: "" }, content_fa: { quote: "" } },
-            ])
-          }
-          type="button"
-        >
-          Add quote block
-        </button>
-        <button
-          disabled={disabled}
-          onClick={() =>
-            onChange([
-              ...blocks,
-              {
+      <div className="admin-block-editor__add">
+        <p>What would you like to add next?</p>
+        <div>
+          <button
+            disabled={disabled}
+            onClick={() =>
+              add({ block_type: "text", content_en: { body: "" }, content_fa: { body: "" } })
+            }
+            type="button"
+          >
+            <strong>Text</strong>
+            <span>Write the next passage.</span>
+          </button>
+          <button
+            disabled={disabled}
+            onClick={() =>
+              add({
                 block_type: "single_image",
                 content_en: { media_id: "" },
                 content_fa: { media_id: "" },
-              },
-            ])
-          }
-          type="button"
-        >
-          Add image block
-        </button>
-        <button
-          disabled={disabled}
-          onClick={() =>
-            onChange([
-              ...blocks,
-              {
-                block_type: "full_width_image",
-                content_en: { media_id: "" },
-                content_fa: { media_id: "" },
-              },
-            ])
-          }
-          type="button"
-        >
-          Add full-width image
-        </button>
-        <button
-          disabled={disabled}
-          onClick={() =>
-            onChange([
-              ...blocks,
-              {
+              })
+            }
+            type="button"
+          >
+            <strong>Image</strong>
+            <span>Place a visual between passages.</span>
+          </button>
+          <button
+            disabled={disabled}
+            onClick={() =>
+              add({
                 block_type: "image_text",
                 content_en: { body: "", media_id: "" },
                 content_fa: { body: "", media_id: "" },
-              },
-            ])
-          }
-          type="button"
-        >
-          Add image + text block
-        </button>
-        <button
-          disabled={disabled}
-          onClick={() =>
-            onChange([
-              ...blocks,
-              {
-                block_type: "paired_image",
-                content_en: { left_media_id: "", right_media_id: "" },
-                content_fa: { left_media_id: "", right_media_id: "" },
-              },
-            ])
-          }
-          type="button"
-        >
-          Add paired images
-        </button>
-        <button
-          disabled={disabled}
-          onClick={() =>
-            onChange([
-              ...blocks,
-              {
-                block_type: "gallery",
-                content_en: { media_ids: [] },
-                content_fa: { media_ids: [] },
-              },
-            ])
-          }
-          type="button"
-        >
-          Add gallery block
-        </button>
+              })
+            }
+            type="button"
+          >
+            <strong>Image with text</strong>
+            <span>Pair a smaller image with its copy.</span>
+          </button>
+        </div>
+        <details className="admin-block-editor__more">
+          <summary>More image layouts</summary>
+          <div>
+            <button
+              disabled={disabled}
+              onClick={() =>
+                add({ block_type: "quote", content_en: { quote: "" }, content_fa: { quote: "" } })
+              }
+              type="button"
+            >
+              Quote
+            </button>
+            <button
+              disabled={disabled}
+              onClick={() =>
+                add({
+                  block_type: "full_width_image",
+                  content_en: { media_id: "" },
+                  content_fa: { media_id: "" },
+                })
+              }
+              type="button"
+            >
+              Wide image
+            </button>
+            <button
+              disabled={disabled}
+              onClick={() =>
+                add({
+                  block_type: "paired_image",
+                  content_en: { left_media_id: "", right_media_id: "" },
+                  content_fa: { left_media_id: "", right_media_id: "" },
+                })
+              }
+              type="button"
+            >
+              Two images
+            </button>
+            <button
+              disabled={disabled}
+              onClick={() =>
+                add({
+                  block_type: "gallery",
+                  content_en: { media_ids: [] },
+                  content_fa: { media_ids: [] },
+                })
+              }
+              type="button"
+            >
+              Image group
+            </button>
+          </div>
+        </details>
       </div>
     </div>
   );

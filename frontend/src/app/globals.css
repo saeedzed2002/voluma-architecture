@@ -3305,6 +3305,26 @@ html[lang="fa"] .journal-article__header h1 {
   line-height: 1.4;
 }
 
+.admin-block-editor__more {
+  border-block-start: 1px solid #353835;
+  display: grid;
+  gap: 0.75rem;
+  padding-block-start: 0.9rem;
+}
+
+.admin-block-editor__more summary {
+  color: #a8ada8;
+  cursor: pointer;
+  font-size: 0.85rem;
+  width: fit-content;
+}
+
+.admin-block-editor__more > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .admin-journal-image-block {
   display: grid;
   gap: 1rem;
