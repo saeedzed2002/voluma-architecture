@@ -57,9 +57,9 @@ test("administrator publishes people and recognition that render on the public s
   await page.getByLabel("Role / FA").fill("معمار");
   const portraitPicker = page.getByLabel("Portrait");
   await portraitPicker.getByRole("button", { name: "Choose existing" }).click();
-  const portraitPickerCard = portraitPicker
-    .locator(".admin-media-picker__card")
-    .filter({ hasText: portraitId });
+  const portraitPickerCard = portraitPicker.locator(
+    `.admin-media-picker__card[data-media-id="${portraitId}"]`,
+  );
   await expect(portraitPickerCard).toHaveCount(1, { timeout: 15_000 });
   await expect(portraitPickerCard.getByText("ready", { exact: true })).toBeVisible();
   await portraitPickerCard.getByRole("button", { name: "Select image" }).click();
