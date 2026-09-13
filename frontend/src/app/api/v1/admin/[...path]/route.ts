@@ -57,6 +57,12 @@ async function proxyAdminRequest(
       const value = backendResponse.headers.get(header);
       if (value !== null) responseHeaders.set(header, value);
     }
+    if (backendResponse.status === 204 || backendResponse.status === 304) {
+      return new NextResponse(null, {
+        headers: responseHeaders,
+        status: backendResponse.status,
+      });
+    }
     return new NextResponse(await backendResponse.arrayBuffer(), {
       headers: responseHeaders,
       status: backendResponse.status,

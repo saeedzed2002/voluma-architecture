@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { POST } from "./route";
+import { DELETE, POST } from "./route";
 
 describe("administrator BFF", () => {
   afterEach(() => {
@@ -40,5 +40,25 @@ describe("administrator BFF", () => {
     expect((forwarded.init?.headers as Headers).get("content-type")).toBeNull();
     expect(forwarded.init?.body).toBeInstanceOf(FormData);
     expect((forwarded.init?.body as FormData).get("file")).toBeInstanceOf(Blob);
+  });
+
+  it("preserves an empty successful mutation response", async () => {
+    const upstream: typeof fetch = async () => new Response(null, { status: 204 });
+    vi.stubGlobal("fetch", upstream);
+
+    const request = new NextRequest("https://voluma.example/api/v1/admin/projects/project-id", {
+      headers: {
+        origin: "https://voluma.example",
+        "x-voluma-csrf": "csrf-token",
+      },
+      method: "DELETE",
+    });
+
+    const response = await DELETE(request, {
+      params: Promise.resolve({ path: ["projects", "project-id"] }),
+    });
+
+    expect(response.status).toBe(204);
+    expect(await response.text()).toBe("");
   });
 });
