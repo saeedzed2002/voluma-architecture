@@ -185,9 +185,11 @@ class MediaStorage:
             lock_file.seek(0)
             try:
                 if os.name == "nt":
-                    import msvcrt
+                    msvcrt = import_module("msvcrt")
 
-                    msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+                    locking = getattr(msvcrt, "locking")  # noqa: B009
+                    lock_nonblocking = int(getattr(msvcrt, "LK_NBLCK"))  # noqa: B009
+                    locking(lock_file.fileno(), lock_nonblocking, 1)
                 else:
                     fcntl = import_module("fcntl")
 
@@ -204,9 +206,11 @@ class MediaStorage:
             finally:
                 lock_file.seek(0)
                 if os.name == "nt":
-                    import msvcrt
+                    msvcrt = import_module("msvcrt")
 
-                    msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+                    locking = getattr(msvcrt, "locking")  # noqa: B009
+                    lock_unlocked = int(getattr(msvcrt, "LK_UNLCK"))  # noqa: B009
+                    locking(lock_file.fileno(), lock_unlocked, 1)
                 else:
                     fcntl = import_module("fcntl")
 
