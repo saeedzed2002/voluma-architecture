@@ -46,7 +46,7 @@ test("administrator publishes people and recognition that render on the public s
   await expect(portraitCard.getByText("ready", { exact: true })).toBeVisible({ timeout: 15_000 });
   await portraitCard.getByLabel("Alt text / EN").fill("Portrait of a studio member");
   await portraitCard.getByLabel("Alt text / FA").fill("پرترهٔ عضو استودیو");
-  await portraitCard.getByRole("button", { name: "Save image details" }).click();
+  await portraitCard.getByRole("button", { name: "Save metadata" }).click();
 
   await page.getByRole("link", { name: "People" }).click();
   await page.getByRole("button", { name: "Create draft" }).click();
