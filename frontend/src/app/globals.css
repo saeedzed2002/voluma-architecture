@@ -3717,6 +3717,58 @@ html[lang="fa"] .journal-article__header h1 {
   padding-block-start: 0;
 }
 
+.admin-settings__home-sections {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-settings__home-section {
+  border: 1px solid #353835;
+  padding: 0;
+}
+
+.admin-settings__home-section > summary {
+  align-items: center;
+  cursor: pointer;
+  display: grid;
+  gap: 0.25rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  list-style: none;
+  padding: 1rem 1.1rem;
+}
+
+.admin-settings__home-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-settings__home-section > summary::after {
+  color: #a8ada8;
+  content: "+";
+  font-size: 1.35rem;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.admin-settings__home-section[open] > summary::after {
+  content: "−";
+}
+
+.admin-settings__home-section > summary strong {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.admin-settings__home-section > summary span {
+  color: #a8ada8;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.admin-settings__home-section > .admin-editor__grid {
+  border-block-start: 1px solid #353835;
+  padding: 1.1rem;
+}
+
 .admin-settings__collection {
   border-block-start: 1px solid #353835;
   display: grid;
