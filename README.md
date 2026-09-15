@@ -169,7 +169,9 @@ Production uses valid TLS, exposes only Nginx ports `80` and `443`, and never re
 development fixtures or source bind mounts. The base-image provenance is recorded in
 [`docs/runbooks/image-provenance.md`](docs/runbooks/image-provenance.md).
 
-## License status
+## License
 
-The codebase is private and unlicensed for redistribution until the owner explicitly
-adopts a license. See ADR `0003`.
+This repository is licensed under the [MIT License](LICENSE). The MIT License applies
+to the original project work; third-party assets and fonts remain subject to their own
+licenses, including the font-license notices under
+[`frontend/src/app/fonts/licenses/`](frontend/src/app/fonts/licenses/).
