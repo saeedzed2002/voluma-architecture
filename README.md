@@ -1,6 +1,6 @@
 # VOLUMA — Architecture & Design
 
-VOLUMA is a premium bilingual architecture-studio website, editorial project archive,
+VOLUMA is a bilingual architecture-studio website, editorial project archive,
 journal, and lightweight content-management system. It is designed as a single
 application with a Next.js public/admin frontend and a FastAPI content/media backend.
 
