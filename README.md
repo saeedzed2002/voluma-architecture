@@ -6,6 +6,14 @@ application with a Next.js public/admin frontend and a FastAPI content/media bac
 
 [![Continuous integration](https://github.com/saeedzed2002/voluma-architecture/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/saeedzed2002/voluma-architecture/actions/workflows/ci.yml?query=branch%3Amain)
 
+## Screenshots
+
+![VOLUMA homepage](docs/screenshots/home.png)
+
+![Project archive](docs/screenshots/projects.png)
+
+![Project detail](docs/screenshots/project-detail.png)
+
 The complete source of truth is
 [`docs/product/VOLUMA_PROJECT_SPECIFICATION_FINAL.md`](docs/product/VOLUMA_PROJECT_SPECIFICATION_FINAL.md).
 It defines scope, design direction, architecture, security constraints, exact version
