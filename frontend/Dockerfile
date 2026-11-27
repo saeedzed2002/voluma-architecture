@@ -36,7 +36,7 @@ RUN rm -rf /usr/local/lib/node_modules/npm \
     /usr/local/bin/npx \
     && apt-get update \
     && apt-get install --no-install-recommends --only-upgrade \
-        "libpcre2-8-0=10.42-1+deb12u1" \
+        "libpcre2-8-0=10.42-1+deb12u2" \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --gid 10001 --system voluma \

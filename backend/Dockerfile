@@ -34,7 +34,7 @@ RUN groupadd --gid 10001 --system voluma \
     && useradd --uid 10001 --gid voluma --system --no-create-home voluma \
     && apt-get update \
     && apt-get install --no-install-recommends --only-upgrade \
-        "libpcre2-8-0=10.42-1+deb12u1" \
+        "libpcre2-8-0=10.42-1+deb12u2" \
     && install --directory --owner=voluma --group=voluma --mode=0750 /var/lib/voluma-media \
     && rm -rf /usr/local/lib/python3.14/ensurepip \
         /usr/local/lib/python3.14/site-packages/pip \

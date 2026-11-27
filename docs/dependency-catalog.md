@@ -207,3 +207,7 @@ The frontend pins `next` and `eslint-config-next` to `16.4.6`, and `zod` to
 `source-map-js` to `1.2.4` for the affected transitive PostCSS dependency. The
 production dependency audit must remain enabled in CI; the preceding entries
 record the earlier dependency decisions and versions in effect at the time.
+
+The runtime images now pin `libpcre2-8-0` to Debian security version
+`10.42-1+deb12u2`, which replaced `10.42-1+deb12u1` in the current security
+repository. Both runtime images must be rebuilt and scanned after this change.
