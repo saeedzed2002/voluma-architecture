@@ -199,3 +199,11 @@ The initial locked frontend and backend direct dependencies use the specificatio
 - Validation and rollback: the frozen install and ESLint 10 run must pass. Remove the
   compatibility layer after all plugins in the matching Next.js preset publish native
   ESLint 10 rule-API support and the full lint suite remains green.
+
+## Frontend security update (2026-11-27)
+
+The frontend pins `next` and `eslint-config-next` to `16.4.6`, and `zod` to
+`4.6.7`, to address newly disclosed vulnerabilities. The pnpm workspace overrides
+`source-map-js` to `1.2.4` for the affected transitive PostCSS dependency. The
+production dependency audit must remain enabled in CI; the preceding entries
+record the earlier dependency decisions and versions in effect at the time.

@@ -1,6 +1,9 @@
 engineStrict: true
 autoInstallPeers: false
 
+overrides:
+  source-map-js: 1.2.4
+
 peerDependencyRules:
   allowedVersions:
     "eslint-plugin-import@2.32.0>eslint": "10.9.1"

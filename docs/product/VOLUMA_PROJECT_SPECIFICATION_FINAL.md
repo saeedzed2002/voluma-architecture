@@ -507,7 +507,7 @@ This is a reproducibility baseline, not permission to use floating versions. Pin
 
 | Package | Exact version | Role |
 | --- | --- | --- |
-| next | 16.3.4 | App Router framework |
+| next | 16.4.6 | App Router framework |
 | react | 19.2.8 | UI runtime |
 | react-dom | 19.2.8 | DOM/server renderer |
 | typescript | 7.0.2 | Type checking |
@@ -517,7 +517,7 @@ This is a reproducibility baseline, not permission to use floating versions. Pin
 | next-intl | 4.14.2 | Locale routing and messages |
 | react-hook-form | 7.87.0 | Admin/contact form state and validation integration |
 | @hookform/resolvers | 5.9.1 | React Hook Form schema resolver |
-| zod | 4.5.4 | Frontend schema validation |
+| zod | 4.6.7 | Frontend schema validation |
 | eslint | 10.9.1 | Static analysis |
 | prettier | 3.9.6 | Deterministic formatting |
 | vitest | 4.1.11 | Frontend unit/component tests |
