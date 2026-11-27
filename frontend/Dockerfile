@@ -35,7 +35,7 @@ RUN rm -rf /usr/local/lib/node_modules/npm \
     /usr/local/bin/npm \
     /usr/local/bin/npx \
     && apt-get update \
-    && apt-get install --no-install-recommends --only-upgrade \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends --only-upgrade \
         "libpcre2-8-0=10.42-1+deb12u2" \
         "apt=2.6.2" "libapt-pkg6.0=2.6.2" \
         "libpam-modules=1.5.2-6+deb12u3" "libpam-modules-bin=1.5.2-6+deb12u3" \
