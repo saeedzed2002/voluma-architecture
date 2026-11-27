@@ -211,3 +211,7 @@ record the earlier dependency decisions and versions in effect at the time.
 The runtime images now pin `libpcre2-8-0` to Debian security version
 `10.42-1+deb12u2`, which replaced `10.42-1+deb12u1` in the current security
 repository. Both runtime images must be rebuilt and scanned after this change.
+
+The same scan requires patched `apt`, PAM, OpenSSL, and Perl packages in the
+Debian runtime images, as well as `pillow==13.0.0`, `certifi==2026.11.20`,
+`dnspython==2.9.2`, and `urllib3==2.8.0` in the Python dependency lock.

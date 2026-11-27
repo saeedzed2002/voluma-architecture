@@ -35,6 +35,11 @@ RUN groupadd --gid 10001 --system voluma \
     && apt-get update \
     && apt-get install --no-install-recommends --only-upgrade \
         "libpcre2-8-0=10.42-1+deb12u2" \
+        "apt=2.6.2" "libapt-pkg6.0=2.6.2" \
+        "libpam-modules=1.5.2-6+deb12u3" "libpam-modules-bin=1.5.2-6+deb12u3" \
+        "libpam-runtime=1.5.2-6+deb12u3" "libpam0g=1.5.2-6+deb12u3" \
+        "libssl3=3.0.22-1~deb12u2" "openssl=3.0.22-1~deb12u2" \
+        "perl-base=5.36.0-7+deb12u4" \
     && install --directory --owner=voluma --group=voluma --mode=0750 /var/lib/voluma-media \
     && rm -rf /usr/local/lib/python3.14/ensurepip \
         /usr/local/lib/python3.14/site-packages/pip \

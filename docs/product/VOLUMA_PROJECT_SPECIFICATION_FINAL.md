@@ -541,7 +541,7 @@ Use pnpm 11.25.0, enable Corepack where provided by the Node 24.20.0 toolchain, 
 | pwdlib[argon2] | 0.3.1 | Argon2id password hashing |
 | redis[hiredis] | 6.4.0 | Redis client compatible with the Celery/Kombu Redis transport constraint |
 | celery[redis] | 5.6.3 | Asynchronous image tasks using Redis broker only |
-| pillow | 12.3.0 | Image decode/transform |
+| pillow | 13.0.0 | Image decode/transform |
 | pillow-avif-plugin | 1.6.0 | AVIF output support |
 | email-validator | 2.3.0 | Email-address validation |
 | pytest | 9.1.1 | Backend test runner |
