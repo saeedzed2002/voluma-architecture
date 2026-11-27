@@ -499,7 +499,7 @@ This is a reproducibility baseline, not permission to use floating versions. Pin
 | Docker Compose (development baseline) | 5.4.0 |
 | PostgreSQL official image | postgres:18.6, then pin the tested platform digest |
 | Redis official image | redis:8.10.1, then pin the tested platform digest |
-| Nginx stable official image | nginx:1.30.4-alpine, then pin the tested platform digest |
+| Nginx stable official image | nginx:1.30.7-alpine-slim, pinned by multi-platform digest |
 | Node build image | node:24.20.0-bookworm-slim, then pin the tested platform digest |
 | Python API/worker image | python:3.14.7-slim-bookworm, then pin the tested platform digest |
 

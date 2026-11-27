@@ -215,3 +215,8 @@ repository. Both runtime images must be rebuilt and scanned after this change.
 The same scan requires patched `apt`, PAM, OpenSSL, and Perl packages in the
 Debian runtime images, as well as `pillow==13.0.0`, `certifi==2026.11.20`,
 `dnspython==2.9.2`, and `urllib3==2.8.0` in the Python dependency lock.
+
+The Nginx runtime uses the official `nginx:1.30.7-alpine-slim` multi-platform
+digest `sha256:8c950211a641ec5b23f265450517001f6bcca533666120ebe36cb4cff3d00a55`.
+Its amd64 image contains `nginx-1.30.7-r1`, `musl-1.2.6-r3`, `pcre2-10.49-r0`,
+and `zlib-1.3.2-r1`, addressing the findings in the previous image scan.
